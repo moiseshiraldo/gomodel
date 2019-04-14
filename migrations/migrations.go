@@ -25,16 +25,11 @@ type MigrationInfo struct {
 func (m *MigrationInfo) Save() error {
 	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
-		return fmt.Errorf(
-			"%s: save failed: %v", m.App, err,
-		)
+		return fmt.Errorf("%s: save failed: %v", m.App, err)
 	}
 	fp := filepath.Join(m.Path, m.Name+".json")
-	err = ioutil.WriteFile(fp, data, 0644)
-	if err != nil {
-		return fmt.Errorf(
-			"%s: save failed: %v", m.App, err,
-		)
+	if err := ioutil.WriteFile(fp, data, 0644); err != nil {
+		return fmt.Errorf("%s: save failed: %v", m.App, err)
 	}
 	return nil
 }
@@ -43,15 +38,10 @@ func (m *MigrationInfo) Load() error {
 	fp := filepath.Join(m.Path, m.Name+".json")
 	data, err := ioutil.ReadFile(fp)
 	if err != nil {
-		return fmt.Errorf(
-			"load failed: %v", err,
-		)
+		return fmt.Errorf("load failed: %v", err)
 	}
-	err = json.Unmarshal(data, m)
-	if err != nil {
-		return fmt.Errorf(
-			"load failed: %v", err,
-		)
+	if err := json.Unmarshal(data, m); err != nil {
+		return fmt.Errorf("load failed: %v", err)
 	}
 	return nil
 }
@@ -64,21 +54,15 @@ func Make(appName string) ([]*MigrationInfo, error) {
 			"gomodels: makemigrations: %s: app doesn't exist", appName,
 		)
 	}
-	err := loadHistory()
-	if err != nil {
-		return migrations, fmt.Errorf(
-			"gomodels: makemigrations: %v", err,
-		)
+	if err := loadHistory(); err != nil {
+		return migrations, fmt.Errorf("gomodels: makemigrations: %v", err)
 	}
 	for _, model := range app.Models() {
 		migrations = append(migrations, getModelChanges(model)...)
 	}
 	for _, m := range migrations {
-		err := m.Save()
-		if err != nil {
-			return migrations, fmt.Errorf(
-				"gomodels: makemigrations: %v", err,
-			)
+		if err := m.Save(); err != nil {
+			return migrations, fmt.Errorf("gomodels: makemigrations: %v", err)
 		}
 	}
 	return migrations, nil

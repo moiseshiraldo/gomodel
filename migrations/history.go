@@ -27,9 +27,7 @@ func loadHistory() error {
 		dir := filepath.Join(app.FullPath(), MigrationsDir)
 		files, err := ioutil.ReadDir(dir)
 		if err != nil {
-			return fmt.Errorf(
-				"load history failed: %v", err,
-			)
+			return fmt.Errorf("load history failed: %v", err)
 		}
 		for _, file := range files {
 			if !mFileRe.MatchString(file.Name()) {
@@ -42,14 +40,10 @@ func loadHistory() error {
 				Name: name,
 				Path: dir,
 			}
-			err := m.Load()
-			if err != nil {
-				return fmt.Errorf(
-					"load history failed: %v", err,
-				)
+			if err := m.Load(); err != nil {
+				return fmt.Errorf("load history failed: %v", err)
 			}
 			state.migrations = append(state.migrations, m)
-			fmt.Printf("%+v\n", m)
 		}
 	}
 	return nil
