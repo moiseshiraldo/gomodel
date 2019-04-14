@@ -6,7 +6,9 @@ import (
 	"github.com/moiseshiraldo/gomodels"
 	"io/ioutil"
 	"path/filepath"
+	"reflect"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -20,18 +22,35 @@ type MigrationInfo struct {
 	Operations   []Operation
 }
 
-func (m *MigrationInfo) Write() error {
+func (m *MigrationInfo) Save() error {
 	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
 		return fmt.Errorf(
-			"%s: write failed: %v", m.App, err,
+			"%s: save failed: %v", m.App, err,
 		)
 	}
 	fp := filepath.Join(m.Path, m.Name+".json")
 	err = ioutil.WriteFile(fp, data, 0644)
 	if err != nil {
 		return fmt.Errorf(
-			"%s: write failed: %v", m.App, err,
+			"%s: save failed: %v", m.App, err,
+		)
+	}
+	return nil
+}
+
+func (m *MigrationInfo) Load() error {
+	fp := filepath.Join(m.Path, m.Name+".json")
+	data, err := ioutil.ReadFile(fp)
+	if err != nil {
+		return fmt.Errorf(
+			"load failed: %v", err,
+		)
+	}
+	err = json.Unmarshal(data, m)
+	if err != nil {
+		return fmt.Errorf(
+			"load failed: %v", err,
 		)
 	}
 	return nil
@@ -55,7 +74,7 @@ func Make(appName string) ([]*MigrationInfo, error) {
 		migrations = append(migrations, getModelChanges(model)...)
 	}
 	for _, m := range migrations {
-		err := m.Write()
+		err := m.Save()
 		if err != nil {
 			return migrations, fmt.Errorf(
 				"gomodels: makemigrations: %v", err,
@@ -75,11 +94,12 @@ func getModelChanges(model *gomodels.Model) []*MigrationInfo {
 	operation := Operation{
 		CreateModel: CreateModel{
 			Name:   model.Name(),
-			Fields: make(map[string]FieldDesc),
+			Fields: make(map[string]FieldOptions),
 		},
 	}
 	for fieldName, field := range model.Fields() {
-		operation.CreateModel.Fields[fieldName] = FieldDesc{
+		operation.CreateModel.Fields[fieldName] = FieldOptions{
+			Type:    strings.Split(reflect.ValueOf(field).Type().String(), ".")[1],
 			Options: field,
 		}
 	}
@@ -90,10 +110,11 @@ func getModelChanges(model *gomodels.Model) []*MigrationInfo {
 
 func getNextMigrationName(app string) (name string, err error) {
 	appHistory := history[app]
-	if appHistory.lastMigration == "" {
+	if len(appHistory.migrations) == 0 {
 		return "0001_initial", nil
 	}
-	number, _ := strconv.Atoi(appHistory.lastMigration[:4])
+	lastMigration := appHistory.migrations[len(appHistory.migrations)-1]
+	number, _ := strconv.Atoi(lastMigration.Name[:4])
 	timestamp := time.Now().Format("20060102_1504")
 	return fmt.Sprintf("%04d_auto_%s", number+1, timestamp), nil
 }

@@ -2,9 +2,8 @@ package migrations
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/moiseshiraldo/gomodels"
-	"reflect"
-	"strings"
 )
 
 type Operation struct {
@@ -13,16 +12,47 @@ type Operation struct {
 
 type CreateModel struct {
 	Name   string
-	Fields map[string]FieldDesc
+	Fields map[string]FieldOptions
 }
 
-type FieldDesc struct {
+type FieldOptions struct {
+	Type    string
 	Options gomodels.Field
 }
 
-func (f FieldDesc) MarshalJSON() ([]byte, error) {
-	data := make(map[string]gomodels.Field)
-	name := strings.Split(reflect.ValueOf(f.Options).Type().String(), ".")[1]
-	data[name] = f.Options
-	return json.Marshal(data)
+func (f *FieldOptions) UnmarshalJSON(data []byte) error {
+	obj := struct {
+		Type    string
+		Options json.RawMessage
+	}{}
+	err := json.Unmarshal(data, &obj)
+	if err != nil {
+		return err
+	}
+	f.Type = obj.Type
+	switch obj.Type {
+	case "IntegerField":
+		field := gomodels.IntegerField{}
+		err = json.Unmarshal(obj.Options, &field)
+		f.Options = field
+	case "CharField":
+		field := gomodels.CharField{}
+		err = json.Unmarshal(obj.Options, &field)
+		f.Options = field
+	case "BooleanField":
+		field := gomodels.BooleanField{}
+		err = json.Unmarshal(obj.Options, &field)
+		f.Options = field
+	case "AutoField":
+		field := gomodels.AutoField{}
+		err = json.Unmarshal(obj.Options, &field)
+		f.Options = field
+	default:
+		return fmt.Errorf("invalid field type: %s", obj.Type)
+	}
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%T\n", f.Options)
+	return nil
 }
