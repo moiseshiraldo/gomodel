@@ -30,29 +30,13 @@ func (f *FieldOptions) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	f.Type = obj.Type
-	switch obj.Type {
-	case "IntegerField":
-		field := gomodels.IntegerField{}
-		err = json.Unmarshal(obj.Options, &field)
-		f.Options = field
-	case "CharField":
-		field := gomodels.CharField{}
-		err = json.Unmarshal(obj.Options, &field)
-		f.Options = field
-	case "BooleanField":
-		field := gomodels.BooleanField{}
-		err = json.Unmarshal(obj.Options, &field)
-		f.Options = field
-	case "AutoField":
-		field := gomodels.AutoField{}
-		err = json.Unmarshal(obj.Options, &field)
-		f.Options = field
-	default:
+	native, ok := gomodels.AvailableFields()[obj.Type]
+	if !ok {
 		return fmt.Errorf("invalid field type: %s", obj.Type)
 	}
+	f.Options, err = native.FromJson(obj.Options)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%T\n", f.Options)
 	return nil
 }

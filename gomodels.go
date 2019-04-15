@@ -2,6 +2,7 @@ package gomodels
 
 type Field interface {
 	IsPk() bool
+	FromJson(raw []byte) (Field, error)
 }
 
 type Fields map[string]Field
@@ -27,4 +28,13 @@ func (m Model) Fields() Fields {
 
 func New(name string, fields Fields) *Model {
 	return &Model{name: name, fields: fields}
+}
+
+func AvailableFields() map[string]Field {
+	return map[string]Field{
+		"IntegerField": IntegerField{},
+		"AutoField":    AutoField{},
+		"BooleanField": BooleanField{},
+		"CharField":    CharField{},
+	}
 }

@@ -1,5 +1,7 @@
 package gomodels
 
+import "encoding/json"
+
 type CharChoice struct {
 	Value string
 	Label string
@@ -21,6 +23,11 @@ func (f CharField) IsPk() bool {
 	return f.PrimaryKey
 }
 
+func (f CharField) FromJson(raw []byte) (Field, error) {
+	err := json.Unmarshal(raw, &f)
+	return f, err
+}
+
 type BooleanField struct {
 	Null    bool   `json:",omitempty"`
 	Blank   bool   `json:",omitempty"`
@@ -31,6 +38,11 @@ type BooleanField struct {
 
 func (f BooleanField) IsPk() bool {
 	return false
+}
+
+func (f BooleanField) FromJson(raw []byte) (Field, error) {
+	err := json.Unmarshal(raw, &f)
+	return f, err
 }
 
 type IntChoice struct {
@@ -53,8 +65,18 @@ func (f IntegerField) IsPk() bool {
 	return f.PrimaryKey
 }
 
+func (f IntegerField) FromJson(raw []byte) (Field, error) {
+	err := json.Unmarshal(raw, &f)
+	return f, err
+}
+
 type AutoField IntegerField
 
 func (f AutoField) IsPk() bool {
 	return f.PrimaryKey
+}
+
+func (f AutoField) FromJson(raw []byte) (Field, error) {
+	err := json.Unmarshal(raw, &f)
+	return f, err
 }
