@@ -1,14 +1,55 @@
 package gomodels
 
+import (
+	"encoding/json"
+	"fmt"
+	"reflect"
+	"strings"
+)
+
 type Field interface {
 	IsPk() bool
-	FromJson(raw []byte) (Field, error)
+	FromJSON(raw []byte) (Field, error)
 }
 
 type Fields map[string]Field
 
+func (fields Fields) MarshalJSON() ([]byte, error) {
+	result := map[string]map[string]Field{}
+	for name, f := range fields {
+		m := map[string]Field{}
+		m[strings.Split(reflect.ValueOf(f).Type().String(), ".")[1]] = f
+		result[name] = m
+	}
+	return json.Marshal(result)
+}
+
+func (fp *Fields) UnmarshalJSON(data []byte) error {
+	fields := map[string]Field{}
+	rawMap := map[string]map[string]json.RawMessage{}
+	err := json.Unmarshal(data, &rawMap)
+	if err != nil {
+		return err
+	}
+	for name, fMap := range rawMap {
+		for fType, raw := range fMap {
+			native, ok := AvailableFields()[fType]
+			if !ok {
+				return fmt.Errorf("invalid field type: %s", fType)
+			}
+			field, err := native.FromJSON(raw)
+			if err != nil {
+				return err
+			}
+			fields[name] = field
+		}
+	}
+	*fp = fields
+	return nil
+}
+
 type Model struct {
-	app    *application
+	app    *Application
 	name   string
 	pk     string
 	fields Fields
@@ -18,7 +59,7 @@ func (m Model) Name() string {
 	return m.name
 }
 
-func (m Model) App() *application {
+func (m Model) App() *Application {
 	return m.app
 }
 

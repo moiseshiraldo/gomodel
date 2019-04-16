@@ -21,35 +21,35 @@ type AppSettings struct {
 	Path string
 }
 
-type application struct {
+type Application struct {
 	name   string
 	path   string
 	models map[string]*Model
 }
 
-func (app application) Models() map[string]*Model {
+func (app Application) Models() map[string]*Model {
 	return app.models
 }
 
-func (app application) Name() string {
+func (app Application) Name() string {
 	return app.name
 }
 
-func (app application) Path() string {
+func (app Application) Path() string {
 	return app.path
 }
 
-func (app application) FullPath() string {
+func (app Application) FullPath() string {
 	if !filepath.IsAbs(app.path) {
 		return filepath.Join(build.Default.GOPATH, "src", app.path)
 	}
 	return app.path
 }
 
-var Registry = map[string]*application{}
+var Registry = map[string]*Application{}
 
 func Register(settings AppSettings, appModels ...*Model) error {
-	app := &application{
+	app := &Application{
 		name:   settings.Name,
 		path:   settings.Path,
 		models: make(map[string]*Model),
@@ -66,7 +66,7 @@ func Register(settings AppSettings, appModels ...*Model) error {
 	return nil
 }
 
-func registerModel(app *application, model *Model) error {
+func registerModel(app *Application, model *Model) error {
 	model.app = app
 	for name, field := range model.fields {
 		if field.IsPk() && model.pk != "" {

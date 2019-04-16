@@ -23,7 +23,7 @@ func (f CharField) IsPk() bool {
 	return f.PrimaryKey
 }
 
-func (f CharField) FromJson(raw []byte) (Field, error) {
+func (f CharField) FromJSON(raw []byte) (Field, error) {
 	err := json.Unmarshal(raw, &f)
 	return f, err
 }
@@ -40,7 +40,7 @@ func (f BooleanField) IsPk() bool {
 	return false
 }
 
-func (f BooleanField) FromJson(raw []byte) (Field, error) {
+func (f BooleanField) FromJSON(raw []byte) (Field, error) {
 	err := json.Unmarshal(raw, &f)
 	return f, err
 }
@@ -65,7 +65,7 @@ func (f IntegerField) IsPk() bool {
 	return f.PrimaryKey
 }
 
-func (f IntegerField) FromJson(raw []byte) (Field, error) {
+func (f IntegerField) FromJSON(raw []byte) (Field, error) {
 	err := json.Unmarshal(raw, &f)
 	return f, err
 }
@@ -76,7 +76,7 @@ func (f AutoField) IsPk() bool {
 	return f.PrimaryKey
 }
 
-func (f AutoField) FromJson(raw []byte) (Field, error) {
+func (f AutoField) FromJSON(raw []byte) (Field, error) {
 	err := json.Unmarshal(raw, &f)
 	return f, err
 }

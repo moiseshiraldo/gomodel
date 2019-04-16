@@ -6,21 +6,67 @@ import (
 	"github.com/moiseshiraldo/gomodels"
 )
 
-type Operation struct {
-	CreateModel CreateModel
+type Operation interface {
+	Name() string
+	FromJSON(raw []byte) (Operation, error)
+}
+
+type OperationList []Operation
+
+func (opList OperationList) MarshalJSON() ([]byte, error) {
+	result := []map[string]Operation{}
+	for _, op := range opList {
+		m := map[string]Operation{}
+		m[op.Name()] = op
+		result = append(result, m)
+	}
+	return json.Marshal(result)
+}
+
+func (op *OperationList) UnmarshalJSON(data []byte) error {
+	opList := *op
+	rawList := []map[string]json.RawMessage{}
+	err := json.Unmarshal(data, &rawList)
+	if err != nil {
+		return err
+	}
+	for _, rawMap := range rawList {
+		for name, rawOp := range rawMap {
+			native, ok := AvailableOperations()[name]
+			if !ok {
+				return fmt.Errorf("invalid operation: %s", name)
+			}
+			operation, err := native.FromJSON(rawOp)
+			if err != nil {
+				return err
+			}
+			opList = append(*op, operation)
+		}
+	}
+	*op = opList
+	return nil
 }
 
 type CreateModel struct {
-	Name   string
-	Fields map[string]FieldOptions
+	Model  string
+	Fields gomodels.Fields
 }
 
-type FieldOptions struct {
+func (op CreateModel) Name() string {
+	return "CreateModel"
+}
+
+func (op CreateModel) FromJSON(raw []byte) (Operation, error) {
+	err := json.Unmarshal(raw, &op)
+	return op, err
+}
+
+type Field struct {
 	Type    string
 	Options gomodels.Field
 }
 
-func (f *FieldOptions) UnmarshalJSON(data []byte) error {
+func (f *Field) UnmarshalJSON(data []byte) error {
 	obj := struct {
 		Type    string
 		Options json.RawMessage
@@ -34,9 +80,15 @@ func (f *FieldOptions) UnmarshalJSON(data []byte) error {
 	if !ok {
 		return fmt.Errorf("invalid field type: %s", obj.Type)
 	}
-	f.Options, err = native.FromJson(obj.Options)
+	f.Options, err = native.FromJSON(obj.Options)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func AvailableOperations() map[string]Operation {
+	return map[string]Operation{
+		"CreateModel": CreateModel{},
+	}
 }

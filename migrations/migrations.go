@@ -6,9 +6,7 @@ import (
 	"github.com/moiseshiraldo/gomodels"
 	"io/ioutil"
 	"path/filepath"
-	"reflect"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -19,17 +17,17 @@ type MigrationInfo struct {
 	Path         string `json:"-"`
 	Name         string `json:"-"`
 	Dependencies []string
-	Operations   []Operation
+	Operations   OperationList
 }
 
 func (m *MigrationInfo) Save() error {
 	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
-		return fmt.Errorf("%s: save failed: %v", m.App, err)
+		return fmt.Errorf("%s: %v", m.Name, err)
 	}
 	fp := filepath.Join(m.Path, m.Name+".json")
 	if err := ioutil.WriteFile(fp, data, 0644); err != nil {
-		return fmt.Errorf("%s: save failed: %v", m.App, err)
+		return fmt.Errorf("%s: %v", m.Name, err)
 	}
 	return nil
 }
@@ -38,10 +36,10 @@ func (m *MigrationInfo) Load() error {
 	fp := filepath.Join(m.Path, m.Name+".json")
 	data, err := ioutil.ReadFile(fp)
 	if err != nil {
-		return fmt.Errorf("load failed: %v", err)
+		return fmt.Errorf("%s: %v", m.Name, err)
 	}
 	if err := json.Unmarshal(data, m); err != nil {
-		return fmt.Errorf("load failed: %v", err)
+		return fmt.Errorf("%s: %v", m.Name, err)
 	}
 	return nil
 }
@@ -51,18 +49,18 @@ func Make(appName string) ([]*MigrationInfo, error) {
 	app, ok := gomodels.Registry[appName]
 	if !ok {
 		return migrations, fmt.Errorf(
-			"gomodels: makemigrations: %s: app doesn't exist", appName,
+			"migrations: %s: app doesn't exist", appName,
 		)
 	}
 	if err := loadHistory(); err != nil {
-		return migrations, fmt.Errorf("gomodels: makemigrations: %v", err)
+		return migrations, fmt.Errorf("migrations: %v", err)
 	}
 	for _, model := range app.Models() {
 		migrations = append(migrations, getModelChanges(model)...)
 	}
 	for _, m := range migrations {
 		if err := m.Save(); err != nil {
-			return migrations, fmt.Errorf("gomodels: makemigrations: %v", err)
+			return migrations, fmt.Errorf("migrations: %s: %v", appName, err)
 		}
 	}
 	return migrations, nil
@@ -75,17 +73,9 @@ func getModelChanges(model *gomodels.Model) []*MigrationInfo {
 		Path:         filepath.Join(model.App().FullPath(), MigrationsDir),
 		Dependencies: []string{},
 	}
-	operation := Operation{
-		CreateModel: CreateModel{
-			Name:   model.Name(),
-			Fields: make(map[string]FieldOptions),
-		},
-	}
-	for fieldName, field := range model.Fields() {
-		operation.CreateModel.Fields[fieldName] = FieldOptions{
-			Type:    strings.Split(reflect.ValueOf(field).Type().String(), ".")[1],
-			Options: field,
-		}
+	operation := CreateModel{
+		Model:  model.Name(),
+		Fields: model.Fields(),
 	}
 	migration.Operations = append(migration.Operations, operation)
 	migration.Name, _ = getNextMigrationName(model.App().Name())
