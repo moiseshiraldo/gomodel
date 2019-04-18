@@ -7,20 +7,26 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"strconv"
-	"time"
 )
 
 const MigrationsDir = "migrations"
 
-type MigrationInfo struct {
+type Node struct {
 	App          string
 	Path         string `json:"-"`
 	Name         string `json:"-"`
-	Dependencies []string
+	processed    bool   `json:"-"`
+	applied      bool   `json:"-"`
+	Dependencies [][]string
 	Operations   OperationList
 }
 
-func (m *MigrationInfo) Save() error {
+func (node Node) number() int {
+	number, _ := strconv.Atoi(node.Name[:4])
+	return number
+}
+
+func (m *Node) Save() error {
 	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
 		return fmt.Errorf("%s: %v", m.Name, err)
@@ -32,7 +38,7 @@ func (m *MigrationInfo) Save() error {
 	return nil
 }
 
-func (m *MigrationInfo) Load() error {
+func (m *Node) Load() error {
 	fp := filepath.Join(m.Path, m.Name+".json")
 	data, err := ioutil.ReadFile(fp)
 	if err != nil {
@@ -44,8 +50,8 @@ func (m *MigrationInfo) Load() error {
 	return nil
 }
 
-func Make(appName string) ([]*MigrationInfo, error) {
-	migrations := []*MigrationInfo{}
+func Make(appName string) ([]*Node, error) {
+	migrations := []*Node{}
 	app, ok := gomodels.Registry[appName]
 	if !ok {
 		return migrations, fmt.Errorf(
@@ -55,9 +61,24 @@ func Make(appName string) ([]*MigrationInfo, error) {
 	if err := loadHistory(); err != nil {
 		return migrations, fmt.Errorf("migrations: %v", err)
 	}
-	for _, model := range app.Models() {
-		migrations = append(migrations, getModelChanges(model)...)
+	state := history[appName]
+	node := &Node{
+		App:          appName,
+		Path:         filepath.Join(app.FullPath(), MigrationsDir),
+		Dependencies: [][]string{},
+		Operations:   OperationList{},
 	}
+	node.Name = state.nextMigrationName()
+	if len(state.migrations) > 0 {
+		lastNode := state.migrations[len(state.migrations)-1]
+		node.Dependencies = append(
+			node.Dependencies, []string{appName, lastNode.Name},
+		)
+	}
+	for _, model := range app.Models() {
+		node.Operations = append(node.Operations, getModelChanges(model))
+	}
+	migrations = append(migrations, node)
 	for _, m := range migrations {
 		if err := m.Save(); err != nil {
 			return migrations, fmt.Errorf("migrations: %s: %v", appName, err)
@@ -66,29 +87,9 @@ func Make(appName string) ([]*MigrationInfo, error) {
 	return migrations, nil
 }
 
-func getModelChanges(model *gomodels.Model) []*MigrationInfo {
-	migrations := []*MigrationInfo{}
-	migration := &MigrationInfo{
-		App:          model.App().Name(),
-		Path:         filepath.Join(model.App().FullPath(), MigrationsDir),
-		Dependencies: []string{},
-	}
-	operation := CreateModel{
+func getModelChanges(model *gomodels.Model) Operation {
+	return CreateModel{
 		Model:  model.Name(),
 		Fields: model.Fields(),
 	}
-	migration.Operations = append(migration.Operations, operation)
-	migration.Name, _ = getNextMigrationName(model.App().Name())
-	return append(migrations, migration)
-}
-
-func getNextMigrationName(app string) (name string, err error) {
-	appHistory := history[app]
-	if len(appHistory.migrations) == 0 {
-		return "0001_initial", nil
-	}
-	lastMigration := appHistory.migrations[len(appHistory.migrations)-1]
-	number, _ := strconv.Atoi(lastMigration.Name[:4])
-	timestamp := time.Now().Format("20060102_1504")
-	return fmt.Sprintf("%04d_auto_%s", number+1, timestamp), nil
 }

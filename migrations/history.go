@@ -6,17 +6,29 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 )
 
 var mFileRe = regexp.MustCompile(`^([0-9]{4})_\w+\.json$`)
+var mNameRe = regexp.MustCompile(`^([0-9]{4})_\w+$`)
 
-type appState struct {
-	models     map[string]*gomodels.Model
-	migrations []*MigrationInfo
+type AppState struct {
+	Models     map[string]*gomodels.Model
+	migrations []*Node
 }
 
-var history = map[string]*appState{}
+func (state AppState) nextMigrationName() string {
+	if len(state.migrations) == 0 {
+		return "0001_initial"
+	}
+	number := len(state.migrations)
+	timestamp := time.Now().Format("20060102_1504")
+	return fmt.Sprintf("%04d_auto_%s", number+1, timestamp)
+}
+
+var history = map[string]*AppState{}
 
 func loadHistory() error {
 	for _, app := range gomodels.Registry {
@@ -25,12 +37,23 @@ func loadHistory() error {
 			return fmt.Errorf("load history: %v", err)
 		}
 	}
+	stash := map[string]map[string]bool{}
+	for app := range history {
+		stash[app] = map[string]bool{}
+	}
+	for app, state := range history {
+		for _, node := range state.migrations {
+			if err := processNode(node, app, stash); err != nil {
+				return fmt.Errorf("load history: %v", err)
+			}
+		}
+	}
 	return nil
 }
 
 func loadApp(app *gomodels.Application) error {
-	state := &appState{
-		migrations: []*MigrationInfo{},
+	state := &AppState{
+		migrations: []*Node{},
 	}
 	history[app.Name()] = state
 	dir := filepath.Join(app.FullPath(), MigrationsDir)
@@ -38,6 +61,7 @@ func loadApp(app *gomodels.Application) error {
 	if err != nil {
 		return fmt.Errorf("%s: %v", app.Name(), err)
 	}
+	state.migrations = make([]*Node, len(files))
 	for _, file := range files {
 		if !mFileRe.MatchString(file.Name()) {
 			return fmt.Errorf(
@@ -45,14 +69,50 @@ func loadApp(app *gomodels.Application) error {
 			)
 		}
 		name := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
-		m := &MigrationInfo{
+		node := &Node{
 			Name: name,
 			Path: dir,
 		}
-		if err := m.Load(); err != nil {
+		number := node.number()
+		if err := node.Load(); err != nil {
 			return fmt.Errorf("%s: %v", app.Name(), err)
 		}
-		state.migrations = append(state.migrations, m)
+		if dup := state.migrations[number-1]; dup != nil {
+			return fmt.Errorf("%s: duplicate number: %s", app.Name(), name)
+		}
+		state.migrations[number-1] = node
 	}
+	return nil
+}
+
+func processNode(node *Node, app string, stash map[string]map[string]bool) error {
+	if node.processed {
+		return nil
+	}
+	stash[app][node.Name] = true
+	for _, dep := range node.Dependencies {
+		app, name := dep[0], dep[1]
+		if !mNameRe.MatchString(name) {
+			return fmt.Errorf("invalid dependency: %s", name)
+		}
+		number, _ := strconv.Atoi(name[:4])
+		if number > len(history[app].migrations) {
+			return fmt.Errorf("invalid dependency: %s", name)
+		}
+		depNode := history[app].migrations[number-1]
+		if depNode == nil {
+			return fmt.Errorf("invalid dependency: %s", name)
+		}
+		if _, found := stash[app][name]; found {
+			return fmt.Errorf("circular dependency: %s: %s", app, depNode.Name)
+		}
+		if !depNode.processed {
+			if err := processNode(depNode, app, stash); err != nil {
+				return err
+			}
+		}
+	}
+	node.processed = true
+	delete(stash[app], node.Name)
 	return nil
 }
