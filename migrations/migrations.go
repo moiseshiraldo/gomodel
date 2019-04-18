@@ -78,7 +78,9 @@ func Make(appName string) ([]*Node, error) {
 	for _, model := range app.Models() {
 		node.Operations = append(node.Operations, getModelChanges(model))
 	}
-	migrations = append(migrations, node)
+	if len(node.Operations) > 0 {
+		migrations = append(migrations, node)
+	}
 	for _, m := range migrations {
 		if err := m.Save(); err != nil {
 			return migrations, fmt.Errorf("migrations: %s: %v", appName, err)

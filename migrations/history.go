@@ -41,9 +41,9 @@ func loadHistory() error {
 	for app := range history {
 		stash[app] = map[string]bool{}
 	}
-	for app, state := range history {
+	for _, state := range history {
 		for _, node := range state.migrations {
-			if err := processNode(node, app, stash); err != nil {
+			if err := processNode(node, stash); err != nil {
 				return fmt.Errorf("load history: %v", err)
 			}
 		}
@@ -53,6 +53,7 @@ func loadHistory() error {
 
 func loadApp(app *gomodels.Application) error {
 	state := &AppState{
+		Models:     map[string]*gomodels.Model{},
 		migrations: []*Node{},
 	}
 	history[app.Name()] = state
@@ -85,34 +86,39 @@ func loadApp(app *gomodels.Application) error {
 	return nil
 }
 
-func processNode(node *Node, app string, stash map[string]map[string]bool) error {
+func processNode(node *Node, stash map[string]map[string]bool) error {
 	if node.processed {
 		return nil
 	}
-	stash[app][node.Name] = true
+	stash[node.App][node.Name] = true
 	for _, dep := range node.Dependencies {
 		app, name := dep[0], dep[1]
 		if !mNameRe.MatchString(name) {
 			return fmt.Errorf("invalid dependency: %s", name)
 		}
 		number, _ := strconv.Atoi(name[:4])
-		if number > len(history[app].migrations) {
+		if number > len(history[node.App].migrations) {
 			return fmt.Errorf("invalid dependency: %s", name)
 		}
-		depNode := history[app].migrations[number-1]
+		depNode := history[node.App].migrations[number-1]
 		if depNode == nil {
 			return fmt.Errorf("invalid dependency: %s", name)
 		}
-		if _, found := stash[app][name]; found {
+		if _, found := stash[node.App][name]; found {
 			return fmt.Errorf("circular dependency: %s: %s", app, depNode.Name)
 		}
 		if !depNode.processed {
-			if err := processNode(depNode, app, stash); err != nil {
+			if err := processNode(depNode, stash); err != nil {
 				return err
 			}
 		}
 	}
+	for _, op := range node.Operations {
+		if err := op.SetState(history[node.App]); err != nil {
+			return fmt.Errorf("%s: set state: %v", node.Name, err)
+		}
+	}
 	node.processed = true
-	delete(stash[app], node.Name)
+	delete(stash[node.App], node.Name)
 	return nil
 }

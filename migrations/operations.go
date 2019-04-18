@@ -9,6 +9,7 @@ import (
 type Operation interface {
 	Name() string
 	FromJSON(raw []byte) (Operation, error)
+	SetState(state *AppState) error
 }
 
 type OperationList []Operation
@@ -59,6 +60,14 @@ func (op CreateModel) Name() string {
 func (op CreateModel) FromJSON(raw []byte) (Operation, error) {
 	err := json.Unmarshal(raw, &op)
 	return op, err
+}
+
+func (op CreateModel) SetState(state *AppState) error {
+	if _, found := state.Models[op.Model]; found {
+		return fmt.Errorf("duplicate model: %s", op.Model)
+	}
+	state.Models[op.Model] = gomodels.New(op.Model, op.Fields)
+	return nil
 }
 
 type Field struct {
