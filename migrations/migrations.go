@@ -75,8 +75,13 @@ func Make(appName string) ([]*Node, error) {
 			node.Dependencies, []string{appName, lastNode.Name},
 		)
 	}
+	for name := range state.Models {
+		if _, ok := app.Models()[name]; !ok {
+			node.Operations = append(node.Operations, DeleteModel{Model: name})
+		}
+	}
 	for _, model := range app.Models() {
-		node.Operations = append(node.Operations, getModelChanges(model))
+		node.Operations = append(node.Operations, getModelChanges(model)...)
 	}
 	if len(node.Operations) > 0 {
 		migrations = append(migrations, node)
@@ -89,9 +94,16 @@ func Make(appName string) ([]*Node, error) {
 	return migrations, nil
 }
 
-func getModelChanges(model *gomodels.Model) Operation {
-	return CreateModel{
-		Model:  model.Name(),
-		Fields: model.Fields(),
+func getModelChanges(model *gomodels.Model) OperationList {
+	operations := OperationList{}
+	state := history[model.App().Name()]
+	_, ok := state.Models[model.Name()]
+	if !ok {
+		operation := CreateModel{
+			Model:  model.Name(),
+			Fields: model.Fields(),
+		}
+		operations = append(operations, operation)
 	}
+	return operations
 }

@@ -96,6 +96,24 @@ func (f *Field) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+type DeleteModel struct {
+	Model string
+}
+
+func (op DeleteModel) Name() string {
+	return "DeleteModel"
+}
+
+func (op DeleteModel) FromJSON(raw []byte) (Operation, error) {
+	err := json.Unmarshal(raw, &op)
+	return op, err
+}
+
+func (op DeleteModel) SetState(state *AppState) error {
+	delete(state.Models, op.Model)
+	return nil
+}
+
 func AvailableOperations() map[string]Operation {
 	return map[string]Operation{
 		"CreateModel": CreateModel{},
