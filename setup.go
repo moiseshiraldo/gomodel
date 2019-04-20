@@ -2,8 +2,6 @@ package gomodels
 
 import (
 	"fmt"
-	"go/build"
-	"path/filepath"
 )
 
 type Database struct {
@@ -14,36 +12,6 @@ type Database struct {
 
 type Settings struct {
 	Databases []Database
-}
-
-type AppSettings struct {
-	Name string
-	Path string
-}
-
-type Application struct {
-	name   string
-	path   string
-	models map[string]*Model
-}
-
-func (app Application) Models() map[string]*Model {
-	return app.models
-}
-
-func (app Application) Name() string {
-	return app.name
-}
-
-func (app Application) Path() string {
-	return app.path
-}
-
-func (app Application) FullPath() string {
-	if !filepath.IsAbs(app.path) {
-		return filepath.Join(build.Default.GOPATH, "src", app.path)
-	}
-	return app.path
 }
 
 var Registry = map[string]*Application{}
