@@ -32,9 +32,8 @@ var history = map[string]*AppState{}
 
 func loadHistory() error {
 	for _, app := range gomodels.Registry {
-		err := loadApp(app)
-		if err != nil {
-			return fmt.Errorf("load history: %v", err)
+		if err := loadApp(app); err != nil {
+			return err
 		}
 	}
 	stash := map[string]map[string]bool{}
@@ -44,7 +43,7 @@ func loadHistory() error {
 	for _, state := range history {
 		for _, node := range state.migrations {
 			if err := processNode(node, stash); err != nil {
-				return fmt.Errorf("load history: %v", err)
+				return err
 			}
 		}
 	}
@@ -52,6 +51,7 @@ func loadHistory() error {
 }
 
 func loadApp(app *gomodels.Application) error {
+	errorTrace := gomodels.ErrorTrace{App: app}
 	state := &AppState{
 		Models:     map[string]*gomodels.Model{},
 		migrations: []*Node{},
@@ -60,14 +60,13 @@ func loadApp(app *gomodels.Application) error {
 	dir := filepath.Join(app.FullPath(), MigrationsDir)
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
-		return fmt.Errorf("%s: %v", app.Name(), err)
+		errorTrace.Err = err
+		return &PathError{errorTrace}
 	}
 	state.migrations = make([]*Node, len(files))
 	for _, file := range files {
 		if !mFileRe.MatchString(file.Name()) {
-			return fmt.Errorf(
-				"%s: invalid migration name: %s", app.Name(), file.Name(),
-			)
+			return &NameError{file.Name(), errorTrace}
 		}
 		name := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
 		node := &Node{
@@ -76,10 +75,10 @@ func loadApp(app *gomodels.Application) error {
 		}
 		number := node.number()
 		if err := node.Load(); err != nil {
-			return fmt.Errorf("%s: %v", app.Name(), err)
+			return &LoadError{file.Name(), errorTrace}
 		}
 		if dup := state.migrations[number-1]; dup != nil {
-			return fmt.Errorf("%s: duplicate number: %s", app.Name(), name)
+			return &DuplicateNumberError{file.Name(), errorTrace}
 		}
 		state.migrations[number-1] = node
 	}
@@ -91,21 +90,25 @@ func processNode(node *Node, stash map[string]map[string]bool) error {
 		return nil
 	}
 	stash[node.App][node.Name] = true
+	errorTrace := gomodels.ErrorTrace{App: gomodels.Registry[node.App]}
 	for _, dep := range node.Dependencies {
 		app, name := dep[0], dep[1]
 		if !mNameRe.MatchString(name) {
-			return fmt.Errorf("invalid dependency: %s", name)
+			return &InvalidDependencyError{node.Name, name, errorTrace}
+		}
+		if _, ok := history[app]; !ok {
+			return &InvalidDependencyError{node.Name, name, errorTrace}
 		}
 		number, _ := strconv.Atoi(name[:4])
-		if number > len(history[node.App].migrations) {
-			return fmt.Errorf("invalid dependency: %s", name)
+		if number > len(history[app].migrations) {
+			return &InvalidDependencyError{node.Name, name, errorTrace}
 		}
-		depNode := history[node.App].migrations[number-1]
+		depNode := history[app].migrations[number-1]
 		if depNode == nil {
-			return fmt.Errorf("invalid dependency: %s", name)
+			return &InvalidDependencyError{node.Name, name, errorTrace}
 		}
-		if _, found := stash[node.App][name]; found {
-			return fmt.Errorf("circular dependency: %s: %s", app, depNode.Name)
+		if _, found := stash[app][name]; found {
+			return &CircularDependencyError{node.Name, name, errorTrace}
 		}
 		if !depNode.processed {
 			if err := processNode(depNode, stash); err != nil {
@@ -115,7 +118,7 @@ func processNode(node *Node, stash map[string]map[string]bool) error {
 	}
 	for _, op := range node.Operations {
 		if err := op.SetState(history[node.App]); err != nil {
-			return fmt.Errorf("%s: set state: %v", node.Name, err)
+			return &OperationStateError{node.Name, &op, errorTrace}
 		}
 	}
 	node.processed = true

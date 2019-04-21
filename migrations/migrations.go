@@ -2,7 +2,6 @@ package migrations
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/moiseshiraldo/gomodels"
 	"io/ioutil"
 	"path/filepath"
@@ -29,11 +28,11 @@ func (node Node) number() int {
 func (m *Node) Save() error {
 	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
-		return fmt.Errorf("%s: %v", m.Name, err)
+		return err
 	}
 	fp := filepath.Join(m.Path, m.Name+".json")
 	if err := ioutil.WriteFile(fp, data, 0644); err != nil {
-		return fmt.Errorf("%s: %v", m.Name, err)
+		return err
 	}
 	return nil
 }
@@ -42,10 +41,10 @@ func (m *Node) Load() error {
 	fp := filepath.Join(m.Path, m.Name+".json")
 	data, err := ioutil.ReadFile(fp)
 	if err != nil {
-		return fmt.Errorf("%s: %v", m.Name, err)
+		return err
 	}
 	if err := json.Unmarshal(data, m); err != nil {
-		return fmt.Errorf("%s: %v", m.Name, err)
+		return err
 	}
 	return nil
 }
@@ -54,12 +53,10 @@ func Make(appName string) ([]*Node, error) {
 	migrations := []*Node{}
 	app, ok := gomodels.Registry[appName]
 	if !ok {
-		return migrations, fmt.Errorf(
-			"migrations: %s: app doesn't exist", appName,
-		)
+		return migrations, &AppNotFoundError{Name: appName}
 	}
 	if err := loadHistory(); err != nil {
-		return migrations, fmt.Errorf("migrations: %v", err)
+		return migrations, err
 	}
 	state := history[appName]
 	node := &Node{
@@ -88,7 +85,8 @@ func Make(appName string) ([]*Node, error) {
 	}
 	for _, m := range migrations {
 		if err := m.Save(); err != nil {
-			return migrations, fmt.Errorf("migrations: %s: %v", appName, err)
+			err = &SaveError{m.Name, gomodels.ErrorTrace{App: app, Err: err}}
+			return migrations, err
 		}
 	}
 	return migrations, nil

@@ -22,7 +22,7 @@ func (op AddFields) FromJSON(raw []byte) (Operation, error) {
 
 func (op AddFields) SetState(state *AppState) error {
 	if _, ok := state.Models[op.Model]; !ok {
-		return fmt.Errorf("add fields: model not found: %s", op.Model)
+		return fmt.Errorf("model not found: %s", op.Model)
 	}
 	fields := state.Models[op.Model].Fields()
 	for name, field := range op.Fields {
@@ -52,12 +52,12 @@ func (op RemoveFields) FromJSON(raw []byte) (Operation, error) {
 
 func (op RemoveFields) SetState(state *AppState) error {
 	if _, ok := state.Models[op.Model]; !ok {
-		return fmt.Errorf("remove fields: model not found: %s", op.Model)
+		return fmt.Errorf("model not found: %s", op.Model)
 	}
 	fields := state.Models[op.Model].Fields()
 	for _, name := range op.Fields {
 		if _, ok := fields[name]; !ok {
-			return fmt.Errorf("%s: remove field not found: %s", op.Model, name)
+			return fmt.Errorf("%s: field not found: %s", op.Model, name)
 		}
 		delete(fields, name)
 	}

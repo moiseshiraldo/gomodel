@@ -43,7 +43,7 @@ func (op DeleteModel) FromJSON(raw []byte) (Operation, error) {
 
 func (op DeleteModel) SetState(state *AppState) error {
 	if _, ok := state.Models[op.Model]; !ok {
-		return fmt.Errorf("delete model not found: %s", op.Model)
+		return fmt.Errorf("model not found: %s", op.Model)
 	}
 	delete(state.Models, op.Model)
 	return nil
