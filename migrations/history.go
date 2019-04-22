@@ -19,13 +19,15 @@ type AppState struct {
 	migrations []*Node
 }
 
-func (state AppState) nextMigrationName() string {
+func (state AppState) nextMigrationFilename(name string) string {
 	if len(state.migrations) == 0 {
 		return "0001_initial"
 	}
 	number := len(state.migrations)
-	timestamp := time.Now().Format("20060102_1504")
-	return fmt.Sprintf("%04d_auto_%s", number+1, timestamp)
+	if name != "" {
+		name = "auto_" + time.Now().Format("20060102_1504")
+	}
+	return fmt.Sprintf("%04d_%s", number+1, name)
 }
 
 var history = map[string]*AppState{}
