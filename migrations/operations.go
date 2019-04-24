@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 )
@@ -9,6 +10,7 @@ type Operation interface {
 	Name() string
 	FromJSON(raw []byte) (Operation, error)
 	SetState(state *AppState) error
+	Run(tx *sql.Tx) error
 }
 
 type OperationList []Operation

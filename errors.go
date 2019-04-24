@@ -65,3 +65,16 @@ func (e *DuplicatePkError) Error() string {
 func (e *DuplicatePkError) Trace() ErrorTrace {
 	return e.ErrorTrace
 }
+
+type DatabaseError struct {
+	Name string
+	ErrorTrace
+}
+
+func (e *DatabaseError) Error() string {
+	return fmt.Sprintf("gomodels: %s", e.ErrorTrace.String())
+}
+
+func (e *DatabaseError) Trace() ErrorTrace {
+	return e.ErrorTrace
+}

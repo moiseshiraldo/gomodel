@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/moiseshiraldo/gomodels"
@@ -28,6 +29,10 @@ func (op CreateModel) SetState(state *AppState) error {
 	return nil
 }
 
+func (op CreateModel) Run(tx *sql.Tx) error {
+	return nil
+}
+
 type DeleteModel struct {
 	Model string
 }
@@ -46,5 +51,9 @@ func (op DeleteModel) SetState(state *AppState) error {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}
 	delete(state.Models, op.Model)
+	return nil
+}
+
+func (op DeleteModel) Run(tx *sql.Tx) error {
 	return nil
 }

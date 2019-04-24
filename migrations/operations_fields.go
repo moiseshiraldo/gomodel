@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/moiseshiraldo/gomodels"
@@ -36,6 +37,10 @@ func (op AddFields) SetState(state *AppState) error {
 	return nil
 }
 
+func (op AddFields) Run(tx *sql.Tx) error {
+	return nil
+}
+
 type RemoveFields struct {
 	Model  string
 	Fields []string
@@ -63,5 +68,9 @@ func (op RemoveFields) SetState(state *AppState) error {
 	}
 	delete(state.Models, op.Model)
 	state.Models[op.Model] = gomodels.New(op.Model, fields)
+	return nil
+}
+
+func (op RemoveFields) Run(tx *sql.Tx) error {
 	return nil
 }

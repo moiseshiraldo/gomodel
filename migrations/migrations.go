@@ -1,54 +1,13 @@
 package migrations
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/moiseshiraldo/gomodels"
-	"io/ioutil"
 	"path/filepath"
 	"strconv"
 )
 
 const MigrationsDir = "migrations"
-
-type Node struct {
-	App          string
-	Path         string `json:"-"`
-	Name         string `json:"-"`
-	processed    bool   `json:"-"`
-	applied      bool   `json:"-"`
-	Dependencies [][]string
-	Operations   OperationList
-}
-
-func (node Node) number() int {
-	number, _ := strconv.Atoi(node.Name[:4])
-	return number
-}
-
-func (m *Node) Save() error {
-	data, err := json.MarshalIndent(m, "", "  ")
-	if err != nil {
-		return err
-	}
-	fp := filepath.Join(m.Path, m.Name+".json")
-	if err := ioutil.WriteFile(fp, data, 0644); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m *Node) Load() error {
-	fp := filepath.Join(m.Path, m.Name+".json")
-	data, err := ioutil.ReadFile(fp)
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(data, m); err != nil {
-		return err
-	}
-	return nil
-}
 
 type MakeOptions struct {
 	Name      string
@@ -110,4 +69,65 @@ func Make(appName string, options MakeOptions) ([]*Node, error) {
 		}
 	}
 	return migrations, nil
+}
+
+type RunOptions struct {
+	App      string
+	Name     string
+	Fake     bool
+	Database string
+}
+
+func Run(options RunOptions) error {
+	dbName := options.Database
+	if dbName == "" {
+		dbName = "default"
+	}
+	db, ok := gomodels.Databases[dbName]
+	if !ok {
+		return &gomodels.DatabaseError{dbName, gomodels.ErrorTrace{}}
+	}
+	if err := loadHistory(); err != nil {
+		return err
+	}
+	if options.App != "" {
+		state, ok := history[options.App]
+		if !ok {
+			return &AppNotFoundError{Name: options.App}
+		}
+		node := &Node{}
+		if options.Name != "" {
+			number, err := strconv.Atoi(options.Name[:4])
+			if err != nil {
+				app := gomodels.Registry[options.App]
+				return &NameError{
+					options.Name, gomodels.ErrorTrace{App: app, Err: err},
+				}
+			}
+			node = state.migrations[number-1]
+		} else if len(state.migrations) > 0 {
+			node = state.migrations[len(state.migrations)-1]
+		}
+		if err := node.Run(db); err != nil {
+			if dbErr, ok := err.(*gomodels.DatabaseError); ok {
+				dbErr.Name = dbName
+				return dbErr
+			}
+			return err
+		}
+	} else {
+		for _, state := range history {
+			if len(state.migrations) > 0 {
+				node := state.migrations[len(state.migrations)-1]
+				if err := node.Run(db); err != nil {
+					if dbErr, ok := err.(*gomodels.DatabaseError); ok {
+						dbErr.Name = dbName
+						return dbErr
+					}
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
