@@ -10,7 +10,7 @@ type Operation interface {
 	Name() string
 	FromJSON(raw []byte) (Operation, error)
 	SetState(state *AppState) error
-	Run(tx *sql.Tx) error
+	Run(tx *sql.Tx, app string) error
 }
 
 type OperationList []Operation

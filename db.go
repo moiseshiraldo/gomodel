@@ -1,19 +1,22 @@
 package gomodels
 
-import "database/sql"
+import (
+	"database/sql"
+	"fmt"
+)
 
 type Database struct {
-	Engine string
+	Driver string
 	Name   string
-	Host   string
 }
 
-var Databases map[string]*sql.DB
+var Databases = map[string]*sql.DB{}
 
 func Start(options map[string]Database) error {
 	for name, db := range options {
-		conn, err := sql.Open(db.Engine, db.Name)
+		conn, err := sql.Open(db.Driver, db.Name)
 		if err != nil {
+			fmt.Printf("%+v", err)
 			return &DatabaseError{name, ErrorTrace{Err: err}}
 		}
 		Databases[name] = conn

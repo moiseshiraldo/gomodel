@@ -37,7 +37,7 @@ func (op AddFields) SetState(state *AppState) error {
 	return nil
 }
 
-func (op AddFields) Run(tx *sql.Tx) error {
+func (op AddFields) Run(tx *sql.Tx, app string) error {
 	return nil
 }
 
@@ -71,6 +71,6 @@ func (op RemoveFields) SetState(state *AppState) error {
 	return nil
 }
 
-func (op RemoveFields) Run(tx *sql.Tx) error {
+func (op RemoveFields) Run(tx *sql.Tx, app string) error {
 	return nil
 }

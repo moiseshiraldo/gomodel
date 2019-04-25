@@ -72,10 +72,10 @@ func Make(appName string, options MakeOptions) ([]*Node, error) {
 }
 
 type RunOptions struct {
-	App      string
-	Name     string
-	Fake     bool
-	Database string
+	App       string
+	Migration string
+	Fake      bool
+	Database  string
 }
 
 func Run(options RunOptions) error {
@@ -96,12 +96,12 @@ func Run(options RunOptions) error {
 			return &AppNotFoundError{Name: options.App}
 		}
 		node := &Node{}
-		if options.Name != "" {
-			number, err := strconv.Atoi(options.Name[:4])
+		if options.Migration != "" {
+			number, err := strconv.Atoi(options.Migration[:4])
 			if err != nil {
 				app := gomodels.Registry[options.App]
 				return &NameError{
-					options.Name, gomodels.ErrorTrace{App: app, Err: err},
+					options.Migration, gomodels.ErrorTrace{App: app, Err: err},
 				}
 			}
 			node = state.migrations[number-1]

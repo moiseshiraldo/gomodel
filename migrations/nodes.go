@@ -54,13 +54,17 @@ func (n *Node) Run(db *sql.DB) error {
 		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
 	}
 	for _, op := range n.Operations {
-		if err := op.Run(tx); err != nil {
+		if err := op.Run(tx, n.App); err != nil {
 			if txErr := tx.Rollback(); txErr != nil {
 				return &gomodels.DatabaseError{
 					"", gomodels.ErrorTrace{Err: txErr},
 				}
 			}
-			return err
+			return &OperationRunError{
+				n.Name,
+				&op,
+				gomodels.ErrorTrace{App: gomodels.Registry[n.App], Err: err},
+			}
 		}
 	}
 	if err = tx.Commit(); err != nil {

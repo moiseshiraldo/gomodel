@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/moiseshiraldo/gomodels"
+	"strings"
 )
 
 type CreateModel struct {
@@ -29,7 +30,20 @@ func (op CreateModel) SetState(state *AppState) error {
 	return nil
 }
 
-func (op CreateModel) Run(tx *sql.Tx) error {
+func (op CreateModel) Run(tx *sql.Tx, app string) error {
+	query := fmt.Sprintf("CREATE TABLE '%s_%s' (", app, op.Model)
+	fields := make([]string, 0, len(op.Fields))
+	for name, field := range op.Fields {
+		fields = append(
+			fields,
+			fmt.Sprintf("'%s' %s", field.DBColumn(name), field.CreateSQL()),
+		)
+	}
+	query += strings.Join(fields, ", ") + ");"
+	fmt.Printf("%s", query)
+	if _, err := tx.Exec(query); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -54,6 +68,6 @@ func (op DeleteModel) SetState(state *AppState) error {
 	return nil
 }
 
-func (op DeleteModel) Run(tx *sql.Tx) error {
+func (op DeleteModel) Run(tx *sql.Tx, app string) error {
 	return nil
 }

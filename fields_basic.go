@@ -1,6 +1,9 @@
 package gomodels
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type CharChoice struct {
 	Value string
@@ -28,6 +31,28 @@ func (f CharField) FromJSON(raw []byte) (Field, error) {
 	return f, err
 }
 
+func (f CharField) DBColumn(name string) string {
+	if f.Column != "" {
+		return f.Column
+	}
+	return name
+}
+
+func (f CharField) CreateSQL() string {
+	query := fmt.Sprintf("varchar(%d)", f.MaxLength)
+	if f.Null {
+		query += " NULL"
+	} else {
+		query += " NOT NULL"
+	}
+	if f.PrimaryKey {
+		query += " PRIMARY KEY"
+	} else if f.Unique {
+		query += " UNIQUE"
+	}
+	return query
+}
+
 type BooleanField struct {
 	Null    bool   `json:",omitempty"`
 	Blank   bool   `json:",omitempty"`
@@ -43,6 +68,23 @@ func (f BooleanField) IsPk() bool {
 func (f BooleanField) FromJSON(raw []byte) (Field, error) {
 	err := json.Unmarshal(raw, &f)
 	return f, err
+}
+
+func (f BooleanField) DBColumn(name string) string {
+	if f.Column != "" {
+		return f.Column
+	}
+	return name
+}
+
+func (f BooleanField) CreateSQL() string {
+	query := "bool"
+	if f.Null {
+		query += " NULL"
+	} else {
+		query += " NOT NULL"
+	}
+	return query
 }
 
 type IntChoice struct {
@@ -70,6 +112,28 @@ func (f IntegerField) FromJSON(raw []byte) (Field, error) {
 	return f, err
 }
 
+func (f IntegerField) DBColumn(name string) string {
+	if f.Column != "" {
+		return f.Column
+	}
+	return name
+}
+
+func (f IntegerField) CreateSQL() string {
+	query := "integer"
+	if f.Null {
+		query += " NULL"
+	} else {
+		query += " NOT NULL"
+	}
+	if f.PrimaryKey {
+		query += " PRIMARY KEY"
+	} else if f.Unique {
+		query += " UNIQUE"
+	}
+	return query
+}
+
 type AutoField IntegerField
 
 func (f AutoField) IsPk() bool {
@@ -79,4 +143,27 @@ func (f AutoField) IsPk() bool {
 func (f AutoField) FromJSON(raw []byte) (Field, error) {
 	err := json.Unmarshal(raw, &f)
 	return f, err
+}
+
+func (f AutoField) DBColumn(name string) string {
+	if f.Column != "" {
+		return f.Column
+	}
+	return name
+}
+
+func (f AutoField) CreateSQL() string {
+	query := "integer"
+	if f.Null {
+		query += " NULL"
+	} else {
+		query += " NOT NULL"
+	}
+	if f.PrimaryKey {
+		query += " PRIMARY KEY"
+	} else if f.Unique {
+		query += " UNIQUE"
+	}
+	query += " AUTOINCREMENT"
+	return query
 }

@@ -144,3 +144,20 @@ func (e *OperationStateError) Error() string {
 func (e *OperationStateError) Trace() gomodels.ErrorTrace {
 	return e.ErrorTrace
 }
+
+type OperationRunError struct {
+	Node      string
+	Operation *Operation
+	gomodels.ErrorTrace
+}
+
+func (e *OperationRunError) Error() string {
+	return fmt.Sprintf(
+		"migrations: %s: %s: %s",
+		e.ErrorTrace.App.Name(), e.Node, e.ErrorTrace.String(),
+	)
+}
+
+func (e *OperationRunError) Trace() gomodels.ErrorTrace {
+	return e.ErrorTrace
+}

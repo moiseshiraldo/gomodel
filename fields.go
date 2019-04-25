@@ -10,6 +10,8 @@ import (
 type Field interface {
 	IsPk() bool
 	FromJSON(raw []byte) (Field, error)
+	DBColumn(fieldName string) string
+	CreateSQL() string
 }
 
 type Fields map[string]Field
