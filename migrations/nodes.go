@@ -52,6 +52,31 @@ func (n *Node) Run(db *sql.DB) error {
 	if n.applied {
 		return nil
 	}
+	if err := n.runDependencies(db); err != nil {
+		return err
+	}
+	if err := n.runOperations(db); err != nil {
+		return err
+	}
+	n.applied = true
+	return nil
+}
+
+func (n *Node) runDependencies(db *sql.DB) error {
+	for _, dep := range n.Dependencies {
+		app, name := dep[0], dep[1]
+		number, _ := strconv.Atoi(name[:4])
+		depNode := history[app].migrations[number-1]
+		if !depNode.applied {
+			if err := depNode.Run(db); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (n *Node) runOperations(db *sql.DB) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
@@ -71,6 +96,5 @@ func (n *Node) Run(db *sql.DB) error {
 	if err = tx.Commit(); err != nil {
 		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
 	}
-	n.applied = true
 	return nil
 }
