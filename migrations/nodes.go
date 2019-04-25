@@ -49,6 +49,9 @@ func (n *Node) Load() error {
 }
 
 func (n *Node) Run(db *sql.DB) error {
+	if n.applied {
+		return nil
+	}
 	tx, err := db.Begin()
 	if err != nil {
 		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
@@ -61,14 +64,13 @@ func (n *Node) Run(db *sql.DB) error {
 				}
 			}
 			return &OperationRunError{
-				n.Name,
-				&op,
-				gomodels.ErrorTrace{App: gomodels.Registry[n.App], Err: err},
+				ErrorTrace{Node: n, Operation: &op, Err: err},
 			}
 		}
 	}
 	if err = tx.Commit(); err != nil {
 		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
 	}
+	n.applied = true
 	return nil
 }

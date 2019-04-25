@@ -19,7 +19,7 @@ func Make(appName string, options MakeOptions) ([]*Node, error) {
 	migrations := []*Node{}
 	app, ok := gomodels.Registry[appName]
 	if !ok {
-		return migrations, &AppNotFoundError{Name: appName}
+		return migrations, &AppNotFoundError{appName, ErrorTrace{}}
 	}
 	if err := loadHistory(); err != nil {
 		return migrations, err
@@ -58,13 +58,11 @@ func Make(appName string, options MakeOptions) ([]*Node, error) {
 	if options.OmitWrite {
 		return migrations, nil
 	} else if app.Path() == "" {
-		return migrations, &PathError{
-			gomodels.ErrorTrace{App: app, Err: fmt.Errorf("no path")},
-		}
+		return migrations, &PathError{ErrorTrace{Err: fmt.Errorf("no path")}}
 	}
 	for _, m := range migrations {
 		if err := m.Save(); err != nil {
-			err = &SaveError{m.Name, gomodels.ErrorTrace{App: app, Err: err}}
+			err = &SaveError{ErrorTrace{Node: m, Err: err}}
 			return migrations, err
 		}
 	}
@@ -72,10 +70,10 @@ func Make(appName string, options MakeOptions) ([]*Node, error) {
 }
 
 type RunOptions struct {
-	App       string
-	Migration string
-	Fake      bool
-	Database  string
+	App      string
+	Node     string
+	Fake     bool
+	Database string
 }
 
 func Run(options RunOptions) error {
@@ -93,16 +91,13 @@ func Run(options RunOptions) error {
 	if options.App != "" {
 		state, ok := history[options.App]
 		if !ok {
-			return &AppNotFoundError{Name: options.App}
+			return &AppNotFoundError{options.App, ErrorTrace{}}
 		}
 		node := &Node{}
-		if options.Migration != "" {
-			number, err := strconv.Atoi(options.Migration[:4])
+		if options.Node != "" {
+			number, err := strconv.Atoi(options.Node[:4])
 			if err != nil {
-				app := gomodels.Registry[options.App]
-				return &NameError{
-					options.Migration, gomodels.ErrorTrace{App: app, Err: err},
-				}
+				return &NameError{options.Node, ErrorTrace{}}
 			}
 			node = state.migrations[number-1]
 		} else if len(state.migrations) > 0 {

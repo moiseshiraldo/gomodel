@@ -40,7 +40,6 @@ func (op CreateModel) Run(tx *sql.Tx, app string) error {
 		)
 	}
 	query += strings.Join(fields, ", ") + ");"
-	fmt.Printf("%s", query)
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}

@@ -1,163 +1,156 @@
 package migrations
 
-import (
-	"fmt"
-	"github.com/moiseshiraldo/gomodels"
-)
+import "fmt"
+
+type Error interface {
+	error
+	Trace() ErrorTrace
+}
+
+type ErrorTrace struct {
+	Node      *Node
+	Operation *Operation
+	Err       error
+}
+
+func (e *ErrorTrace) String() string {
+	trace := ""
+	if e.Node != nil {
+		trace += fmt.Sprintf("%s: %s", e.Node.App, e.Node.Name)
+	}
+	if (*e.Operation).Name() != "" {
+		trace += fmt.Sprintf(": %s", (*e.Operation).Name())
+	}
+	if e.Err != nil {
+		trace += fmt.Sprintf(": %s", e.Err)
+	}
+	return trace
+}
 
 type AppNotFoundError struct {
 	Name string
-	gomodels.ErrorTrace
+	ErrorTrace
 }
 
 func (e *AppNotFoundError) Error() string {
-	return fmt.Sprintf("gomodels: migrations: %s: app not found", e.Name)
+	return fmt.Sprintf("migrations: %s: app not found", e.Name)
 }
 
-func (e *AppNotFoundError) Trace() gomodels.ErrorTrace {
+func (e *AppNotFoundError) Trace() ErrorTrace {
 	return e.ErrorTrace
 }
 
 type PathError struct {
-	gomodels.ErrorTrace
+	ErrorTrace
 }
 
 func (e *PathError) Error() string {
 	return fmt.Sprintf("migrations: load files: %s", e.ErrorTrace.String())
 }
 
-func (e *PathError) Trace() gomodels.ErrorTrace {
+func (e *PathError) Trace() ErrorTrace {
 	return e.ErrorTrace
 }
 
 type NameError struct {
 	Name string
-	gomodels.ErrorTrace
+	ErrorTrace
 }
 
 func (e *NameError) Error() string {
-	trace := e.ErrorTrace
-	return fmt.Sprintf(
-		"migrations: %s: %s", trace.App.Name(), e.Name,
-	)
+	return fmt.Sprintf("migrations: %s: wrong name", e.Name)
 }
 
-func (e *NameError) Trace() gomodels.ErrorTrace {
+func (e *NameError) Trace() ErrorTrace {
 	return e.ErrorTrace
 }
 
 type DuplicateNumberError struct {
-	Name string
-	gomodels.ErrorTrace
+	ErrorTrace
 }
 
 func (e *DuplicateNumberError) Error() string {
-	trace := e.ErrorTrace
 	return fmt.Sprintf(
-		"migrations: %s: duplicate number: %s", trace.App.Name(), e.Name,
+		"migrations: %s: duplicate number", e.ErrorTrace.String(),
 	)
 }
 
-func (e *DuplicateNumberError) Trace() gomodels.ErrorTrace {
+func (e *DuplicateNumberError) Trace() ErrorTrace {
 	return e.ErrorTrace
 }
 
 type LoadError struct {
-	Name string
-	gomodels.ErrorTrace
+	ErrorTrace
 }
 
 func (e *LoadError) Error() string {
-	return fmt.Sprintf(
-		"migrations: %s: %s: load failed: %s",
-		e.ErrorTrace.App.Name(), e.Name, e.ErrorTrace.String(),
-	)
+	return fmt.Sprintf("migrations: %s: load failed", e.ErrorTrace.String())
 }
 
-func (e *LoadError) Trace() gomodels.ErrorTrace {
+func (e *LoadError) Trace() ErrorTrace {
 	return e.ErrorTrace
 }
 
 type SaveError struct {
-	Name string
-	gomodels.ErrorTrace
+	ErrorTrace
 }
 
 func (e *SaveError) Error() string {
-	return fmt.Sprintf(
-		"migrations: %s: %s: save failed: %s",
-		e.ErrorTrace.App.Name(), e.Name, e.ErrorTrace.String(),
-	)
+	return fmt.Sprintf("migrations: %s: save failed", e.ErrorTrace.String())
 }
 
-func (e *SaveError) Trace() gomodels.ErrorTrace {
+func (e *SaveError) Trace() ErrorTrace {
 	return e.ErrorTrace
 }
 
 type InvalidDependencyError struct {
-	Name       string
-	Dependency string
-	gomodels.ErrorTrace
+	ErrorTrace
 }
 
 func (e *InvalidDependencyError) Error() string {
 	return fmt.Sprintf(
-		"migrations: %s: %s: invalid dependency: %s",
-		e.ErrorTrace.App.Name(), e.Name, e.Dependency,
+		"migrations: %s: invalid dependency", e.ErrorTrace.String(),
 	)
 }
 
-func (e *InvalidDependencyError) Trace() gomodels.ErrorTrace {
+func (e *InvalidDependencyError) Trace() ErrorTrace {
 	return e.ErrorTrace
 }
 
 type CircularDependencyError struct {
-	Name       string
-	Dependency string
-	gomodels.ErrorTrace
+	ErrorTrace
 }
 
 func (e *CircularDependencyError) Error() string {
 	return fmt.Sprintf(
-		"migrations: %s: %s: circular dependency: %s",
-		e.ErrorTrace.App.Name(), e.Name, e.Dependency,
+		"migrations: %s: circular dependency", e.ErrorTrace.String(),
 	)
 }
 
-func (e *CircularDependencyError) Trace() gomodels.ErrorTrace {
+func (e *CircularDependencyError) Trace() ErrorTrace {
 	return e.ErrorTrace
 }
 
 type OperationStateError struct {
-	Node      string
-	Operation *Operation
-	gomodels.ErrorTrace
+	ErrorTrace
 }
 
 func (e *OperationStateError) Error() string {
-	return fmt.Sprintf(
-		"migrations: %s: %s: %s",
-		e.ErrorTrace.App.Name(), e.Node, e.ErrorTrace.String(),
-	)
+	return fmt.Sprintf("migrations: state error: %s", e.ErrorTrace.String())
 }
 
-func (e *OperationStateError) Trace() gomodels.ErrorTrace {
+func (e *OperationStateError) Trace() ErrorTrace {
 	return e.ErrorTrace
 }
 
 type OperationRunError struct {
-	Node      string
-	Operation *Operation
-	gomodels.ErrorTrace
+	ErrorTrace
 }
 
 func (e *OperationRunError) Error() string {
-	return fmt.Sprintf(
-		"migrations: %s: %s: %s",
-		e.ErrorTrace.App.Name(), e.Node, e.ErrorTrace.String(),
-	)
+	return fmt.Sprintf("migrations: run error: %s:", e.ErrorTrace.String())
 }
 
-func (e *OperationRunError) Trace() gomodels.ErrorTrace {
+func (e *OperationRunError) Trace() ErrorTrace {
 	return e.ErrorTrace
 }

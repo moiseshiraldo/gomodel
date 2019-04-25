@@ -19,13 +19,13 @@ type ErrorTrace struct {
 func (e *ErrorTrace) String() string {
 	trace := e.App.name
 	if e.Model != nil {
-		trace = trace + ": " + e.Model.name
+		trace += fmt.Sprintf(": %s", e.Model.name)
 	}
 	if e.Field != "" {
-		trace = trace + ": " + e.Field
+		trace += fmt.Sprintf(": %s", e.Field)
 	}
 	if e.Err != nil {
-		trace = trace + fmt.Sprintf(": %s", e.Err)
+		trace += fmt.Sprintf(": %s", e.Err)
 	}
 	return trace
 }
