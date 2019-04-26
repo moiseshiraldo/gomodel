@@ -40,16 +40,7 @@ func (f CharField) DBColumn(name string) string {
 
 func (f CharField) CreateSQL() string {
 	query := fmt.Sprintf("varchar(%d)", f.MaxLength)
-	if f.Null {
-		query += " NULL"
-	} else {
-		query += " NOT NULL"
-	}
-	if f.PrimaryKey {
-		query += " PRIMARY KEY"
-	} else if f.Unique {
-		query += " UNIQUE"
-	}
+	query += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
 	return query
 }
 
@@ -121,16 +112,7 @@ func (f IntegerField) DBColumn(name string) string {
 
 func (f IntegerField) CreateSQL() string {
 	query := "integer"
-	if f.Null {
-		query += " NULL"
-	} else {
-		query += " NOT NULL"
-	}
-	if f.PrimaryKey {
-		query += " PRIMARY KEY"
-	} else if f.Unique {
-		query += " UNIQUE"
-	}
+	query += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
 	return query
 }
 
@@ -154,16 +136,7 @@ func (f AutoField) DBColumn(name string) string {
 
 func (f AutoField) CreateSQL() string {
 	query := "integer"
-	if f.Null {
-		query += " NULL"
-	} else {
-		query += " NOT NULL"
-	}
-	if f.PrimaryKey {
-		query += " PRIMARY KEY"
-	} else if f.Unique {
-		query += " UNIQUE"
-	}
+	query += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
 	query += " AUTOINCREMENT"
 	return query
 }

@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -44,7 +43,7 @@ func loadHistory() error {
 	}
 	for _, state := range history {
 		for _, node := range state.migrations {
-			if err := processNode(node, stash); err != nil {
+			if err := node.setState(stash); err != nil {
 				return err
 			}
 		}
@@ -83,45 +82,5 @@ func loadApp(app *gomodels.Application) error {
 		}
 		state.migrations[number-1] = node
 	}
-	return nil
-}
-
-func processNode(node *Node, stash map[string]map[string]bool) error {
-	if node.processed {
-		return nil
-	}
-	stash[node.App][node.Name] = true
-	for _, dep := range node.Dependencies {
-		app, name := dep[0], dep[1]
-		if !mNameRe.MatchString(name) {
-			return &InvalidDependencyError{ErrorTrace{Node: node}}
-		}
-		if _, ok := history[app]; !ok {
-			return &InvalidDependencyError{ErrorTrace{Node: node}}
-		}
-		number, _ := strconv.Atoi(name[:4])
-		if number > len(history[app].migrations) {
-			return &InvalidDependencyError{ErrorTrace{Node: node}}
-		}
-		depNode := history[app].migrations[number-1]
-		if depNode == nil {
-			return &InvalidDependencyError{ErrorTrace{Node: node}}
-		}
-		if _, found := stash[app][name]; found {
-			return &CircularDependencyError{ErrorTrace{Node: node}}
-		}
-		if !depNode.processed {
-			if err := processNode(depNode, stash); err != nil {
-				return err
-			}
-		}
-	}
-	for _, op := range node.Operations {
-		if err := op.SetState(history[node.App]); err != nil {
-			return &OperationStateError{ErrorTrace{Node: node}}
-		}
-	}
-	node.processed = true
-	delete(stash[node.App], node.Name)
 	return nil
 }

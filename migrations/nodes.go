@@ -19,8 +19,8 @@ type Node struct {
 	Operations   OperationList
 }
 
-func (node Node) number() int {
-	number, _ := strconv.Atoi(node.Name[:4])
+func (n Node) number() int {
+	number, _ := strconv.Atoi(n.Name[:4])
 	return number
 }
 
@@ -96,5 +96,45 @@ func (n *Node) runOperations(db *sql.DB) error {
 	if err = tx.Commit(); err != nil {
 		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
 	}
+	return nil
+}
+
+func (n *Node) setState(stash map[string]map[string]bool) error {
+	if n.processed {
+		return nil
+	}
+	stash[n.App][n.Name] = true
+	for _, dep := range n.Dependencies {
+		app, depName := dep[0], dep[1]
+		if !mNameRe.MatchString(depName) {
+			return &InvalidDependencyError{ErrorTrace{Node: n}}
+		}
+		if _, ok := history[app]; !ok {
+			return &InvalidDependencyError{ErrorTrace{Node: n}}
+		}
+		number, _ := strconv.Atoi(depName[:4])
+		if number > len(history[app].migrations) {
+			return &InvalidDependencyError{ErrorTrace{Node: n}}
+		}
+		depNode := history[app].migrations[number-1]
+		if depNode == nil {
+			return &InvalidDependencyError{ErrorTrace{Node: n}}
+		}
+		if _, found := stash[app][depName]; found {
+			return &CircularDependencyError{ErrorTrace{Node: n}}
+		}
+		if !depNode.processed {
+			if err := depNode.setState(stash); err != nil {
+				return err
+			}
+		}
+	}
+	for _, op := range n.Operations {
+		if err := op.SetState(history[n.App]); err != nil {
+			return &OperationStateError{ErrorTrace{Node: n}}
+		}
+	}
+	n.processed = true
+	delete(stash[n.App], n.Name)
 	return nil
 }
