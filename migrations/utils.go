@@ -1,21 +1,52 @@
 package migrations
 
 import (
+	"fmt"
 	"github.com/moiseshiraldo/gomodels"
 )
 
 func getModelChanges(model *gomodels.Model) OperationList {
 	operations := OperationList{}
-	state := history[model.App().Name()]
+	app := model.App().Name()
+	state := history[app]
 	modelState, ok := state.Models[model.Name()]
 	if !ok {
-		operation := CreateModel{Model: model.Name(), Fields: model.Fields()}
-		operations = append(operations, operation)
+		operations = append(
+			operations,
+			CreateModel{
+				Name:   model.Name(),
+				Fields: model.Fields(),
+			},
+		)
+		for name, field := range model.Fields() {
+			idxName := fmt.Sprintf(
+				"%s_%s_%s_idx", app, model.Name(), field.DBColumn(name),
+			)
+			if field.HasIndex() {
+				operations = append(
+					operations,
+					AddIndex{
+						Model:   model.Name(),
+						Name:    idxName,
+						Columns: []string{name},
+					},
+				)
+			}
+		}
 	} else {
 		newFields := gomodels.Fields{}
 		removedFields := []string{}
-		for name := range modelState.Fields() {
+		for name, field := range modelState.Fields() {
 			if _, ok := model.Fields()[name]; !ok {
+				idxName := fmt.Sprintf(
+					"%s_%s_%s_idx", app, model.Name(), field.DBColumn(name),
+				)
+				if field.HasIndex() {
+					operations = append(
+						operations,
+						RemoveIndex{Model: model.Name(), Name: idxName},
+					)
+				}
 				removedFields = append(removedFields, name)
 			}
 		}
@@ -34,6 +65,21 @@ func getModelChanges(model *gomodels.Model) OperationList {
 		if len(newFields) > 0 {
 			operation := AddFields{Model: model.Name(), Fields: newFields}
 			operations = append(operations, operation)
+			for name, field := range newFields {
+				idxName := fmt.Sprintf(
+					"%s_%s_%s_idx", app, model.Name(), field.DBColumn(name),
+				)
+				if field.HasIndex() {
+					operations = append(
+						operations,
+						AddIndex{
+							Model:   model.Name(),
+							Name:    idxName,
+							Columns: []string{name},
+						},
+					)
+				}
+			}
 		}
 	}
 	return operations

@@ -23,7 +23,7 @@ func (state AppState) nextMigrationFilename(name string) string {
 		return "0001_initial"
 	}
 	number := len(state.migrations)
-	if name != "" {
+	if name == "" {
 		name = "auto_" + time.Now().Format("20060102_1504")
 	}
 	return fmt.Sprintf("%04d_%s", number+1, name)

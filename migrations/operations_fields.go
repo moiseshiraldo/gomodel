@@ -12,7 +12,7 @@ type AddFields struct {
 	Fields gomodels.Fields
 }
 
-func (op AddFields) Name() string {
+func (op AddFields) OpName() string {
 	return "AddFields"
 }
 
@@ -46,7 +46,7 @@ type RemoveFields struct {
 	Fields []string
 }
 
-func (op RemoveFields) Name() string {
+func (op RemoveFields) OpName() string {
 	return "RemoveFields"
 }
 

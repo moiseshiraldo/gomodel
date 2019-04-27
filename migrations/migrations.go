@@ -46,7 +46,7 @@ func Make(appName string, options MakeOptions) ([]*Node, error) {
 	}
 	for name := range state.Models {
 		if _, ok := app.Models()[name]; !ok {
-			node.Operations = append(node.Operations, DeleteModel{Model: name})
+			node.Operations = append(node.Operations, DeleteModel{Name: name})
 		}
 	}
 	for _, model := range app.Models() {

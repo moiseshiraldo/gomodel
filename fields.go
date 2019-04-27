@@ -11,6 +11,7 @@ type Field interface {
 	IsPk() bool
 	FromJSON(raw []byte) (Field, error)
 	DBColumn(fieldName string) string
+	HasIndex() bool
 	CreateSQL() string
 }
 

@@ -7,7 +7,7 @@ import (
 )
 
 type Operation interface {
-	Name() string
+	OpName() string
 	FromJSON(raw []byte) (Operation, error)
 	SetState(state *AppState) error
 	Run(tx *sql.Tx, app string) error
@@ -19,7 +19,7 @@ func (opList OperationList) MarshalJSON() ([]byte, error) {
 	result := []map[string]Operation{}
 	for _, op := range opList {
 		m := map[string]Operation{}
-		m[op.Name()] = op
+		m[op.OpName()] = op
 		result = append(result, m)
 	}
 	return json.Marshal(result)
@@ -42,7 +42,7 @@ func (op *OperationList) UnmarshalJSON(data []byte) error {
 			if err != nil {
 				return err
 			}
-			opList = append(*op, operation)
+			opList = append(opList, operation)
 		}
 	}
 	*op = opList
@@ -51,8 +51,11 @@ func (op *OperationList) UnmarshalJSON(data []byte) error {
 
 func AvailableOperations() map[string]Operation {
 	return map[string]Operation{
-		"CreateModel": CreateModel{},
-		"DeleteModel": DeleteModel{},
-		"AddFields":   AddFields{},
+		"CreateModel":  CreateModel{},
+		"DeleteModel":  DeleteModel{},
+		"AddFields":    AddFields{},
+		"RemoveFields": RemoveFields{},
+		"AddIndex":     AddIndex{},
+		"RemoveIndex":  RemoveIndex{},
 	}
 }

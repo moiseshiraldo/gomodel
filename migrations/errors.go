@@ -18,8 +18,8 @@ func (e *ErrorTrace) String() string {
 	if e.Node != nil {
 		trace += fmt.Sprintf("%s: %s", e.Node.App, e.Node.Name)
 	}
-	if (*e.Operation).Name() != "" {
-		trace += fmt.Sprintf(": %s", (*e.Operation).Name())
+	if (*e.Operation).OpName() != "" {
+		trace += fmt.Sprintf(": %s", (*e.Operation).OpName())
 	}
 	if e.Err != nil {
 		trace += fmt.Sprintf(": %s", e.Err)

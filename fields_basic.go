@@ -22,10 +22,6 @@ type CharField struct {
 	MaxLength  int          `json:",omitempty"`
 }
 
-func (f CharField) IsPk() bool {
-	return f.PrimaryKey
-}
-
 func (f CharField) FromJSON(raw []byte) (Field, error) {
 	err := json.Unmarshal(raw, &f)
 	return f, err
@@ -36,6 +32,14 @@ func (f CharField) DBColumn(name string) string {
 		return f.Column
 	}
 	return name
+}
+
+func (f CharField) IsPk() bool {
+	return f.PrimaryKey
+}
+
+func (f CharField) HasIndex() bool {
+	return f.Index && !(f.PrimaryKey || f.Unique)
 }
 
 func (f CharField) CreateSQL() string {
@@ -52,10 +56,6 @@ type BooleanField struct {
 	Default bool   `json:",omitempty"`
 }
 
-func (f BooleanField) IsPk() bool {
-	return false
-}
-
 func (f BooleanField) FromJSON(raw []byte) (Field, error) {
 	err := json.Unmarshal(raw, &f)
 	return f, err
@@ -66,6 +66,14 @@ func (f BooleanField) DBColumn(name string) string {
 		return f.Column
 	}
 	return name
+}
+
+func (f BooleanField) IsPk() bool {
+	return false
+}
+
+func (f BooleanField) HasIndex() bool {
+	return f.Index
 }
 
 func (f BooleanField) CreateSQL() string {
@@ -94,10 +102,6 @@ type IntegerField struct {
 	Unique     bool        `json:",omitempty"`
 }
 
-func (f IntegerField) IsPk() bool {
-	return f.PrimaryKey
-}
-
 func (f IntegerField) FromJSON(raw []byte) (Field, error) {
 	err := json.Unmarshal(raw, &f)
 	return f, err
@@ -110,6 +114,14 @@ func (f IntegerField) DBColumn(name string) string {
 	return name
 }
 
+func (f IntegerField) IsPk() bool {
+	return f.PrimaryKey
+}
+
+func (f IntegerField) HasIndex() bool {
+	return f.Index && !(f.PrimaryKey || f.Unique)
+}
+
 func (f IntegerField) CreateSQL() string {
 	query := "integer"
 	query += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
@@ -117,10 +129,6 @@ func (f IntegerField) CreateSQL() string {
 }
 
 type AutoField IntegerField
-
-func (f AutoField) IsPk() bool {
-	return f.PrimaryKey
-}
 
 func (f AutoField) FromJSON(raw []byte) (Field, error) {
 	err := json.Unmarshal(raw, &f)
@@ -132,6 +140,14 @@ func (f AutoField) DBColumn(name string) string {
 		return f.Column
 	}
 	return name
+}
+
+func (f AutoField) IsPk() bool {
+	return f.PrimaryKey
+}
+
+func (f AutoField) HasIndex() bool {
+	return f.Index && !(f.PrimaryKey || f.Unique)
 }
 
 func (f AutoField) CreateSQL() string {
