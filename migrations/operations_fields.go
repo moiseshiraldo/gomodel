@@ -38,6 +38,16 @@ func (op AddFields) SetState(state *AppState) error {
 }
 
 func (op AddFields) Run(tx *sql.Tx, app string) error {
+	baseQuery := fmt.Sprintf("ALTER TABLE '%s_%s' ADD COLUMN", app, op.Model)
+	for name, field := range op.Fields {
+		query := fmt.Sprintf(
+			"%s '%s' %s;", baseQuery, field.DBColumn(name), field.CreateSQL(),
+		)
+		fmt.Printf("%s", query)
+		if _, err := tx.Exec(query); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

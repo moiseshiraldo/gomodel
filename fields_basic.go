@@ -45,6 +45,9 @@ func (f CharField) HasIndex() bool {
 func (f CharField) CreateSQL() string {
 	query := fmt.Sprintf("varchar(%d)", f.MaxLength)
 	query += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
+	if f.Default != "" || (!f.Null && !f.Blank) {
+		query += fmt.Sprintf(" DEFAULT '%s'", f.Default)
+	}
 	return query
 }
 
@@ -125,6 +128,9 @@ func (f IntegerField) HasIndex() bool {
 func (f IntegerField) CreateSQL() string {
 	query := "integer"
 	query += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
+	if f.Default != 0 || (!f.Null && !f.Blank) {
+		query += fmt.Sprintf(" DEFAULT %d", f.Default)
+	}
 	return query
 }
 

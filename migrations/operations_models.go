@@ -68,6 +68,10 @@ func (op DeleteModel) SetState(state *AppState) error {
 }
 
 func (op DeleteModel) Run(tx *sql.Tx, app string) error {
+	query := fmt.Sprintf("DROP TABLE '%s_%s';", app, op.Name)
+	if _, err := tx.Exec(query); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -124,5 +128,11 @@ func (op RemoveIndex) SetState(state *AppState) error {
 }
 
 func (op RemoveIndex) Run(tx *sql.Tx, app string) error {
+	query := fmt.Sprintf(
+		"DROP INDEX '%s' ON '%s_%s';", op.Name, app, op.Model,
+	)
+	if _, err := tx.Exec(query); err != nil {
+		return err
+	}
 	return nil
 }
