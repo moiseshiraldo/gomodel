@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/moiseshiraldo/gomodels"
+	"strings"
 )
 
 type AddFields struct {
@@ -43,7 +44,6 @@ func (op AddFields) Run(tx *sql.Tx, app string) error {
 		query := fmt.Sprintf(
 			"%s '%s' %s;", baseQuery, field.DBColumn(name), field.CreateSQL(),
 		)
-		fmt.Printf("%s", query)
 		if _, err := tx.Exec(query); err != nil {
 			return err
 		}
@@ -82,5 +82,30 @@ func (op RemoveFields) SetState(state *AppState) error {
 }
 
 func (op RemoveFields) Run(tx *sql.Tx, app string) error {
+	query := fmt.Sprintf(
+		"ALTER TABLE %[1]s_%[2]s RENAME TO %[1]s_%[2]s__old;", app, op.Model,
+	)
+	if _, err := tx.Exec(query); err != nil {
+		return err
+	}
+	fields := history[app].Models[op.Model].Fields()
+	keepList := make([]string, 0, len(fields)-len(op.Fields))
+	for _, name := range op.Fields {
+		delete(fields, name)
+	}
+	for name := range fields {
+		keepList = append(keepList, name)
+	}
+	createModel := CreateModel{Name: op.Model, Fields: fields}
+	if err := createModel.Run(tx, app); err != nil {
+		return err
+	}
+	query = fmt.Sprintf(
+		"INSERT INTO %[1]s_%[2]s (%[3]s) SELECT %[3]s FROM %[1]s_%[2]s__old;",
+		app, op.Model, strings.Join(keepList, ", "),
+	)
+	if _, err := tx.Exec(query); err != nil {
+		return err
+	}
 	return nil
 }
