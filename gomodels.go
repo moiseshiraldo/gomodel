@@ -1,5 +1,14 @@
 package gomodels
 
+import (
+	"fmt"
+)
+
+type Dispatcher struct {
+	*Model
+	Objects *Manager
+}
+
 type Model struct {
 	app    *Application
 	name   string
@@ -15,6 +24,10 @@ func (m Model) App() *Application {
 	return m.app
 }
 
+func (m Model) Table() string {
+	return fmt.Sprintf("%s_%s", m.app.name, m.name)
+}
+
 func (m Model) Fields() Fields {
 	fields := Fields{}
 	for name, field := range m.fields {
@@ -23,13 +36,14 @@ func (m Model) Fields() Fields {
 	return fields
 }
 
-func New(name string, fields Fields) *Model {
-	return &Model{name: name, fields: fields}
+func New(name string, fields Fields) *Dispatcher {
+	model := &Model{name: name, fields: fields}
+	return &Dispatcher{model, &Manager{model}}
 }
 
 var Registry = map[string]*Application{}
 
-func Register(settings AppSettings, appModels ...*Model) error {
+func Register(settings AppSettings, models ...*Model) error {
 	app := &Application{
 		name:   settings.Name,
 		path:   settings.Path,
@@ -39,7 +53,7 @@ func Register(settings AppSettings, appModels ...*Model) error {
 		return &DuplicateAppError{ErrorTrace{App: app}}
 	}
 	Registry[settings.Name] = app
-	for _, model := range appModels {
+	for _, model := range models {
 		if err := registerModel(app, model); err != nil {
 			return err
 		}
