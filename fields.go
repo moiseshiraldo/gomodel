@@ -13,6 +13,7 @@ type Field interface {
 	DBColumn(fieldName string) string
 	HasIndex() bool
 	CreateSQL() string
+	DefaultVal() (hasDefault bool, val Value)
 }
 
 type Fields map[string]Field

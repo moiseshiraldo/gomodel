@@ -11,15 +11,16 @@ type CharChoice struct {
 }
 
 type CharField struct {
-	Null       bool         `json:",omitempty"`
-	Blank      bool         `json:",omitempty"`
-	Choices    []CharChoice `json:",omitempty"`
-	Column     string       `json:",omitempty"`
-	Index      bool         `json:",omitempty"`
-	Default    string       `json:",omitempty"`
-	PrimaryKey bool         `json:",omitempty"`
-	Unique     bool         `json:",omitempty"`
-	MaxLength  int          `json:",omitempty"`
+	Null         bool         `json:",omitempty"`
+	Blank        bool         `json:",omitempty"`
+	Choices      []CharChoice `json:",omitempty"`
+	Column       string       `json:",omitempty"`
+	Index        bool         `json:",omitempty"`
+	Default      string       `json:",omitempty"`
+	DefaultEmpty bool         `json:",omitempty"`
+	PrimaryKey   bool         `json:",omitempty"`
+	Unique       bool         `json:",omitempty"`
+	MaxLength    int          `json:",omitempty"`
 }
 
 func (f CharField) FromJSON(raw []byte) (Field, error) {
@@ -42,21 +43,30 @@ func (f CharField) HasIndex() bool {
 	return f.Index && !(f.PrimaryKey || f.Unique)
 }
 
+func (f CharField) DefaultVal() (bool, Value) {
+	if f.Default != "" || f.DefaultEmpty {
+		return true, f.Default
+	} else {
+		return false, nil
+	}
+}
+
 func (f CharField) CreateSQL() string {
 	query := fmt.Sprintf("varchar(%d)", f.MaxLength)
 	query += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
-	if f.Default != "" || (!f.Null && !f.Blank) {
+	if f.Default != "" || f.DefaultEmpty {
 		query += fmt.Sprintf(" DEFAULT '%s'", f.Default)
 	}
 	return query
 }
 
 type BooleanField struct {
-	Null    bool   `json:",omitempty"`
-	Blank   bool   `json:",omitempty"`
-	Column  string `json:",omitempty"`
-	Index   bool   `json:",omitempty"`
-	Default bool   `json:",omitempty"`
+	Null         bool   `json:",omitempty"`
+	Blank        bool   `json:",omitempty"`
+	Column       string `json:",omitempty"`
+	Index        bool   `json:",omitempty"`
+	Default      bool   `json:",omitempty"`
+	DefaultFalse bool   `json:",omitempty"`
 }
 
 func (f BooleanField) FromJSON(raw []byte) (Field, error) {
@@ -79,12 +89,27 @@ func (f BooleanField) HasIndex() bool {
 	return f.Index
 }
 
+func (f BooleanField) DefaultVal() (bool, Value) {
+	if f.Default {
+		return true, f.Default
+	} else if f.DefaultFalse {
+		return true, f.DefaultFalse
+	} else {
+		return false, nil
+	}
+}
+
 func (f BooleanField) CreateSQL() string {
 	query := "bool"
 	if f.Null {
 		query += " NULL"
 	} else {
 		query += " NOT NULL"
+	}
+	if f.Default {
+		query += " DEFAULT true"
+	} else if f.DefaultFalse {
+		query += " DEFAULT false"
 	}
 	return query
 }
@@ -95,14 +120,15 @@ type IntChoice struct {
 }
 
 type IntegerField struct {
-	Null       bool        `json:",omitempty"`
-	Blank      bool        `json:",omitempty"`
-	Choices    []IntChoice `json:",omitempty"`
-	Column     string      `json:",omitempty"`
-	Index      bool        `json:",omitempty"`
-	Default    int         `json:",omitempty"`
-	PrimaryKey bool        `json:",omitempty"`
-	Unique     bool        `json:",omitempty"`
+	Null        bool        `json:",omitempty"`
+	Blank       bool        `json:",omitempty"`
+	Choices     []IntChoice `json:",omitempty"`
+	Column      string      `json:",omitempty"`
+	Index       bool        `json:",omitempty"`
+	Default     int         `json:",omitempty"`
+	DefaultZero bool        `json:",omitempty"`
+	PrimaryKey  bool        `json:",omitempty"`
+	Unique      bool        `json:",omitempty"`
 }
 
 func (f IntegerField) FromJSON(raw []byte) (Field, error) {
@@ -125,10 +151,18 @@ func (f IntegerField) HasIndex() bool {
 	return f.Index && !(f.PrimaryKey || f.Unique)
 }
 
+func (f IntegerField) DefaultVal() (bool, Value) {
+	if f.Default != 0 || f.DefaultZero {
+		return true, f.Default
+	} else {
+		return false, nil
+	}
+}
+
 func (f IntegerField) CreateSQL() string {
 	query := "integer"
 	query += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
-	if f.Default != 0 || (!f.Null && !f.Blank) {
+	if f.Default != 0 || f.DefaultZero {
 		query += fmt.Sprintf(" DEFAULT %d", f.Default)
 	}
 	return query
@@ -154,6 +188,10 @@ func (f AutoField) IsPk() bool {
 
 func (f AutoField) HasIndex() bool {
 	return f.Index && !(f.PrimaryKey || f.Unique)
+}
+
+func (f AutoField) DefaultVal() (bool, Value) {
+	return false, nil
 }
 
 func (f AutoField) CreateSQL() string {
