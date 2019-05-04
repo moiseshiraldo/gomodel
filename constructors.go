@@ -1,23 +1,25 @@
 package gomodels
 
 type Value interface{}
-type Values map[string]Value
 
 type Constructor interface {
-	Get(field string) Value
-	Set(field string, val Value) error
+	Get(field string) (val Value, ok bool)
+	Set(field string, val Value) (ok bool)
+}
+
+type Values map[string]Value
+
+func (vals Values) Get(field string) (Value, bool) {
+	val, ok := vals[field]
+	return val, ok
+}
+
+func (vals Values) Set(field string, val Value) bool {
+	vals[field] = val
+	return true
 }
 
 type Instance struct {
-	Model  *Model
-	Values Values
-}
-
-func (ins Instance) Get(field string) Value {
-	return ins.Values[field]
-}
-
-func (ins *Instance) Set(field string, val Value) error {
-	ins.Values[field] = val
-	return nil
+	Constructor
+	Model *Model
 }
