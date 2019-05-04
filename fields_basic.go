@@ -91,9 +91,9 @@ func (f BooleanField) HasIndex() bool {
 
 func (f BooleanField) DefaultVal() (bool, Value) {
 	if f.Default {
-		return true, f.Default
+		return true, true
 	} else if f.DefaultFalse {
-		return true, f.DefaultFalse
+		return true, false
 	} else {
 		return false, nil
 	}
