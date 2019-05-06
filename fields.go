@@ -14,6 +14,7 @@ type Field interface {
 	HasIndex() bool
 	CreateSQL() string
 	DefaultVal() (hasDefault bool, val Value)
+	NativeVal() Value
 }
 
 type Fields map[string]Field

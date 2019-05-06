@@ -30,3 +30,15 @@ func (m Manager) Create(values Values) (Constructor, error) {
 	}
 	return &instance, nil
 }
+
+func (m Manager) GetQuerySet() QuerySet {
+	cols := make([]string, 0, len(m.Model.fields))
+	for name := range m.Model.fields {
+		cols = append(cols, name)
+	}
+	return GenericQuerySet{m.Model, Values{}, "default", cols}
+}
+
+func (m Manager) All() QuerySet {
+	return m.GetQuerySet()
+}

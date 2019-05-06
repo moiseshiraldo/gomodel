@@ -51,6 +51,11 @@ func (f CharField) DefaultVal() (bool, Value) {
 	}
 }
 
+func (f CharField) NativeVal() Value {
+	var val string
+	return val
+}
+
 func (f CharField) CreateSQL() string {
 	query := fmt.Sprintf("varchar(%d)", f.MaxLength)
 	query += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
@@ -97,6 +102,11 @@ func (f BooleanField) DefaultVal() (bool, Value) {
 	} else {
 		return false, nil
 	}
+}
+
+func (f BooleanField) NativeVal() Value {
+	var val bool
+	return val
 }
 
 func (f BooleanField) CreateSQL() string {
@@ -159,6 +169,11 @@ func (f IntegerField) DefaultVal() (bool, Value) {
 	}
 }
 
+func (f IntegerField) NativeVal() Value {
+	var val int
+	return val
+}
+
 func (f IntegerField) CreateSQL() string {
 	query := "integer"
 	query += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
@@ -192,6 +207,11 @@ func (f AutoField) HasIndex() bool {
 
 func (f AutoField) DefaultVal() (bool, Value) {
 	return false, nil
+}
+
+func (f AutoField) NativeVal() Value {
+	var val int
+	return val
 }
 
 func (f AutoField) CreateSQL() string {
