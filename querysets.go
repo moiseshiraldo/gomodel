@@ -36,14 +36,32 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 	for rows.Next() {
 		var constructor Constructor
 		recipients := make([]interface{}, 0, len(qs.columns))
-		if qs.constructor != nil {
-			constructor = qs.constructor.New()
-			recipients = constructor.Recipients(qs.columns)
-		} else {
+		switch qs.constructor.(type) {
+		case Values:
 			constructor = Values{}
 			for _, name := range qs.columns {
 				val := qs.model.fields[name].NativeVal()
 				recipients = append(recipients, &val)
+			}
+		default:
+			if builder, ok := qs.constructor.(Builder); ok {
+				builder = builder.New()
+				recipients = builder.Recipients(qs.columns)
+				constructor = builder
+			} else {
+				ct := reflect.TypeOf(qs.constructor)
+				if ct.Kind() == reflect.Ptr {
+					ct = ct.Elem()
+				}
+				cp := reflect.New(ct)
+				for _, name := range qs.columns {
+					f := cp.Elem().FieldByName(strings.Title(name))
+					if !f.IsValid() || !f.CanAddr() {
+						return result, fmt.Errorf("field not found %s", name)
+					}
+					recipients = append(recipients, f.Addr().Interface())
+				}
+				constructor = cp.Interface()
 			}
 		}
 		err := rows.Scan(recipients...)
@@ -51,10 +69,12 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 			trace := ErrorTrace{App: qs.model.app, Model: qs.model, Err: err}
 			return nil, &DatabaseError{qs.database, trace}
 		}
-		if qs.constructor == nil {
+		if _, ok := qs.constructor.(Values); ok {
+			values := Values{}
 			for i, name := range qs.columns {
-				constructor.Set(name, reflect.ValueOf(recipients[i]).Elem())
+				values[name] = reflect.ValueOf(recipients[i]).Elem()
 			}
+			constructor = values
 		}
 		result = append(result, &Instance{constructor, qs.model})
 	}

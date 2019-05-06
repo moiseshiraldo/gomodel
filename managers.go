@@ -36,7 +36,11 @@ func (m Manager) GetQuerySet() QuerySet {
 	for name := range m.Model.fields {
 		cols = append(cols, name)
 	}
-	return GenericQuerySet{m.Model, m.Model.meta.Constructor, "default", cols}
+	constructor := m.Model.meta.Constructor
+	if constructor == nil {
+		constructor = Values{}
+	}
+	return GenericQuerySet{m.Model, constructor, "default", cols}
 }
 
 func (m Manager) All() QuerySet {
