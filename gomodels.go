@@ -14,6 +14,11 @@ type Model struct {
 	name   string
 	pk     string
 	fields Fields
+	meta   Options
+}
+
+type Options struct {
+	Constructor Constructor
 }
 
 func (m Model) Name() string {
@@ -36,8 +41,8 @@ func (m Model) Fields() Fields {
 	return fields
 }
 
-func New(name string, fields Fields) *Dispatcher {
-	model := &Model{name: name, fields: fields}
+func New(name string, fields Fields, options Options) *Dispatcher {
+	model := &Model{name: name, fields: fields, meta: options}
 	return &Dispatcher{model, &Manager{model}}
 }
 

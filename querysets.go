@@ -34,22 +34,29 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
+		var constructor Constructor
 		recipients := make([]interface{}, 0, len(qs.columns))
-		for _, name := range qs.columns {
-			val := qs.model.fields[name].NativeVal()
-			recipients = append(recipients, &val)
+		if qs.constructor != nil {
+			constructor = qs.constructor.New()
+			recipients = constructor.Recipients(qs.columns)
+		} else {
+			constructor = Values{}
+			for _, name := range qs.columns {
+				val := qs.model.fields[name].NativeVal()
+				recipients = append(recipients, &val)
+			}
 		}
 		err := rows.Scan(recipients...)
 		if err != nil {
 			trace := ErrorTrace{App: qs.model.app, Model: qs.model, Err: err}
 			return nil, &DatabaseError{qs.database, trace}
 		}
-		constructor := qs.constructor.New()
-		for i, name := range qs.columns {
-			constructor.Set(name, reflect.ValueOf(recipients[i]).Elem())
+		if qs.constructor == nil {
+			for i, name := range qs.columns {
+				constructor.Set(name, reflect.ValueOf(recipients[i]).Elem())
+			}
 		}
-		ins := &Instance{constructor, qs.model}
-		result = append(result, ins)
+		result = append(result, &Instance{constructor, qs.model})
 	}
 	return result, nil
 }
