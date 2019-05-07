@@ -41,17 +41,28 @@ type Instance struct {
 	Model *Model
 }
 
-func (i Instance) Get(field string) Value {
+func (i Instance) GetIf(field string) (Value, bool) {
 	var val Value
+	ok := true
 	switch constructor := i.Constructor.(type) {
 	case Values:
 		val = constructor[field]
 	case Builder:
-		val, _ = constructor.Get(field)
+		val, ok = constructor.Get(field)
 	default:
 		cv := reflect.Indirect(reflect.ValueOf(constructor))
-		val = cv.FieldByName(strings.Title(field)).Interface()
+		f := cv.FieldByName(strings.Title(field))
+		if f.IsValid() && f.CanInterface() {
+			val = f.Interface()
+		} else {
+			ok = false
+		}
 	}
+	return val, ok
+}
+
+func (i Instance) Get(field string) Value {
+	val, _ := i.GetIf(field)
 	return val
 }
 
@@ -63,8 +74,8 @@ func (i Instance) Set(field string, val Value) error {
 	case Builder:
 		return constructor.Set(field, val)
 	default:
-		r := reflect.ValueOf(i.Constructor)
-		f := r.Elem().FieldByName("N")
+		cv := reflect.Indirect(reflect.ValueOf(constructor))
+		f := cv.FieldByName(strings.Title(field))
 		if !f.IsValid() || !f.CanSet() {
 			return fmt.Errorf("Invalid field")
 		}

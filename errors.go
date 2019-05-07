@@ -78,3 +78,15 @@ func (e *DatabaseError) Error() string {
 func (e *DatabaseError) Trace() ErrorTrace {
 	return e.ErrorTrace
 }
+
+type ConstructorError struct {
+	ErrorTrace
+}
+
+func (e *ConstructorError) Error() string {
+	return fmt.Sprintf("gomodels: %s", e.ErrorTrace.String())
+}
+
+func (e *ConstructorError) Trace() ErrorTrace {
+	return e.ErrorTrace
+}

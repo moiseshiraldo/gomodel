@@ -7,8 +7,11 @@ import (
 )
 
 type QuerySet interface {
-	Load() ([]*Instance, error)
+	Load() ([]Instance, error)
 	Query() string
+	Model() *Model
+	Columns() []string
+	Constructor() Constructor
 }
 
 type GenericQuerySet struct {
@@ -24,59 +27,56 @@ func (qs GenericQuerySet) Query() string {
 	)
 }
 
-func (qs GenericQuerySet) Load() ([]*Instance, error) {
-	result := []*Instance{}
-	db := Databases[qs.database]
+func (qs GenericQuerySet) Model() *Model {
+	return qs.model
+}
+
+func (qs GenericQuerySet) Columns() []string {
+	return qs.columns
+}
+
+func (qs GenericQuerySet) Constructor() Constructor {
+	return qs.constructor
+}
+
+func (qs GenericQuerySet) Load() ([]Instance, error) {
+	result := []Instance{}
+	trace := ErrorTrace{App: qs.model.app, Model: qs.model}
+	consType := getConstructorType(qs.constructor)
+	if consType == "" {
+		trace.Err = fmt.Errorf("invalid constructor type")
+		return nil, &ConstructorError{trace}
+	}
+	db, ok := Databases[qs.database]
+	if !ok {
+		trace.Err = fmt.Errorf("db not found: %s", qs.database)
+		return nil, &DatabaseError{qs.database, trace}
+	}
 	rows, err := db.Query(qs.Query())
 	if err != nil {
-		trace := ErrorTrace{App: qs.model.app, Model: qs.model, Err: err}
+		trace.Err = err
 		return nil, &DatabaseError{qs.database, trace}
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var constructor Constructor
-		recipients := make([]interface{}, 0, len(qs.columns))
-		switch qs.constructor.(type) {
-		case Values:
-			constructor = Values{}
-			for _, name := range qs.columns {
-				val := qs.model.fields[name].NativeVal()
-				recipients = append(recipients, &val)
-			}
-		default:
-			if builder, ok := qs.constructor.(Builder); ok {
-				builder = builder.New()
-				recipients = builder.Recipients(qs.columns)
-				constructor = builder
-			} else {
-				ct := reflect.TypeOf(qs.constructor)
-				if ct.Kind() == reflect.Ptr {
-					ct = ct.Elem()
-				}
-				cp := reflect.New(ct)
-				for _, name := range qs.columns {
-					f := cp.Elem().FieldByName(strings.Title(name))
-					if !f.IsValid() || !f.CanAddr() {
-						return result, fmt.Errorf("field not found %s", name)
-					}
-					recipients = append(recipients, f.Addr().Interface())
-				}
-				constructor = cp.Interface()
-			}
+		constructor, recipients := getRecipients(qs, consType)
+		if len(recipients) != len(qs.columns) {
+			trace.Err = fmt.Errorf("invalid constructor recipients")
+			return nil, &ConstructorError{trace}
 		}
 		err := rows.Scan(recipients...)
 		if err != nil {
-			trace := ErrorTrace{App: qs.model.app, Model: qs.model, Err: err}
-			return nil, &DatabaseError{qs.database, trace}
+			trace.Err = err
+			return nil, &ConstructorError{trace}
 		}
-		if _, ok := qs.constructor.(Values); ok {
+		if consType == "Map" {
 			values := Values{}
 			for i, name := range qs.columns {
 				values[name] = reflect.ValueOf(recipients[i]).Elem()
 			}
 			constructor = values
 		}
-		result = append(result, &Instance{constructor, qs.model})
+		result = append(result, Instance{constructor, qs.model})
 	}
 	return result, nil
 }

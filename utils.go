@@ -2,6 +2,7 @@ package gomodels
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -37,4 +38,72 @@ func sqlCreateQuery(table string, values Values) (string, []interface{}) {
 		"INSERT INTO '%s' (%s) VALUES (%s)", table, colStr, phStr,
 	)
 	return query, vals
+}
+
+func getConstructor(model Model) Constructor {
+	switch model.meta.Constructor.(type) {
+	case Values:
+		return Values{}
+	default:
+		if builder, ok := model.meta.Constructor.(Builder); ok {
+			return builder.New()
+		} else {
+			ct := reflect.TypeOf(model.meta.Constructor)
+			if ct.Kind() == reflect.Ptr {
+				ct = ct.Elem()
+			}
+			return reflect.New(ct)
+		}
+	}
+}
+
+func getConstructorType(constructor Constructor) string {
+	switch constructor.(type) {
+	case Values:
+		return "Map"
+	default:
+		if _, ok := constructor.(Builder); ok {
+			return "Builder"
+		} else {
+			ct := reflect.TypeOf(constructor)
+			if ct.Kind() == reflect.Ptr {
+				ct = ct.Elem()
+			}
+			if ct.Kind() == reflect.Struct {
+				return "Struct"
+			}
+		}
+		return ""
+	}
+}
+
+func getRecipients(qs QuerySet, ct string) (Constructor, []interface{}) {
+	var constructor Constructor
+	recipients := make([]interface{}, 0, len(qs.Columns()))
+	switch ct {
+	case "Map":
+		constructor = Values{}
+		for _, name := range qs.Columns() {
+			val := qs.Model().fields[name].NativeVal()
+			recipients = append(recipients, &val)
+		}
+	case "Builder":
+		builder := qs.Constructor().(Builder).New()
+		recipients = builder.Recipients(qs.Columns())
+		constructor = builder
+	default:
+		ct := reflect.TypeOf(qs.Constructor())
+		if ct.Kind() == reflect.Ptr {
+			ct = ct.Elem()
+		}
+		cp := reflect.New(ct)
+		for _, name := range qs.Columns() {
+			f := cp.Elem().FieldByName(strings.Title(name))
+			if f.IsValid() && f.CanAddr() {
+				recipients = append(recipients, f.Addr().Interface())
+			}
+		}
+		constructor = cp.Interface()
+	}
+	return constructor, recipients
 }
