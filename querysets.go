@@ -7,11 +7,12 @@ import (
 )
 
 type QuerySet interface {
-	Load() ([]Instance, error)
-	Query() string
+	Load() ([]*Instance, error)
+	Query() (placeholder string, values []interface{})
 	Model() *Model
 	Columns() []string
 	Constructor() Constructor
+	Filter(f Filterer) QuerySet
 }
 
 type GenericQuerySet struct {
@@ -19,12 +20,20 @@ type GenericQuerySet struct {
 	constructor Constructor
 	database    string
 	columns     []string
+	filter      Filterer
 }
 
-func (qs GenericQuerySet) Query() string {
-	return fmt.Sprintf(
+func (qs GenericQuerySet) Query() (string, []interface{}) {
+	query := fmt.Sprintf(
 		"SELECT %s FROM %s", strings.Join(qs.columns, ", "), qs.model.Table(),
 	)
+	if qs.filter != nil {
+		filter, values := qs.filter.Query()
+		query += fmt.Sprintf(" WHERE %s", filter)
+		return query, values
+	} else {
+		return query, make([]interface{}, 0)
+	}
 }
 
 func (qs GenericQuerySet) Model() *Model {
@@ -39,8 +48,21 @@ func (qs GenericQuerySet) Constructor() Constructor {
 	return qs.constructor
 }
 
-func (qs GenericQuerySet) Load() ([]Instance, error) {
-	result := []Instance{}
+func (qs GenericQuerySet) Filter(filter Filterer) QuerySet {
+	if qs.filter == nil {
+		if query, ok := filter.(Q); ok {
+			qs.filter = Filter{sibs: []Filterer{query}}
+		} else {
+			qs.filter = filter
+		}
+	} else {
+		qs.filter = qs.filter.And(filter)
+	}
+	return qs
+}
+
+func (qs GenericQuerySet) Load() ([]*Instance, error) {
+	result := []*Instance{}
 	trace := ErrorTrace{App: qs.model.app, Model: qs.model}
 	consType := getConstructorType(qs.constructor)
 	if consType == "" {
@@ -52,7 +74,8 @@ func (qs GenericQuerySet) Load() ([]Instance, error) {
 		trace.Err = fmt.Errorf("db not found: %s", qs.database)
 		return nil, &DatabaseError{qs.database, trace}
 	}
-	rows, err := db.Query(qs.Query())
+	query, values := qs.Query()
+	rows, err := db.Query(query, values...)
 	if err != nil {
 		trace.Err = err
 		return nil, &DatabaseError{qs.database, trace}
@@ -76,7 +99,7 @@ func (qs GenericQuerySet) Load() ([]Instance, error) {
 			}
 			constructor = values
 		}
-		result = append(result, Instance{constructor, qs.model})
+		result = append(result, &Instance{constructor, qs.model})
 	}
 	return result, nil
 }

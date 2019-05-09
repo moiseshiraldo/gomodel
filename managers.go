@@ -4,10 +4,10 @@ type Manager struct {
 	Model *Model
 }
 
-func (m Manager) Create(values Values) (Instance, error) {
+func (m Manager) Create(values Values) (*Instance, error) {
 	db := Databases["default"]
 	constructor := getConstructor(*m.Model)
-	instance := Instance{constructor, m.Model}
+	instance := &Instance{constructor, m.Model}
 	query, vals := sqlCreateQuery(m.Model.Table(), values)
 	result, err := db.Exec(query, vals...)
 	if err != nil {
@@ -42,9 +42,18 @@ func (m Manager) GetQuerySet() QuerySet {
 	if constructor == nil {
 		constructor = Values{}
 	}
-	return GenericQuerySet{m.Model, constructor, "default", cols}
+	return GenericQuerySet{
+		model:       m.Model,
+		constructor: constructor,
+		database:    "default",
+		columns:     cols,
+	}
 }
 
 func (m Manager) All() QuerySet {
 	return m.GetQuerySet()
+}
+
+func (m Manager) Filter(f Filterer) QuerySet {
+	return m.GetQuerySet().Filter(f)
 }
