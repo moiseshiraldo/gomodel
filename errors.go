@@ -30,42 +30,6 @@ func (e *ErrorTrace) String() string {
 	return trace
 }
 
-type DuplicateAppError struct {
-	ErrorTrace
-}
-
-func (e *DuplicateAppError) Error() string {
-	return fmt.Sprintf("gomodels: %s: duplicate app", e.ErrorTrace.String())
-}
-
-func (e *DuplicateAppError) Trace() ErrorTrace {
-	return e.ErrorTrace
-}
-
-type DuplicateModelError struct {
-	ErrorTrace
-}
-
-func (e *DuplicateModelError) Error() string {
-	return fmt.Sprintf("gomodels: %s: duplicate model", e.ErrorTrace.String())
-}
-
-func (e *DuplicateModelError) Trace() ErrorTrace {
-	return e.ErrorTrace
-}
-
-type DuplicatePkError struct {
-	ErrorTrace
-}
-
-func (e *DuplicatePkError) Error() string {
-	return fmt.Sprintf("gomodels: %s: duplicate pk", e.ErrorTrace.String())
-}
-
-func (e *DuplicatePkError) Trace() ErrorTrace {
-	return e.ErrorTrace
-}
-
 type DatabaseError struct {
 	Name string
 	ErrorTrace

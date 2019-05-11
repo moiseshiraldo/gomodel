@@ -6,8 +6,13 @@ import (
 )
 
 type AppSettings struct {
-	Name string
-	Path string
+	Name   string
+	Path   string
+	Models []*Model
+}
+
+func NewApp(name string, path string, models ...*Model) AppSettings {
+	return AppSettings{name, path, models}
 }
 
 type Application struct {

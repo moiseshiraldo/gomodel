@@ -48,33 +48,37 @@ func New(name string, fields Fields, options Options) *Dispatcher {
 
 var Registry = map[string]*Application{}
 
-func Register(settings AppSettings, models ...*Model) error {
-	app := &Application{
-		name:   settings.Name,
-		path:   settings.Path,
-		models: make(map[string]*Model),
-	}
-	if _, found := Registry[settings.Name]; found {
-		return &DuplicateAppError{ErrorTrace{App: app}}
-	}
-	Registry[settings.Name] = app
-	for _, model := range models {
-		if err := registerModel(app, model); err != nil {
-			return err
+func Register(apps ...AppSettings) error {
+	for _, settings := range apps {
+		if _, found := Registry[settings.Name]; found {
+			panic(fmt.Sprintf("gomodels: duplicate app: %s", settings.Name))
 		}
-		Registry[settings.Name].models[model.name] = model
+		app := &Application{
+			name:   settings.Name,
+			path:   settings.Path,
+			models: make(map[string]*Model),
+		}
+		Registry[app.name] = app
+		for _, model := range settings.Models {
+			registerModel(app, model)
+			Registry[app.name].models[model.name] = model
+		}
 	}
 	return nil
 }
 
 func registerModel(app *Application, model *Model) error {
 	if _, found := app.models[model.name]; found {
-		return &DuplicateModelError{ErrorTrace{App: app, Model: model}}
+		panic(fmt.Sprintf(
+			"gomodels: %s: duplicate model: %s", app.name, model.name,
+		))
 	}
 	model.app = app
 	for name, field := range model.fields {
 		if field.IsPk() && model.pk != "" {
-			return &DuplicatePkError{ErrorTrace{app, model, name, nil}}
+			panic(fmt.Sprintf(
+				"gomodels: %s: %s: duplicate pk", model.name, name,
+			))
 		} else if field.IsPk() {
 			model.pk = name
 		}
@@ -82,6 +86,13 @@ func registerModel(app *Application, model *Model) error {
 	if model.pk == "" {
 		model.fields["id"] = AutoField{PrimaryKey: true}
 		model.pk = "id"
+	}
+	if model.meta.Constructor != nil {
+		if getConstructorType(model.meta.Constructor) == "" {
+			panic(fmt.Sprintf(
+				"gomodels: %s: %s: invalid constructor", app.name, model.name,
+			))
+		}
 	}
 	app.models[model.name] = model
 	return nil
