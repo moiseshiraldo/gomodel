@@ -13,6 +13,7 @@ type QuerySet interface {
 	Columns() []string
 	Constructor() Constructor
 	Filter(f Filterer) QuerySet
+	Delete() (int64, error)
 }
 
 type GenericQuerySet struct {
@@ -21,6 +22,16 @@ type GenericQuerySet struct {
 	database    string
 	columns     []string
 	filter      Filterer
+}
+
+func (qs GenericQuerySet) dbError(err error) error {
+	trace := ErrorTrace{App: qs.model.app, Model: qs.model, Err: err}
+	return &DatabaseError{qs.database, trace}
+}
+
+func (qs GenericQuerySet) constructorError(err error) error {
+	trace := ErrorTrace{App: qs.model.app, Model: qs.model, Err: err}
+	return &ConstructorError{trace}
 }
 
 func (qs GenericQuerySet) Query() (string, []interface{}) {
@@ -63,34 +74,29 @@ func (qs GenericQuerySet) Filter(filter Filterer) QuerySet {
 
 func (qs GenericQuerySet) Load() ([]*Instance, error) {
 	result := []*Instance{}
-	trace := ErrorTrace{App: qs.model.app, Model: qs.model}
 	consType := getConstructorType(qs.constructor)
 	if consType == "" {
-		trace.Err = fmt.Errorf("invalid constructor type")
-		return nil, &ConstructorError{trace}
+		return nil, qs.dbError(fmt.Errorf("invalid constructor type"))
 	}
 	db, ok := Databases[qs.database]
 	if !ok {
-		trace.Err = fmt.Errorf("db not found: %s", qs.database)
-		return nil, &DatabaseError{qs.database, trace}
+		return nil, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
 	query, values := qs.Query()
 	rows, err := db.Query(query, values...)
 	if err != nil {
-		trace.Err = err
-		return nil, &DatabaseError{qs.database, trace}
+		return nil, qs.dbError(err)
 	}
 	defer rows.Close()
 	for rows.Next() {
 		constructor, recipients := getRecipients(qs, consType)
 		if len(recipients) != len(qs.columns) {
-			trace.Err = fmt.Errorf("invalid constructor recipients")
-			return nil, &ConstructorError{trace}
+			err := fmt.Errorf("invalid constructor recipients")
+			return nil, qs.constructorError(err)
 		}
 		err := rows.Scan(recipients...)
 		if err != nil {
-			trace.Err = err
-			return nil, &ConstructorError{trace}
+			return nil, qs.constructorError(err)
 		}
 		if consType == "Map" {
 			values := Values{}
@@ -102,4 +108,27 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 		result = append(result, &Instance{constructor, qs.model})
 	}
 	return result, nil
+}
+
+func (qs GenericQuerySet) Delete() (int64, error) {
+	db, ok := Databases[qs.database]
+	if !ok {
+		return 0, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
+	}
+	query := fmt.Sprintf("DELETE FROM %s", qs.model.Table())
+	filter := ""
+	values := make([]interface{}, 0)
+	if qs.filter != nil {
+		filter, values = qs.filter.Query()
+		query += fmt.Sprintf(" WHERE %s", filter)
+	}
+	result, err := db.Exec(query, values...)
+	if err != nil {
+		return 0, qs.dbError(err)
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return 0, qs.dbError(err)
+	}
+	return count, nil
 }
