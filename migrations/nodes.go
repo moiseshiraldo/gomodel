@@ -93,6 +93,15 @@ func (n *Node) runOperations(db *sql.DB) error {
 			}
 		}
 	}
+	query := `INSERT INTO gomodels_migration(app, name, number)
+		VALUES($1, $2, $3)`
+	if _, err := tx.Exec(query, n.App, n.Name, n.number()); err != nil {
+		txErr := tx.Rollback()
+		if txErr != nil {
+			err = txErr
+		}
+		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
+	}
 	if err = tx.Commit(); err != nil {
 		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
 	}

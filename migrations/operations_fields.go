@@ -34,7 +34,9 @@ func (op AddFields) SetState(state *AppState) error {
 		fields[name] = field
 	}
 	delete(state.Models, op.Model)
-	state.Models[op.Model] = gomodels.New(op.Model, fields).Model
+	state.Models[op.Model] = gomodels.New(
+		op.Model, fields, gomodels.Options{},
+	).Model
 	return nil
 }
 
@@ -77,7 +79,9 @@ func (op RemoveFields) SetState(state *AppState) error {
 		delete(fields, name)
 	}
 	delete(state.Models, op.Model)
-	state.Models[op.Model] = gomodels.New(op.Model, fields).Model
+	state.Models[op.Model] = gomodels.New(
+		op.Model, fields, gomodels.Options{},
+	).Model
 	return nil
 }
 

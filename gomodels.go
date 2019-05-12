@@ -2,6 +2,7 @@ package gomodels
 
 import (
 	"fmt"
+	"strings"
 )
 
 type Dispatcher struct {
@@ -30,7 +31,9 @@ func (m Model) App() *Application {
 }
 
 func (m Model) Table() string {
-	return fmt.Sprintf("%s_%s", m.app.name, m.name)
+	return fmt.Sprintf(
+		"%s_%s", strings.ToLower(m.app.name), strings.ToLower(m.name),
+	)
 }
 
 func (m Model) Fields() Fields {
@@ -50,7 +53,8 @@ var Registry = map[string]*Application{}
 
 func Register(apps ...AppSettings) error {
 	for _, settings := range apps {
-		if _, found := Registry[settings.Name]; found {
+		appName := settings.Name
+		if _, found := Registry[appName]; found || appName == "gomodels" {
 			panic(fmt.Sprintf("gomodels: duplicate app: %s", settings.Name))
 		}
 		app := &Application{
@@ -67,7 +71,7 @@ func Register(apps ...AppSettings) error {
 	return nil
 }
 
-func registerModel(app *Application, model *Model) error {
+func registerModel(app *Application, model *Model) {
 	if _, found := app.models[model.name]; found {
 		panic(fmt.Sprintf(
 			"gomodels: %s: duplicate model: %s", app.name, model.name,
@@ -95,5 +99,4 @@ func registerModel(app *Application, model *Model) error {
 		}
 	}
 	app.models[model.name] = model
-	return nil
 }

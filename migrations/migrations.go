@@ -85,6 +85,9 @@ func Run(options RunOptions) error {
 	if !ok {
 		return &gomodels.DatabaseError{dbName, gomodels.ErrorTrace{}}
 	}
+	if err := prepareDatabase(db); err != nil {
+		return err
+	}
 	if err := loadHistory(); err != nil {
 		return err
 	}

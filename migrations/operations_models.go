@@ -26,7 +26,9 @@ func (op CreateModel) SetState(state *AppState) error {
 	if _, found := state.Models[op.Name]; found {
 		return fmt.Errorf("duplicate model: %s", op.Name)
 	}
-	state.Models[op.Name] = gomodels.New(op.Name, op.Fields).Model
+	state.Models[op.Name] = gomodels.New(
+		op.Name, op.Fields, gomodels.Options{},
+	).Model
 	return nil
 }
 
