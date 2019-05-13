@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/moiseshiraldo/gomodels"
 	"io/ioutil"
@@ -14,8 +15,9 @@ var mFileRe = regexp.MustCompile(`^([0-9]{4})_\w+\.json$`)
 var mNameRe = regexp.MustCompile(`^([0-9]{4})_\w+$`)
 
 type AppState struct {
-	Models     map[string]*gomodels.Model
-	migrations []*Node
+	Models      map[string]*gomodels.Model
+	migrations  []*Node
+	lastApplied int
 }
 
 func (state AppState) nextMigrationFilename(name string) string {
@@ -81,6 +83,35 @@ func loadApp(app *gomodels.Application) error {
 			return &DuplicateNumberError{ErrorTrace{Node: node}}
 		}
 		state.migrations[number-1] = node
+	}
+	return nil
+}
+
+func loadApplied(db *sql.DB) error {
+	rows, err := db.Query("SELECT app, number FROM gomodels_migration")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var appName string
+		var number int
+		err := rows.Scan(&appName, &number)
+		if err != nil {
+			return err
+		}
+		if app, ok := history[appName]; ok {
+			if number <= len(app.migrations) {
+				app.migrations[number-1].applied = true
+			}
+			if number > app.lastApplied {
+				app.lastApplied = number
+			}
+		}
+	}
+	err = rows.Err()
+	if err != nil {
+		return err
 	}
 	return nil
 }

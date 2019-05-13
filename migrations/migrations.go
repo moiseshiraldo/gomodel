@@ -91,6 +91,9 @@ func Run(options RunOptions) error {
 	if err := loadHistory(); err != nil {
 		return err
 	}
+	if err := loadApplied(db); err != nil {
+		return &gomodels.DatabaseError{dbName, gomodels.ErrorTrace{Err: err}}
+	}
 	if options.App != "" {
 		state, ok := history[options.App]
 		if !ok {

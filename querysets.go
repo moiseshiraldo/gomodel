@@ -107,6 +107,10 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 		}
 		result = append(result, &Instance{constructor, qs.model})
 	}
+	err = rows.Err()
+	if err != nil {
+		return nil, qs.dbError(err)
+	}
 	return result, nil
 }
 
