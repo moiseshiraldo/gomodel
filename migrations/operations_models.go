@@ -48,6 +48,14 @@ func (op CreateModel) Run(tx *sql.Tx, app string) error {
 	return nil
 }
 
+func (op CreateModel) Backwards(tx *sql.Tx, app string) error {
+	query := fmt.Sprintf("DROP TABLE '%s_%s';", app, op.Name)
+	if _, err := tx.Exec(query); err != nil {
+		return err
+	}
+	return nil
+}
+
 type DeleteModel struct {
 	Name string
 }
@@ -74,6 +82,10 @@ func (op DeleteModel) Run(tx *sql.Tx, app string) error {
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (op DeleteModel) Backwards(tx *sql.Tx, app string) error {
 	return nil
 }
 
@@ -111,6 +123,14 @@ func (op AddIndex) Run(tx *sql.Tx, app string) error {
 	return nil
 }
 
+func (op AddIndex) Backwards(tx *sql.Tx, app string) error {
+	query := fmt.Sprintf("DROP INDEX '%s';", op.Name)
+	if _, err := tx.Exec(query); err != nil {
+		return err
+	}
+	return nil
+}
+
 type RemoveIndex struct {
 	Model string
 	Name  string
@@ -136,5 +156,9 @@ func (op RemoveIndex) Run(tx *sql.Tx, app string) error {
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (op RemoveIndex) Backwards(tx *sql.Tx, app string) error {
 	return nil
 }

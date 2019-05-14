@@ -99,21 +99,30 @@ func Run(options RunOptions) error {
 		if !ok {
 			return &AppNotFoundError{options.App, ErrorTrace{}}
 		}
-		node := &Node{}
+		var node *Node
 		if options.Node != "" {
 			number, err := strconv.Atoi(options.Node[:4])
 			if err != nil {
 				return &NameError{options.Node, ErrorTrace{}}
 			}
-			node = state.migrations[number-1]
+			if number > 0 {
+				node = state.migrations[number-1]
+			}
 		} else if len(state.migrations) > 0 {
 			node = state.migrations[len(state.migrations)-1]
 		}
-		if err := node.Run(db); err != nil {
-			if dbErr, ok := err.(*gomodels.DatabaseError); ok {
-				dbErr.Name = dbName
-				return dbErr
-			}
+		var err error
+		if node == nil {
+			err = state.migrations[0].Backwards(db)
+		} else if node.number() < state.lastApplied {
+			err = state.migrations[node.number()+1].Backwards(db)
+		} else {
+			err = node.Run(db)
+		}
+		if dbErr, ok := err.(*gomodels.DatabaseError); ok {
+			dbErr.Name = dbName
+			return dbErr
+		} else if err != nil {
 			return err
 		}
 	} else {

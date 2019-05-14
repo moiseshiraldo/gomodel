@@ -108,6 +108,67 @@ func (n *Node) runOperations(db *sql.DB) error {
 	return nil
 }
 
+func (n *Node) Backwards(db *sql.DB) error {
+	if !n.applied {
+		return nil
+	}
+	if err := n.backwardDependencies(db); err != nil {
+		return err
+	}
+	if err := n.backwardOperations(db); err != nil {
+		return err
+	}
+	n.applied = false
+	return nil
+}
+
+func (n *Node) backwardDependencies(db *sql.DB) error {
+	for _, state := range history {
+		for _, node := range state.migrations {
+			for _, dep := range node.Dependencies {
+				if dep[0] == n.App && dep[1] == n.Name {
+					if err := node.Backwards(db); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (n *Node) backwardOperations(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
+	}
+	for k := range n.Operations {
+		op := n.Operations[len(n.Operations)-1-k]
+		if err := op.Backwards(tx, n.App); err != nil {
+			if txErr := tx.Rollback(); txErr != nil {
+				return &gomodels.DatabaseError{
+					"", gomodels.ErrorTrace{Err: txErr},
+				}
+			}
+			return &OperationRunError{
+				ErrorTrace{Node: n, Operation: &op, Err: err},
+			}
+		}
+	}
+	query := "DELETE FROM gomodels_migration WHERE app = $1 and number = $2"
+	if _, err := tx.Exec(query, n.App, n.number()); err != nil {
+		txErr := tx.Rollback()
+		if txErr != nil {
+			err = txErr
+		}
+		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
+	}
+	if err = tx.Commit(); err != nil {
+		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
+	}
+	return nil
+}
+
 func (n *Node) setState(stash map[string]map[string]bool) error {
 	if n.processed {
 		return nil

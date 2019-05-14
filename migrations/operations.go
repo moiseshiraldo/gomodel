@@ -11,6 +11,7 @@ type Operation interface {
 	FromJSON(raw []byte) (Operation, error)
 	SetState(state *AppState) error
 	Run(tx *sql.Tx, app string) error
+	Backwards(tx *sql.Tx, app string) error
 }
 
 type OperationList []Operation

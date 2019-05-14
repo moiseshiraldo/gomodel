@@ -53,6 +53,35 @@ func (op AddFields) Run(tx *sql.Tx, app string) error {
 	return nil
 }
 
+func (op AddFields) Backwards(tx *sql.Tx, app string) error {
+	query := fmt.Sprintf(
+		"ALTER TABLE %[1]s_%[2]s RENAME TO %[1]s_%[2]s__old;", app, op.Model,
+	)
+	if _, err := tx.Exec(query); err != nil {
+		return err
+	}
+	fields := history[app].Models[op.Model].Fields()
+	keepList := make([]string, 0, len(fields)-len(op.Fields))
+	for name := range op.Fields {
+		delete(fields, name)
+	}
+	for name := range fields {
+		keepList = append(keepList, name)
+	}
+	createModel := CreateModel{Name: op.Model, Fields: fields}
+	if err := createModel.Run(tx, app); err != nil {
+		return err
+	}
+	query = fmt.Sprintf(
+		"INSERT INTO %[1]s_%[2]s (%[3]s) SELECT %[3]s FROM %[1]s_%[2]s__old;",
+		app, op.Model, strings.Join(keepList, ", "),
+	)
+	if _, err := tx.Exec(query); err != nil {
+		return err
+	}
+	return nil
+}
+
 type RemoveFields struct {
 	Model  string
 	Fields []string
@@ -111,5 +140,9 @@ func (op RemoveFields) Run(tx *sql.Tx, app string) error {
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (op RemoveFields) Backwards(tx *sql.Tx, app string) error {
 	return nil
 }
