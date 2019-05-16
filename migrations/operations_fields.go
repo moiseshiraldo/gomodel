@@ -53,7 +53,7 @@ func (op AddFields) Run(tx *sql.Tx, app string) error {
 	return nil
 }
 
-func (op AddFields) Backwards(tx *sql.Tx, app string) error {
+func (op AddFields) Backwards(tx *sql.Tx, app string, pS *AppState) error {
 	query := fmt.Sprintf(
 		"ALTER TABLE %[1]s_%[2]s RENAME TO %[1]s_%[2]s__old;", app, op.Model,
 	)
@@ -143,6 +143,6 @@ func (op RemoveFields) Run(tx *sql.Tx, app string) error {
 	return nil
 }
 
-func (op RemoveFields) Backwards(tx *sql.Tx, app string) error {
+func (op RemoveFields) Backwards(tx *sql.Tx, app string, pS *AppState) error {
 	return nil
 }

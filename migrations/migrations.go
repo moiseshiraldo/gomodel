@@ -24,6 +24,7 @@ func Make(appName string, options MakeOptions) ([]*Node, error) {
 	if err := loadHistory(); err != nil {
 		return migrations, err
 	}
+	defer clearHistory()
 	state := history[appName]
 	node := &Node{
 		App:          appName,
@@ -91,7 +92,8 @@ func Run(options RunOptions) error {
 	if err := loadHistory(); err != nil {
 		return err
 	}
-	if err := loadApplied(db); err != nil {
+	defer clearHistory()
+	if err := loadAppliedMigrations(db); err != nil {
 		return &gomodels.DatabaseError{dbName, gomodels.ErrorTrace{Err: err}}
 	}
 	if options.App != "" {
@@ -99,8 +101,13 @@ func Run(options RunOptions) error {
 		if !ok {
 			return &AppNotFoundError{options.App, ErrorTrace{}}
 		}
+		if len(state.migrations) == 0 {
+			return &NoAppMigrationsError{options.App, ErrorTrace{}}
+		}
 		var node *Node
-		if options.Node != "" {
+		if options.Node == "" {
+			node = state.migrations[len(state.migrations)-1]
+		} else {
 			number, err := strconv.Atoi(options.Node[:4])
 			if err != nil {
 				return &NameError{options.Node, ErrorTrace{}}
@@ -108,8 +115,6 @@ func Run(options RunOptions) error {
 			if number > 0 {
 				node = state.migrations[number-1]
 			}
-		} else if len(state.migrations) > 0 {
-			node = state.migrations[len(state.migrations)-1]
 		}
 		var err error
 		if node == nil {

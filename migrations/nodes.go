@@ -142,9 +142,10 @@ func (n *Node) backwardOperations(db *sql.DB) error {
 	if err != nil {
 		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
 	}
+	prevState := loadPreviousState(n)
 	for k := range n.Operations {
 		op := n.Operations[len(n.Operations)-1-k]
-		if err := op.Backwards(tx, n.App); err != nil {
+		if err := op.Backwards(tx, n.App, prevState[n.App]); err != nil {
 			if txErr := tx.Rollback(); txErr != nil {
 				return &gomodels.DatabaseError{
 					"", gomodels.ErrorTrace{Err: txErr},
@@ -207,4 +208,16 @@ func (n *Node) setState(stash map[string]map[string]bool) error {
 	n.processed = true
 	delete(stash[n.App], n.Name)
 	return nil
+}
+
+func (n *Node) setPreviousState(prevHistory map[string]*AppState) {
+	for _, dep := range n.Dependencies {
+		app, depName := dep[0], dep[1]
+		number, _ := strconv.Atoi(depName[:4])
+		depNode := history[app].migrations[number-1]
+		depNode.setPreviousState(prevHistory)
+	}
+	for _, op := range n.Operations {
+		op.SetState(prevHistory[n.App])
+	}
 }

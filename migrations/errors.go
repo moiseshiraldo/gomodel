@@ -40,6 +40,19 @@ func (e *AppNotFoundError) Trace() ErrorTrace {
 	return e.ErrorTrace
 }
 
+type NoAppMigrationsError struct {
+	Name string
+	ErrorTrace
+}
+
+func (e *NoAppMigrationsError) Error() string {
+	return fmt.Sprintf("migrations: %s: app not found", e.Name)
+}
+
+func (e *NoAppMigrationsError) Trace() ErrorTrace {
+	return e.ErrorTrace
+}
+
 type PathError struct {
 	ErrorTrace
 }

@@ -53,6 +53,10 @@ func loadHistory() error {
 	return nil
 }
 
+func clearHistory() {
+	history = map[string]*AppState{}
+}
+
 func loadApp(app *gomodels.Application) error {
 	state := &AppState{
 		Models:     map[string]*gomodels.Model{},
@@ -87,7 +91,16 @@ func loadApp(app *gomodels.Application) error {
 	return nil
 }
 
-func loadApplied(db *sql.DB) error {
+func loadPreviousState(node *Node) map[string]*AppState {
+	prevState := map[string]*AppState{}
+	for name := range history {
+		prevState[name] = &AppState{Models: map[string]*gomodels.Model{}}
+	}
+	node.setPreviousState(prevState)
+	return prevState
+}
+
+func loadAppliedMigrations(db *sql.DB) error {
 	rows, err := db.Query("SELECT app, number FROM gomodels_migration")
 	if err != nil {
 		return err
