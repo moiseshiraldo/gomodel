@@ -18,8 +18,11 @@ type Model struct {
 	meta   Options
 }
 
+type Indexes map[string][]string
+
 type Options struct {
 	Constructor Constructor
+	Indexes     Indexes
 }
 
 func (m Model) Name() string {
@@ -44,7 +47,20 @@ func (m Model) Fields() Fields {
 	return fields
 }
 
+func (m Model) Indexes() Indexes {
+	indexes := Indexes{}
+	for name, columns := range m.meta.Indexes {
+		colsCopy := make([]string, len(columns))
+		copy(colsCopy, columns)
+		indexes[name] = colsCopy
+	}
+	return indexes
+}
+
 func New(name string, fields Fields, options Options) *Dispatcher {
+	if options.Indexes == nil {
+		options.Indexes = Indexes{}
+	}
 	model := &Model{name: name, fields: fields, meta: options}
 	return &Dispatcher{model, &Manager{model}}
 }
@@ -80,11 +96,26 @@ func registerModel(app *Application, model *Model) {
 	model.app = app
 	for name, field := range model.fields {
 		if field.IsPk() && model.pk != "" {
-			panic(fmt.Sprintf(
-				"gomodels: %s: %s: duplicate pk", model.name, name,
-			))
+			msg := fmt.Sprintf(
+				"gomodels: %s: %s: %s: duplicate pk",
+				app.name, model.name, name,
+			)
+			panic(msg)
 		} else if field.IsPk() {
 			model.pk = name
+		}
+		if field.HasIndex() {
+			idxName := fmt.Sprintf(
+				"%s_%s_%s_idx", app.name, model.name, field.DBColumn(name),
+			)
+			if _, found := model.meta.Indexes[idxName]; found {
+				msg := fmt.Sprintf(
+					"gomodels: %s: %s: duplicate index: %s",
+					app.name, model.name, idxName,
+				)
+				panic(msg)
+			}
+			model.meta.Indexes[idxName] = []string{field.DBColumn(name)}
 		}
 	}
 	if model.pk == "" {

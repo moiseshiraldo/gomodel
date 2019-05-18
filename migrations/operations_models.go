@@ -86,6 +86,19 @@ func (op DeleteModel) Run(tx *sql.Tx, app string) error {
 }
 
 func (op DeleteModel) Backwards(tx *sql.Tx, app string, pS *AppState) error {
+	model := pS.Models[op.Name]
+	query := fmt.Sprintf("CREATE TABLE '%s_%s' (", app, model.Name())
+	fields := make([]string, 0, len(model.Fields()))
+	for name, field := range model.Fields() {
+		fields = append(
+			fields,
+			fmt.Sprintf("'%s' %s", field.DBColumn(name), field.CreateSQL()),
+		)
+	}
+	query += strings.Join(fields, ", ") + ");"
+	if _, err := tx.Exec(query); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -105,6 +118,18 @@ func (op AddIndex) FromJSON(raw []byte) (Operation, error) {
 }
 
 func (op AddIndex) SetState(state *AppState) error {
+	model, ok := state.Models[op.Model]
+	if !ok {
+		return fmt.Errorf("model not found: %s", op.Model)
+	}
+	indexes := model.Indexes()
+	if _, found := model.Indexes()[op.Name]; found {
+		return fmt.Errorf("duplicate index name: %s", op.Name)
+	}
+	indexes[op.Name] = op.Columns
+	state.Models[op.Model] = gomodels.New(
+		model.Name(), model.Fields(), gomodels.Options{Indexes: indexes},
+	).Model
 	return nil
 }
 
@@ -146,6 +171,18 @@ func (op RemoveIndex) FromJSON(raw []byte) (Operation, error) {
 }
 
 func (op RemoveIndex) SetState(state *AppState) error {
+	model, ok := state.Models[op.Model]
+	if !ok {
+		return fmt.Errorf("model not found: %s", op.Model)
+	}
+	indexes := model.Indexes()
+	if _, ok := model.Indexes()[op.Name]; !ok {
+		return fmt.Errorf("index not found: %s", op.Name)
+	}
+	delete(indexes, op.Name)
+	state.Models[op.Model] = gomodels.New(
+		model.Name(), model.Fields(), gomodels.Options{Indexes: indexes},
+	).Model
 	return nil
 }
 
@@ -160,5 +197,18 @@ func (op RemoveIndex) Run(tx *sql.Tx, app string) error {
 }
 
 func (op RemoveIndex) Backwards(tx *sql.Tx, app string, pS *AppState) error {
+	model := pS.Models[op.Model]
+	indexes := model.Indexes()
+	query := fmt.Sprintf(
+		"CREATE INDEX '%s' ON '%s_%s'", op.Name, app, op.Model,
+	)
+	columns := make([]string, 0, len(indexes[op.Name]))
+	for _, column := range indexes[op.Name] {
+		columns = append(columns, fmt.Sprintf("'%s'", column))
+	}
+	query += fmt.Sprintf(" (%s);", strings.Join(columns, ", "))
+	if _, err := tx.Exec(query); err != nil {
+		return err
+	}
 	return nil
 }

@@ -120,7 +120,7 @@ func Run(options RunOptions) error {
 		if node == nil {
 			err = state.migrations[0].Backwards(db)
 		} else if node.number() < state.lastApplied {
-			err = state.migrations[node.number()+1].Backwards(db)
+			err = state.migrations[node.number()].Backwards(db)
 		} else {
 			err = node.Run(db)
 		}

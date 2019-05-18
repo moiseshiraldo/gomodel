@@ -2,7 +2,6 @@ package migrations
 
 import (
 	"database/sql"
-	"fmt"
 	"github.com/moiseshiraldo/gomodels"
 )
 
@@ -19,35 +18,21 @@ func getModelChanges(model *gomodels.Model) OperationList {
 				Fields: model.Fields(),
 			},
 		)
-		for name, field := range model.Fields() {
-			idxName := fmt.Sprintf(
-				"%s_%s_%s_idx", app, model.Name(), field.DBColumn(name),
+		for idxName, columns := range model.Indexes() {
+			operations = append(
+				operations,
+				AddIndex{
+					Model:   model.Name(),
+					Name:    idxName,
+					Columns: columns,
+				},
 			)
-			if field.HasIndex() {
-				operations = append(
-					operations,
-					AddIndex{
-						Model:   model.Name(),
-						Name:    idxName,
-						Columns: []string{name},
-					},
-				)
-			}
 		}
 	} else {
 		newFields := gomodels.Fields{}
 		removedFields := []string{}
-		for name, field := range modelState.Fields() {
+		for name := range modelState.Fields() {
 			if _, ok := model.Fields()[name]; !ok {
-				idxName := fmt.Sprintf(
-					"%s_%s_%s_idx", app, model.Name(), field.DBColumn(name),
-				)
-				if field.HasIndex() {
-					operations = append(
-						operations,
-						RemoveIndex{Model: model.Name(), Name: idxName},
-					)
-				}
 				removedFields = append(removedFields, name)
 			}
 		}
@@ -58,6 +43,14 @@ func getModelChanges(model *gomodels.Model) OperationList {
 			}
 			operations = append(operations, operation)
 		}
+		for idxName := range modelState.Indexes() {
+			if _, ok := model.Indexes()[idxName]; !ok {
+				operations = append(
+					operations,
+					RemoveIndex{Model: model.Name(), Name: idxName},
+				)
+			}
+		}
 		for name, field := range model.Fields() {
 			if _, ok := modelState.Fields()[name]; !ok {
 				newFields[name] = field
@@ -66,20 +59,17 @@ func getModelChanges(model *gomodels.Model) OperationList {
 		if len(newFields) > 0 {
 			operation := AddFields{Model: model.Name(), Fields: newFields}
 			operations = append(operations, operation)
-			for name, field := range newFields {
-				idxName := fmt.Sprintf(
-					"%s_%s_%s_idx", app, model.Name(), field.DBColumn(name),
+		}
+		for idxName, columns := range model.Indexes() {
+			if _, ok := modelState.Indexes()[idxName]; !ok {
+				operations = append(
+					operations,
+					AddIndex{
+						Model:   model.Name(),
+						Name:    idxName,
+						Columns: columns,
+					},
 				)
-				if field.HasIndex() {
-					operations = append(
-						operations,
-						AddIndex{
-							Model:   model.Name(),
-							Name:    idxName,
-							Columns: []string{name},
-						},
-					)
-				}
 			}
 		}
 	}

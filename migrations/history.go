@@ -96,7 +96,8 @@ func loadPreviousState(node *Node) map[string]*AppState {
 	for name := range history {
 		prevState[name] = &AppState{Models: map[string]*gomodels.Model{}}
 	}
-	node.setPreviousState(prevState)
+	prevNode := history[node.App].migrations[node.number()-2]
+	prevNode.setPreviousState(prevState)
 	return prevState
 }
 
