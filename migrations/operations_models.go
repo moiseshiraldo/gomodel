@@ -103,9 +103,9 @@ func (op DeleteModel) Backwards(tx *sql.Tx, app string, pS *AppState) error {
 }
 
 type AddIndex struct {
-	Model   string
-	Name    string
-	Columns []string
+	Model  string
+	Name   string
+	Fields []string
 }
 
 func (op AddIndex) OpName() string {
@@ -126,7 +126,7 @@ func (op AddIndex) SetState(state *AppState) error {
 	if _, found := model.Indexes()[op.Name]; found {
 		return fmt.Errorf("duplicate index name: %s", op.Name)
 	}
-	indexes[op.Name] = op.Columns
+	indexes[op.Name] = op.Fields
 	state.Models[op.Model] = gomodels.New(
 		model.Name(), model.Fields(), gomodels.Options{Indexes: indexes},
 	).Model
@@ -137,9 +137,9 @@ func (op AddIndex) Run(tx *sql.Tx, app string) error {
 	query := fmt.Sprintf(
 		"CREATE INDEX '%s' ON '%s_%s'", op.Name, app, op.Model,
 	)
-	columns := make([]string, 0, len(op.Columns))
-	for _, column := range op.Columns {
-		columns = append(columns, fmt.Sprintf("'%s'", column))
+	columns := make([]string, 0, len(op.Fields))
+	for _, field := range op.Fields {
+		columns = append(columns, fmt.Sprintf("'%s'", field))
 	}
 	query += fmt.Sprintf(" (%s);", strings.Join(columns, ", "))
 	if _, err := tx.Exec(query); err != nil {
@@ -203,8 +203,8 @@ func (op RemoveIndex) Backwards(tx *sql.Tx, app string, pS *AppState) error {
 		"CREATE INDEX '%s' ON '%s_%s'", op.Name, app, op.Model,
 	)
 	columns := make([]string, 0, len(indexes[op.Name]))
-	for _, column := range indexes[op.Name] {
-		columns = append(columns, fmt.Sprintf("'%s'", column))
+	for _, field := range indexes[op.Name] {
+		columns = append(columns, fmt.Sprintf("'%s'", field))
 	}
 	query += fmt.Sprintf(" (%s);", strings.Join(columns, ", "))
 	if _, err := tx.Exec(query); err != nil {

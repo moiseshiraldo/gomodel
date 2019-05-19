@@ -18,17 +18,25 @@ func getModelChanges(model *gomodels.Model) OperationList {
 				Fields: model.Fields(),
 			},
 		)
-		for idxName, columns := range model.Indexes() {
+		for idxName, fields := range model.Indexes() {
 			operations = append(
 				operations,
 				AddIndex{
-					Model:   model.Name(),
-					Name:    idxName,
-					Columns: columns,
+					Model:  model.Name(),
+					Name:   idxName,
+					Fields: fields,
 				},
 			)
 		}
 	} else {
+		for idxName := range modelState.Indexes() {
+			if _, ok := model.Indexes()[idxName]; !ok {
+				operations = append(
+					operations,
+					RemoveIndex{Model: model.Name(), Name: idxName},
+				)
+			}
+		}
 		newFields := gomodels.Fields{}
 		removedFields := []string{}
 		for name := range modelState.Fields() {
@@ -43,14 +51,6 @@ func getModelChanges(model *gomodels.Model) OperationList {
 			}
 			operations = append(operations, operation)
 		}
-		for idxName := range modelState.Indexes() {
-			if _, ok := model.Indexes()[idxName]; !ok {
-				operations = append(
-					operations,
-					RemoveIndex{Model: model.Name(), Name: idxName},
-				)
-			}
-		}
 		for name, field := range model.Fields() {
 			if _, ok := modelState.Fields()[name]; !ok {
 				newFields[name] = field
@@ -60,14 +60,14 @@ func getModelChanges(model *gomodels.Model) OperationList {
 			operation := AddFields{Model: model.Name(), Fields: newFields}
 			operations = append(operations, operation)
 		}
-		for idxName, columns := range model.Indexes() {
+		for idxName, fields := range model.Indexes() {
 			if _, ok := modelState.Indexes()[idxName]; !ok {
 				operations = append(
 					operations,
 					AddIndex{
-						Model:   model.Name(),
-						Name:    idxName,
-						Columns: columns,
+						Model:  model.Name(),
+						Name:   idxName,
+						Fields: fields,
 					},
 				)
 			}

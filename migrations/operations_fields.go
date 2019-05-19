@@ -80,6 +80,16 @@ func (op AddFields) Backwards(tx *sql.Tx, app string, pS *AppState) error {
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
+	for idxName, columns := range pS.Models[op.Model].Indexes() {
+		addIndex := AddIndex{
+			Model:  op.Model,
+			Name:   idxName,
+			Fields: columns,
+		}
+		if err := addIndex.Run(tx, app); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -144,6 +154,16 @@ func (op RemoveFields) Run(tx *sql.Tx, app string) error {
 	query = fmt.Sprintf("DROP TABLE %s_%s__old;", app, op.Model)
 	if _, err := tx.Exec(query); err != nil {
 		return err
+	}
+	for idxName, columns := range history[app].Models[op.Model].Indexes() {
+		addIndex := AddIndex{
+			Model:  op.Model,
+			Name:   idxName,
+			Fields: columns,
+		}
+		if err := addIndex.Run(tx, app); err != nil {
+			return err
+		}
 	}
 	return nil
 }

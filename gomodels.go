@@ -49,10 +49,10 @@ func (m Model) Fields() Fields {
 
 func (m Model) Indexes() Indexes {
 	indexes := Indexes{}
-	for name, columns := range m.meta.Indexes {
-		colsCopy := make([]string, len(columns))
-		copy(colsCopy, columns)
-		indexes[name] = colsCopy
+	for name, fields := range m.meta.Indexes {
+		fieldsCopy := make([]string, len(fields))
+		copy(fieldsCopy, fields)
+		indexes[name] = fieldsCopy
 	}
 	return indexes
 }
