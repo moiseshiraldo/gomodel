@@ -62,8 +62,8 @@ func (op AddFields) Backwards(tx *sql.Tx, app string, pS *AppState) error {
 	}
 	fields := pS.Models[op.Model].Fields()
 	columns := make([]string, 0, len(fields)-len(op.Fields))
-	for name := range fields {
-		columns = append(columns, name)
+	for name, field := range fields {
+		columns = append(columns, field.DBColumn(name))
 	}
 	createModel := CreateModel{Name: op.Model, Fields: fields}
 	if err := createModel.Run(tx, app); err != nil {
@@ -80,11 +80,11 @@ func (op AddFields) Backwards(tx *sql.Tx, app string, pS *AppState) error {
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
-	for idxName, columns := range pS.Models[op.Model].Indexes() {
+	for idxName, fields := range pS.Models[op.Model].Indexes() {
 		addIndex := AddIndex{
 			Model:  op.Model,
 			Name:   idxName,
-			Fields: columns,
+			Fields: fields,
 		}
 		if err := addIndex.Run(tx, app); err != nil {
 			return err
@@ -133,12 +133,12 @@ func (op RemoveFields) Run(tx *sql.Tx, app string) error {
 		return err
 	}
 	fields := history[app].Models[op.Model].Fields()
-	keepList := make([]string, 0, len(fields)-len(op.Fields))
+	keepColumns := make([]string, 0, len(fields)-len(op.Fields))
 	for _, name := range op.Fields {
 		delete(fields, name)
 	}
-	for name := range fields {
-		keepList = append(keepList, name)
+	for name, field := range fields {
+		keepColumns = append(keepColumns, field.DBColumn(name))
 	}
 	createModel := CreateModel{Name: op.Model, Fields: fields}
 	if err := createModel.Run(tx, app); err != nil {
@@ -146,7 +146,7 @@ func (op RemoveFields) Run(tx *sql.Tx, app string) error {
 	}
 	query = fmt.Sprintf(
 		"INSERT INTO %[1]s_%[2]s (%[3]s) SELECT %[3]s FROM %[1]s_%[2]s__old;",
-		app, op.Model, strings.Join(keepList, ", "),
+		app, op.Model, strings.Join(keepColumns, ", "),
 	)
 	if _, err := tx.Exec(query); err != nil {
 		return err
@@ -155,11 +155,11 @@ func (op RemoveFields) Run(tx *sql.Tx, app string) error {
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
-	for idxName, columns := range history[app].Models[op.Model].Indexes() {
+	for idxName, fields := range history[app].Models[op.Model].Indexes() {
 		addIndex := AddIndex{
 			Model:  op.Model,
 			Name:   idxName,
-			Fields: columns,
+			Fields: fields,
 		}
 		if err := addIndex.Run(tx, app); err != nil {
 			return err

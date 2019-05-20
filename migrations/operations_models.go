@@ -137,9 +137,11 @@ func (op AddIndex) Run(tx *sql.Tx, app string) error {
 	query := fmt.Sprintf(
 		"CREATE INDEX '%s' ON '%s_%s'", op.Name, app, op.Model,
 	)
+	fields := history[app].Models[op.Model].Fields()
 	columns := make([]string, 0, len(op.Fields))
-	for _, field := range op.Fields {
-		columns = append(columns, fmt.Sprintf("'%s'", field))
+	for _, name := range op.Fields {
+		column := fields[name].DBColumn(name)
+		columns = append(columns, fmt.Sprintf("'%s'", column))
 	}
 	query += fmt.Sprintf(" (%s);", strings.Join(columns, ", "))
 	if _, err := tx.Exec(query); err != nil {
@@ -199,12 +201,14 @@ func (op RemoveIndex) Run(tx *sql.Tx, app string) error {
 func (op RemoveIndex) Backwards(tx *sql.Tx, app string, pS *AppState) error {
 	model := pS.Models[op.Model]
 	indexes := model.Indexes()
+	fields := model.Fields()
 	query := fmt.Sprintf(
 		"CREATE INDEX '%s' ON '%s_%s'", op.Name, app, op.Model,
 	)
 	columns := make([]string, 0, len(indexes[op.Name]))
-	for _, field := range indexes[op.Name] {
-		columns = append(columns, fmt.Sprintf("'%s'", field))
+	for _, fieldName := range indexes[op.Name] {
+		column := fields[fieldName].DBColumn(fieldName)
+		columns = append(columns, fmt.Sprintf("'%s'", column))
 	}
 	query += fmt.Sprintf(" (%s);", strings.Join(columns, ", "))
 	if _, err := tx.Exec(query); err != nil {
