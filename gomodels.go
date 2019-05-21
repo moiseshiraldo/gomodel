@@ -128,6 +128,8 @@ func registerModel(app *Application, model *Model) {
 				"gomodels: %s: %s: invalid constructor", app.name, model.name,
 			))
 		}
+	} else {
+		model.meta.Constructor = Values{}
 	}
 	app.models[model.name] = model
 }

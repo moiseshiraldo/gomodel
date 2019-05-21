@@ -13,6 +13,7 @@ type QuerySet interface {
 	Columns() []string
 	Constructor() Constructor
 	Filter(f Filterer) QuerySet
+	Get(f Filterer) (*Instance, error)
 	Delete() (int64, error)
 }
 
@@ -32,6 +33,19 @@ func (qs GenericQuerySet) dbError(err error) error {
 func (qs GenericQuerySet) constructorError(err error) error {
 	trace := ErrorTrace{App: qs.model.app, Model: qs.model, Err: err}
 	return &ConstructorError{trace}
+}
+
+func (qs GenericQuerySet) addFilter(filter Filterer) GenericQuerySet {
+	if qs.filter == nil {
+		if query, ok := filter.(Q); ok {
+			qs.filter = Filter{sibs: []Filterer{query}}
+		} else {
+			qs.filter = filter
+		}
+	} else {
+		qs.filter = qs.filter.And(filter)
+	}
+	return qs
 }
 
 func (qs GenericQuerySet) Query() (string, []interface{}) {
@@ -60,16 +74,7 @@ func (qs GenericQuerySet) Constructor() Constructor {
 }
 
 func (qs GenericQuerySet) Filter(filter Filterer) QuerySet {
-	if qs.filter == nil {
-		if query, ok := filter.(Q); ok {
-			qs.filter = Filter{sibs: []Filterer{query}}
-		} else {
-			qs.filter = filter
-		}
-	} else {
-		qs.filter = qs.filter.And(filter)
-	}
-	return qs
+	return qs.addFilter(filter)
 }
 
 func (qs GenericQuerySet) Load() ([]*Instance, error) {
@@ -112,6 +117,37 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 		return nil, qs.dbError(err)
 	}
 	return result, nil
+}
+
+func (qs GenericQuerySet) Get(filter Filterer) (*Instance, error) {
+	qs = qs.addFilter(filter)
+	consType := getConstructorType(qs.constructor)
+	if consType == "" {
+		return nil, qs.dbError(fmt.Errorf("invalid constructor type"))
+	}
+	db, ok := Databases[qs.database]
+	if !ok {
+		return nil, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
+	}
+	constructor, recipients := getRecipients(qs, consType)
+	if len(recipients) != len(qs.columns) {
+		err := fmt.Errorf("invalid constructor recipients")
+		return nil, qs.constructorError(err)
+	}
+	query, values := qs.Query()
+	err := db.QueryRow(query, values...).Scan(recipients...)
+	if err != nil {
+		return nil, qs.dbError(err)
+	}
+	if consType == "Map" {
+		values := Values{}
+		for i, name := range qs.columns {
+			values[name] = reflect.ValueOf(recipients[i]).Elem()
+		}
+		constructor = values
+	}
+	instance := &Instance{constructor, qs.model}
+	return instance, nil
 }
 
 func (qs GenericQuerySet) Delete() (int64, error) {

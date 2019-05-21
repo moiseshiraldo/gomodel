@@ -57,3 +57,7 @@ func (m Manager) All() QuerySet {
 func (m Manager) Filter(f Filterer) QuerySet {
 	return m.GetQuerySet().Filter(f)
 }
+
+func (m Manager) Get(f Filterer) (*Instance, error) {
+	return m.GetQuerySet().Get(f)
+}
