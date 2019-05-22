@@ -17,7 +17,10 @@ type ErrorTrace struct {
 }
 
 func (e *ErrorTrace) String() string {
-	trace := e.App.name
+	trace := ""
+	if e.App != nil {
+		trace += fmt.Sprintf(": %s", e.App.name)
+	}
 	if e.Model != nil {
 		trace += fmt.Sprintf(": %s", e.Model.name)
 	}

@@ -23,10 +23,10 @@ func (op CreateModel) FromJSON(raw []byte) (Operation, error) {
 }
 
 func (op CreateModel) SetState(state *AppState) error {
-	if _, found := state.Models[op.Name]; found {
+	if _, found := state.models[op.Name]; found {
 		return fmt.Errorf("duplicate model: %s", op.Name)
 	}
-	state.Models[op.Name] = gomodels.New(
+	state.models[op.Name] = gomodels.New(
 		op.Name, op.Fields, gomodels.Options{},
 	).Model
 	return nil
@@ -70,10 +70,10 @@ func (op DeleteModel) FromJSON(raw []byte) (Operation, error) {
 }
 
 func (op DeleteModel) SetState(state *AppState) error {
-	if _, ok := state.Models[op.Name]; !ok {
+	if _, ok := state.models[op.Name]; !ok {
 		return fmt.Errorf("model not found: %s", op.Name)
 	}
-	delete(state.Models, op.Name)
+	delete(state.models, op.Name)
 	return nil
 }
 
@@ -86,7 +86,7 @@ func (op DeleteModel) Run(tx *sql.Tx, app string) error {
 }
 
 func (op DeleteModel) Backwards(tx *sql.Tx, app string, pS *AppState) error {
-	model := pS.Models[op.Name]
+	model := pS.models[op.Name]
 	query := fmt.Sprintf("CREATE TABLE '%s_%s' (", app, model.Name())
 	fields := make([]string, 0, len(model.Fields()))
 	for name, field := range model.Fields() {
@@ -118,7 +118,7 @@ func (op AddIndex) FromJSON(raw []byte) (Operation, error) {
 }
 
 func (op AddIndex) SetState(state *AppState) error {
-	model, ok := state.Models[op.Model]
+	model, ok := state.models[op.Model]
 	if !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}
@@ -127,7 +127,7 @@ func (op AddIndex) SetState(state *AppState) error {
 		return fmt.Errorf("duplicate index name: %s", op.Name)
 	}
 	indexes[op.Name] = op.Fields
-	state.Models[op.Model] = gomodels.New(
+	state.models[op.Model] = gomodels.New(
 		model.Name(), model.Fields(), gomodels.Options{Indexes: indexes},
 	).Model
 	return nil
@@ -137,7 +137,7 @@ func (op AddIndex) Run(tx *sql.Tx, app string) error {
 	query := fmt.Sprintf(
 		"CREATE INDEX '%s' ON '%s_%s'", op.Name, app, op.Model,
 	)
-	fields := history[app].Models[op.Model].Fields()
+	fields := history[app].models[op.Model].Fields()
 	columns := make([]string, 0, len(op.Fields))
 	for _, name := range op.Fields {
 		column := fields[name].DBColumn(name)
@@ -173,7 +173,7 @@ func (op RemoveIndex) FromJSON(raw []byte) (Operation, error) {
 }
 
 func (op RemoveIndex) SetState(state *AppState) error {
-	model, ok := state.Models[op.Model]
+	model, ok := state.models[op.Model]
 	if !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}
@@ -182,7 +182,7 @@ func (op RemoveIndex) SetState(state *AppState) error {
 		return fmt.Errorf("index not found: %s", op.Name)
 	}
 	delete(indexes, op.Name)
-	state.Models[op.Model] = gomodels.New(
+	state.models[op.Model] = gomodels.New(
 		model.Name(), model.Fields(), gomodels.Options{Indexes: indexes},
 	).Model
 	return nil
@@ -199,7 +199,7 @@ func (op RemoveIndex) Run(tx *sql.Tx, app string) error {
 }
 
 func (op RemoveIndex) Backwards(tx *sql.Tx, app string, pS *AppState) error {
-	model := pS.Models[op.Model]
+	model := pS.models[op.Model]
 	indexes := model.Indexes()
 	fields := model.Fields()
 	query := fmt.Sprintf(

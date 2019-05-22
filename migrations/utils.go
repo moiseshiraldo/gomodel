@@ -9,7 +9,7 @@ func getModelChanges(model *gomodels.Model) OperationList {
 	operations := OperationList{}
 	app := model.App().Name()
 	state := history[app]
-	modelState, ok := state.Models[model.Name()]
+	modelState, ok := state.models[model.Name()]
 	if !ok {
 		operations = append(
 			operations,

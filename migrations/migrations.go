@@ -3,21 +3,18 @@ package migrations
 import (
 	"fmt"
 	"github.com/moiseshiraldo/gomodels"
-	"path/filepath"
-	"strconv"
 )
 
 const MigrationsDir = "migrations"
 
 type MakeOptions struct {
-	Name      string
 	Empty     bool
 	OmitWrite bool
 }
 
 func Make(appName string, options MakeOptions) ([]*Node, error) {
 	migrations := []*Node{}
-	app, ok := gomodels.Registry[appName]
+	_, ok := gomodels.Registry[appName]
 	if !ok {
 		return migrations, &AppNotFoundError{appName, ErrorTrace{}}
 	}
@@ -26,44 +23,22 @@ func Make(appName string, options MakeOptions) ([]*Node, error) {
 	}
 	defer clearHistory()
 	state := history[appName]
-	node := &Node{
-		App:          appName,
-		Dependencies: [][]string{},
-		Operations:   OperationList{},
-	}
-	if app.Path() != "" {
-		node.Path = filepath.Join(app.FullPath(), MigrationsDir)
-	}
-	node.Name = state.nextMigrationFilename(options.Name)
-	if len(state.migrations) > 0 {
-		lastNode := state.migrations[len(state.migrations)-1]
-		node.Dependencies = append(
-			node.Dependencies, []string{appName, lastNode.Name},
-		)
-	}
 	if options.Empty {
+		node := state.nextNode()
 		migrations = append(migrations, node)
 		return migrations, nil
 	}
-	for name := range state.Models {
-		if _, ok := app.Models()[name]; !ok {
-			node.Operations = append(node.Operations, DeleteModel{Name: name})
-		}
-	}
-	for _, model := range app.Models() {
-		node.Operations = append(node.Operations, getModelChanges(model)...)
-	}
-	if len(node.Operations) > 0 {
-		migrations = append(migrations, node)
-	}
+	migrations = state.changes()
 	if options.OmitWrite {
 		return migrations, nil
-	} else if app.Path() == "" {
-		return migrations, &PathError{ErrorTrace{Err: fmt.Errorf("no path")}}
 	}
-	for _, m := range migrations {
-		if err := m.Save(); err != nil {
-			err = &SaveError{ErrorTrace{Node: m, Err: err}}
+	for _, node := range migrations {
+		if node.Path == "" {
+			trace := ErrorTrace{Node: node, Err: fmt.Errorf("no path")}
+			return migrations, &PathError{trace}
+		}
+		if err := node.Save(); err != nil {
+			err = &SaveError{ErrorTrace{Node: node, Err: err}}
 			return migrations, err
 		}
 	}
@@ -86,9 +61,6 @@ func Run(options RunOptions) error {
 	if !ok {
 		return &gomodels.DatabaseError{dbName, gomodels.ErrorTrace{}}
 	}
-	if err := prepareDatabase(db); err != nil {
-		return err
-	}
 	if err := loadHistory(); err != nil {
 		return err
 	}
@@ -101,44 +73,13 @@ func Run(options RunOptions) error {
 		if !ok {
 			return &AppNotFoundError{options.App, ErrorTrace{}}
 		}
-		if len(state.migrations) == 0 {
-			return &NoAppMigrationsError{options.App, ErrorTrace{}}
-		}
-		var node *Node
-		if options.Node == "" {
-			node = state.migrations[len(state.migrations)-1]
-		} else {
-			number, err := strconv.Atoi(options.Node[:4])
-			if err != nil {
-				return &NameError{options.Node, ErrorTrace{}}
-			}
-			if number > 0 {
-				node = state.migrations[number-1]
-			}
-		}
-		var err error
-		if node == nil {
-			err = state.migrations[0].Backwards(db)
-		} else if node.number() < state.lastApplied {
-			err = state.migrations[node.number()].Backwards(db)
-		} else {
-			err = node.Run(db)
-		}
-		if dbErr, ok := err.(*gomodels.DatabaseError); ok {
-			dbErr.Name = dbName
-			return dbErr
-		} else if err != nil {
+		if err := state.Migrate(dbName, options.Node); err != nil {
 			return err
 		}
 	} else {
 		for _, state := range history {
 			if len(state.migrations) > 0 {
-				node := state.migrations[len(state.migrations)-1]
-				if err := node.Run(db); err != nil {
-					if dbErr, ok := err.(*gomodels.DatabaseError); ok {
-						dbErr.Name = dbName
-						return dbErr
-					}
+				if err := state.Migrate(dbName, ""); err != nil {
 					return err
 				}
 			}

@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -14,24 +15,94 @@ import (
 var mFileRe = regexp.MustCompile(`^([0-9]{4})_\w+\.json$`)
 var mNameRe = regexp.MustCompile(`^([0-9]{4})_\w+$`)
 
+var history = map[string]*AppState{}
+
 type AppState struct {
-	Models      map[string]*gomodels.Model
+	app         *gomodels.Application
+	models      map[string]*gomodels.Model
 	migrations  []*Node
 	lastApplied int
 }
 
-func (state AppState) nextMigrationFilename(name string) string {
-	if len(state.migrations) == 0 {
-		return "0001_initial"
+func (state AppState) nextNode() *Node {
+	node := &Node{
+		App:          state.app.Name(),
+		Dependencies: [][]string{},
+		Operations:   OperationList{},
 	}
-	number := len(state.migrations)
-	if name == "" {
-		name = "auto_" + time.Now().Format("20060102_1504")
+	if state.app.Path() != "" {
+		node.Path = filepath.Join(state.app.FullPath(), MigrationsDir)
 	}
-	return fmt.Sprintf("%04d_%s", number+1, name)
+	node.number = len(state.migrations) + 1
+	if node.number == 1 {
+		node.Name = "initial"
+	} else {
+		timestamp := time.Now().Format("20060102_1504")
+		node.Name = fmt.Sprintf("auto_%s", timestamp)
+	}
+	if len(state.migrations) > 0 {
+		lastNode := state.migrations[len(state.migrations)-1]
+		depName := fmt.Sprintf("%04d_%s", lastNode.number, lastNode.Name)
+		node.Dependencies = append(
+			node.Dependencies, []string{state.app.Name(), depName},
+		)
+	}
+	return node
 }
 
-var history = map[string]*AppState{}
+func (state AppState) changes() []*Node {
+	migrations := []*Node{}
+	node := state.nextNode()
+	for name := range state.models {
+		if _, ok := state.app.Models()[name]; !ok {
+			node.Operations = append(node.Operations, DeleteModel{Name: name})
+		}
+	}
+	for _, model := range state.app.Models() {
+		node.Operations = append(node.Operations, getModelChanges(model)...)
+	}
+	if len(node.Operations) > 0 {
+		migrations = append(migrations, node)
+	}
+	return migrations
+}
+
+func (state AppState) Migrate(database string, nodeName string) error {
+	if len(state.migrations) == 0 {
+		return &NoAppMigrationsError{state.app.Name(), ErrorTrace{}}
+	}
+	db, ok := gomodels.Databases[database]
+	if !ok {
+		return &gomodels.DatabaseError{database, gomodels.ErrorTrace{}}
+	}
+	var node *Node
+	if nodeName == "" {
+		node = state.migrations[len(state.migrations)-1]
+	} else {
+		number, err := strconv.Atoi(nodeName[:4])
+		if err != nil {
+			return &NameError{nodeName, ErrorTrace{}}
+		}
+		if number > 0 {
+			node = state.migrations[number-1]
+		}
+	}
+	var err error
+	if node == nil {
+		err = state.migrations[0].Backwards(db)
+	} else if node.number < state.lastApplied {
+		err = state.migrations[node.number].Backwards(db)
+	} else {
+		err = node.Run(db)
+	}
+	if dbErr, ok := err.(*gomodels.DatabaseError); ok {
+		dbErr.Name = database
+		return dbErr
+	} else if err != nil {
+		return err
+	}
+	return nil
+}
 
 func loadHistory() error {
 	for _, app := range gomodels.Registry {
@@ -59,10 +130,14 @@ func clearHistory() {
 
 func loadApp(app *gomodels.Application) error {
 	state := &AppState{
-		Models:     map[string]*gomodels.Model{},
+		app:        app,
+		models:     map[string]*gomodels.Model{},
 		migrations: []*Node{},
 	}
 	history[app.Name()] = state
+	if app.Path() == "" {
+		return nil
+	}
 	dir := filepath.Join(app.FullPath(), MigrationsDir)
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
@@ -73,13 +148,14 @@ func loadApp(app *gomodels.Application) error {
 		if !mFileRe.MatchString(file.Name()) {
 			return &NameError{file.Name(), ErrorTrace{}}
 		}
-		name := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
+		filename := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
+		number, _ := strconv.Atoi(filename[:4])
 		node := &Node{
-			App:  app.Name(),
-			Name: name,
-			Path: dir,
+			App:    app.Name(),
+			Name:   filename[5:],
+			number: number,
+			Path:   dir,
 		}
-		number := node.number()
 		if err := node.Load(); err != nil {
 			return &LoadError{ErrorTrace{Node: node}}
 		}
@@ -91,17 +167,20 @@ func loadApp(app *gomodels.Application) error {
 	return nil
 }
 
-func loadPreviousState(node *Node) map[string]*AppState {
+func loadPreviousState(node Node) map[string]*AppState {
 	prevState := map[string]*AppState{}
 	for name := range history {
-		prevState[name] = &AppState{Models: map[string]*gomodels.Model{}}
+		prevState[name] = &AppState{models: map[string]*gomodels.Model{}}
 	}
-	prevNode := history[node.App].migrations[node.number()-2]
+	prevNode := history[node.App].migrations[node.number-2]
 	prevNode.setPreviousState(prevState)
 	return prevState
 }
 
 func loadAppliedMigrations(db *sql.DB) error {
+	if err := prepareDatabase(db); err != nil {
+		return err
+	}
 	rows, err := db.Query("SELECT app, number FROM gomodels_migration")
 	if err != nil {
 		return err

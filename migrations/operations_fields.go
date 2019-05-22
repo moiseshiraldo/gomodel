@@ -23,18 +23,18 @@ func (op AddFields) FromJSON(raw []byte) (Operation, error) {
 }
 
 func (op AddFields) SetState(state *AppState) error {
-	if _, ok := state.Models[op.Model]; !ok {
+	if _, ok := state.models[op.Model]; !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}
-	fields := state.Models[op.Model].Fields()
+	fields := state.models[op.Model].Fields()
 	for name, field := range op.Fields {
 		if _, found := fields[name]; found {
 			return fmt.Errorf("%s: duplicate field: %s", op.Model, name)
 		}
 		fields[name] = field
 	}
-	delete(state.Models, op.Model)
-	state.Models[op.Model] = gomodels.New(
+	delete(state.models, op.Model)
+	state.models[op.Model] = gomodels.New(
 		op.Model, fields, gomodels.Options{},
 	).Model
 	return nil
@@ -60,7 +60,7 @@ func (op AddFields) Backwards(tx *sql.Tx, app string, pS *AppState) error {
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
-	fields := pS.Models[op.Model].Fields()
+	fields := pS.models[op.Model].Fields()
 	columns := make([]string, 0, len(fields)-len(op.Fields))
 	for name, field := range fields {
 		columns = append(columns, field.DBColumn(name))
@@ -80,7 +80,7 @@ func (op AddFields) Backwards(tx *sql.Tx, app string, pS *AppState) error {
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
-	for idxName, fields := range pS.Models[op.Model].Indexes() {
+	for idxName, fields := range pS.models[op.Model].Indexes() {
 		addIndex := AddIndex{
 			Model:  op.Model,
 			Name:   idxName,
@@ -108,18 +108,18 @@ func (op RemoveFields) FromJSON(raw []byte) (Operation, error) {
 }
 
 func (op RemoveFields) SetState(state *AppState) error {
-	if _, ok := state.Models[op.Model]; !ok {
+	if _, ok := state.models[op.Model]; !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}
-	fields := state.Models[op.Model].Fields()
+	fields := state.models[op.Model].Fields()
 	for _, name := range op.Fields {
 		if _, ok := fields[name]; !ok {
 			return fmt.Errorf("%s: field not found: %s", op.Model, name)
 		}
 		delete(fields, name)
 	}
-	delete(state.Models, op.Model)
-	state.Models[op.Model] = gomodels.New(
+	delete(state.models, op.Model)
+	state.models[op.Model] = gomodels.New(
 		op.Model, fields, gomodels.Options{},
 	).Model
 	return nil
@@ -132,7 +132,7 @@ func (op RemoveFields) Run(tx *sql.Tx, app string) error {
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
-	fields := history[app].Models[op.Model].Fields()
+	fields := history[app].models[op.Model].Fields()
 	keepColumns := make([]string, 0, len(fields)-len(op.Fields))
 	for _, name := range op.Fields {
 		delete(fields, name)
@@ -155,7 +155,7 @@ func (op RemoveFields) Run(tx *sql.Tx, app string) error {
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
-	for idxName, fields := range history[app].Models[op.Model].Indexes() {
+	for idxName, fields := range history[app].models[op.Model].Indexes() {
 		addIndex := AddIndex{
 			Model:  op.Model,
 			Name:   idxName,
@@ -170,7 +170,7 @@ func (op RemoveFields) Run(tx *sql.Tx, app string) error {
 
 func (op RemoveFields) Backwards(tx *sql.Tx, app string, pS *AppState) error {
 	baseQuery := fmt.Sprintf("ALTER TABLE '%s_%s' ADD COLUMN", app, op.Model)
-	fields := pS.Models[op.Model].Fields()
+	fields := pS.models[op.Model].Fields()
 	newFields := gomodels.Fields{}
 	for _, name := range op.Fields {
 		newFields[name] = fields[name]

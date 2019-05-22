@@ -3,6 +3,7 @@ package migrations
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"github.com/moiseshiraldo/gomodels"
 	"io/ioutil"
 	"path/filepath"
@@ -13,23 +14,23 @@ type Node struct {
 	App          string
 	Path         string `json:"-"`
 	Name         string `json:"-"`
+	number       int    `json:"-"`
 	processed    bool   `json:"-"`
 	applied      bool   `json:"-"`
 	Dependencies [][]string
 	Operations   OperationList
 }
 
-func (n Node) number() int {
-	number, _ := strconv.Atoi(n.Name[:4])
-	return number
-}
-
-func (n *Node) Save() error {
+func (n Node) Save() error {
+	if n.Path == "" {
+		return fmt.Errorf("no path")
+	}
 	data, err := json.MarshalIndent(n, "", "  ")
 	if err != nil {
 		return err
 	}
-	fp := filepath.Join(n.Path, n.Name+".json")
+	filename := fmt.Sprintf("%04d_%s.json", n.number, n.Name)
+	fp := filepath.Join(n.Path, filename)
 	if err := ioutil.WriteFile(fp, data, 0644); err != nil {
 		return err
 	}
@@ -37,7 +38,11 @@ func (n *Node) Save() error {
 }
 
 func (n *Node) Load() error {
-	fp := filepath.Join(n.Path, n.Name+".json")
+	if n.Path == "" {
+		return fmt.Errorf("no path")
+	}
+	filename := fmt.Sprintf("%04d_%s.json", n.number, n.Name)
+	fp := filepath.Join(n.Path, filename)
 	data, err := ioutil.ReadFile(fp)
 	if err != nil {
 		return err
@@ -62,7 +67,7 @@ func (n *Node) Run(db *sql.DB) error {
 	return nil
 }
 
-func (n *Node) runDependencies(db *sql.DB) error {
+func (n Node) runDependencies(db *sql.DB) error {
 	for _, dep := range n.Dependencies {
 		app, name := dep[0], dep[1]
 		number, _ := strconv.Atoi(name[:4])
@@ -76,7 +81,7 @@ func (n *Node) runDependencies(db *sql.DB) error {
 	return nil
 }
 
-func (n *Node) runOperations(db *sql.DB) error {
+func (n Node) runOperations(db *sql.DB) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
@@ -89,13 +94,13 @@ func (n *Node) runOperations(db *sql.DB) error {
 				}
 			}
 			return &OperationRunError{
-				ErrorTrace{Node: n, Operation: &op, Err: err},
+				ErrorTrace{Node: &n, Operation: &op, Err: err},
 			}
 		}
 	}
 	query := `INSERT INTO gomodels_migration(app, name, number)
 		VALUES($1, $2, $3)`
-	if _, err := tx.Exec(query, n.App, n.Name, n.number()); err != nil {
+	if _, err := tx.Exec(query, n.App, n.Name, n.number); err != nil {
 		txErr := tx.Rollback()
 		if txErr != nil {
 			err = txErr
@@ -122,7 +127,7 @@ func (n *Node) Backwards(db *sql.DB) error {
 	return nil
 }
 
-func (n *Node) backwardDependencies(db *sql.DB) error {
+func (n Node) backwardDependencies(db *sql.DB) error {
 	for _, state := range history {
 		for _, node := range state.migrations {
 			for _, dep := range node.Dependencies {
@@ -137,7 +142,7 @@ func (n *Node) backwardDependencies(db *sql.DB) error {
 	return nil
 }
 
-func (n *Node) backwardOperations(db *sql.DB) error {
+func (n Node) backwardOperations(db *sql.DB) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
@@ -152,12 +157,12 @@ func (n *Node) backwardOperations(db *sql.DB) error {
 				}
 			}
 			return &OperationRunError{
-				ErrorTrace{Node: n, Operation: &op, Err: err},
+				ErrorTrace{Node: &n, Operation: &op, Err: err},
 			}
 		}
 	}
 	query := "DELETE FROM gomodels_migration WHERE app = $1 and number = $2"
-	if _, err := tx.Exec(query, n.App, n.number()); err != nil {
+	if _, err := tx.Exec(query, n.App, n.number); err != nil {
 		txErr := tx.Rollback()
 		if txErr != nil {
 			err = txErr
@@ -210,7 +215,7 @@ func (n *Node) setState(stash map[string]map[string]bool) error {
 	return nil
 }
 
-func (n *Node) setPreviousState(prevHistory map[string]*AppState) {
+func (n Node) setPreviousState(prevHistory map[string]*AppState) {
 	for _, dep := range n.Dependencies {
 		app, depName := dep[0], dep[1]
 		number, _ := strconv.Atoi(depName[:4])
