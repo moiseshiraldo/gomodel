@@ -50,7 +50,7 @@ func (state AppState) nextNode() *Node {
 	return node
 }
 
-func (state AppState) changes() []*Node {
+func (state *AppState) makeMigrations() ([]*Node, error) {
 	migrations := []*Node{}
 	node := state.nextNode()
 	for name := range state.models {
@@ -62,9 +62,17 @@ func (state AppState) changes() []*Node {
 		node.Operations = append(node.Operations, getModelChanges(model)...)
 	}
 	if len(node.Operations) > 0 {
+		stash := map[string]map[string]bool{}
+		for app := range history {
+			stash[app] = map[string]bool{}
+		}
+		if err := node.setState(stash); err != nil {
+			return migrations, err
+		}
 		migrations = append(migrations, node)
+		state.migrations = append(state.migrations, node)
 	}
-	return migrations
+	return migrations, nil
 }
 
 func (state AppState) Migrate(database string, nodeName string) error {

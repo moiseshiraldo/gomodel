@@ -161,7 +161,7 @@ type OperationRunError struct {
 }
 
 func (e *OperationRunError) Error() string {
-	return fmt.Sprintf("migrations: run error: %s:", e.ErrorTrace.String())
+	return fmt.Sprintf("migrations: run error: %s", e.ErrorTrace.String())
 }
 
 func (e *OperationRunError) Trace() ErrorTrace {

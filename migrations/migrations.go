@@ -12,37 +12,40 @@ type MakeOptions struct {
 	OmitWrite bool
 }
 
-func Make(appName string, options MakeOptions) ([]*Node, error) {
+func Make(appName string, options MakeOptions) (*AppState, error) {
+	var err error
 	migrations := []*Node{}
 	_, ok := gomodels.Registry[appName]
 	if !ok {
-		return migrations, &AppNotFoundError{appName, ErrorTrace{}}
+		return nil, &AppNotFoundError{appName, ErrorTrace{}}
 	}
 	if err := loadHistory(); err != nil {
-		return migrations, err
+		return nil, err
 	}
 	defer clearHistory()
 	state := history[appName]
 	if options.Empty {
 		node := state.nextNode()
 		migrations = append(migrations, node)
-		return migrations, nil
+		return state, nil
 	}
-	migrations = state.changes()
-	if options.OmitWrite {
-		return migrations, nil
+	migrations, err = state.makeMigrations()
+	if err != nil {
+		return state, err
 	}
-	for _, node := range migrations {
-		if node.Path == "" {
-			trace := ErrorTrace{Node: node, Err: fmt.Errorf("no path")}
-			return migrations, &PathError{trace}
+	if !options.OmitWrite {
+		for _, node := range migrations {
+			if node.Path == "" {
+				trace := ErrorTrace{Node: node, Err: fmt.Errorf("no path")}
+				return state, &PathError{trace}
+			}
+			if err := node.Save(); err != nil {
+				err = &SaveError{ErrorTrace{Node: node, Err: err}}
+				return state, err
+			}
 		}
-		if err := node.Save(); err != nil {
-			err = &SaveError{ErrorTrace{Node: node, Err: err}}
-			return migrations, err
-		}
 	}
-	return migrations, nil
+	return state, nil
 }
 
 type RunOptions struct {
@@ -82,6 +85,35 @@ func Run(options RunOptions) error {
 				if err := state.Migrate(dbName, ""); err != nil {
 					return err
 				}
+			}
+		}
+	}
+	return nil
+}
+
+func MakeAndRun() error {
+	for _, app := range gomodels.Registry {
+		history[app.Name()] = &AppState{
+			app:        app,
+			models:     map[string]*gomodels.Model{},
+			migrations: []*Node{},
+		}
+	}
+	defer clearHistory()
+	for _, state := range history {
+		if _, err := state.makeMigrations(); err != nil {
+			return err
+		}
+	}
+	for dbName, db := range gomodels.Databases {
+		if err := loadAppliedMigrations(db); err != nil {
+			return &gomodels.DatabaseError{
+				dbName, gomodels.ErrorTrace{Err: err},
+			}
+		}
+		for _, state := range history {
+			if err := state.Migrate(dbName, ""); err != nil {
+				return err
 			}
 		}
 	}
