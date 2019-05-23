@@ -21,6 +21,7 @@ type Model struct {
 type Indexes map[string][]string
 
 type Options struct {
+	Table       string
 	Constructor Constructor
 	Indexes     Indexes
 }
@@ -34,9 +35,13 @@ func (m Model) App() *Application {
 }
 
 func (m Model) Table() string {
-	return fmt.Sprintf(
-		"%s_%s", strings.ToLower(m.app.name), strings.ToLower(m.name),
-	)
+	table := m.meta.Table
+	if table == "" {
+		table = fmt.Sprintf(
+			"%s_%s", strings.ToLower(m.app.name), strings.ToLower(m.name),
+		)
+	}
+	return table
 }
 
 func (m Model) Fields() Fields {
@@ -106,7 +111,10 @@ func registerModel(app *Application, model *Model) {
 		}
 		if field.HasIndex() {
 			idxName := fmt.Sprintf(
-				"%s_%s_%s_idx", app.name, model.name, field.DBColumn(name),
+				"%s_%s_%s_idx",
+				strings.ToLower(app.name),
+				strings.ToLower(model.name),
+				strings.ToLower(field.DBColumn(name)),
 			)
 			if _, found := model.meta.Indexes[idxName]; found {
 				msg := fmt.Sprintf(

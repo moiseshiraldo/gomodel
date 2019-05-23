@@ -10,6 +10,7 @@ import (
 
 type AddFields struct {
 	Model  string
+	table  string `json:"-"`
 	Fields gomodels.Fields
 }
 
@@ -19,13 +20,14 @@ func (op AddFields) OpName() string {
 
 func (op AddFields) FromJSON(raw []byte) (Operation, error) {
 	err := json.Unmarshal(raw, &op)
-	return op, err
+	return &op, err
 }
 
-func (op AddFields) SetState(state *AppState) error {
+func (op *AddFields) SetState(state *AppState) error {
 	if _, ok := state.models[op.Model]; !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}
+	op.table = state.models[op.Model].Table()
 	fields := state.models[op.Model].Fields()
 	for name, field := range op.Fields {
 		if _, found := fields[name]; found {
@@ -35,13 +37,13 @@ func (op AddFields) SetState(state *AppState) error {
 	}
 	delete(state.models, op.Model)
 	state.models[op.Model] = gomodels.New(
-		op.Model, fields, gomodels.Options{},
+		op.Model, fields, gomodels.Options{Table: op.table},
 	).Model
 	return nil
 }
 
 func (op AddFields) Run(tx *sql.Tx, app string) error {
-	baseQuery := fmt.Sprintf("ALTER TABLE '%s_%s' ADD COLUMN", app, op.Model)
+	baseQuery := fmt.Sprintf("ALTER TABLE '%s' ADD COLUMN", op.table)
 	for name, field := range op.Fields {
 		query := fmt.Sprintf(
 			"%s '%s' %s;", baseQuery, field.DBColumn(name), field.CreateSQL(),
@@ -54,9 +56,7 @@ func (op AddFields) Run(tx *sql.Tx, app string) error {
 }
 
 func (op AddFields) Backwards(tx *sql.Tx, app string, pS *AppState) error {
-	query := fmt.Sprintf(
-		"ALTER TABLE %[1]s_%[2]s RENAME TO %[1]s_%[2]s__old;", app, op.Model,
-	)
+	query := fmt.Sprintf("ALTER TABLE %[1]s RENAME TO %[1]s__old;", op.table)
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
@@ -65,18 +65,18 @@ func (op AddFields) Backwards(tx *sql.Tx, app string, pS *AppState) error {
 	for name, field := range fields {
 		columns = append(columns, field.DBColumn(name))
 	}
-	createModel := CreateModel{Name: op.Model, Fields: fields}
+	createModel := CreateModel{Name: op.Model, Fields: fields, Table: op.table}
 	if err := createModel.Run(tx, app); err != nil {
 		return err
 	}
 	query = fmt.Sprintf(
-		"INSERT INTO %[1]s_%[2]s (%[3]s) SELECT %[3]s FROM %[1]s_%[2]s__old;",
-		app, op.Model, strings.Join(columns, ", "),
+		"INSERT INTO %[1]s (%[2]s) SELECT %[2]s FROM %[1]s__old;",
+		op.table, strings.Join(columns, ", "),
 	)
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
-	query = fmt.Sprintf("DROP TABLE %s_%s__old;", app, op.Model)
+	query = fmt.Sprintf("DROP TABLE %s__old;", op.table)
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
@@ -85,6 +85,7 @@ func (op AddFields) Backwards(tx *sql.Tx, app string, pS *AppState) error {
 			Model:  op.Model,
 			Name:   idxName,
 			Fields: fields,
+			table:  op.table,
 		}
 		if err := addIndex.Run(tx, app); err != nil {
 			return err
@@ -95,6 +96,7 @@ func (op AddFields) Backwards(tx *sql.Tx, app string, pS *AppState) error {
 
 type RemoveFields struct {
 	Model  string
+	table  string `json:"-"`
 	Fields []string
 }
 
@@ -104,13 +106,14 @@ func (op RemoveFields) OpName() string {
 
 func (op RemoveFields) FromJSON(raw []byte) (Operation, error) {
 	err := json.Unmarshal(raw, &op)
-	return op, err
+	return &op, err
 }
 
-func (op RemoveFields) SetState(state *AppState) error {
+func (op *RemoveFields) SetState(state *AppState) error {
 	if _, ok := state.models[op.Model]; !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}
+	op.table = state.models[op.Model].Table()
 	fields := state.models[op.Model].Fields()
 	for _, name := range op.Fields {
 		if _, ok := fields[name]; !ok {
@@ -120,15 +123,13 @@ func (op RemoveFields) SetState(state *AppState) error {
 	}
 	delete(state.models, op.Model)
 	state.models[op.Model] = gomodels.New(
-		op.Model, fields, gomodels.Options{},
+		op.Model, fields, gomodels.Options{Table: op.table},
 	).Model
 	return nil
 }
 
 func (op RemoveFields) Run(tx *sql.Tx, app string) error {
-	query := fmt.Sprintf(
-		"ALTER TABLE %[1]s_%[2]s RENAME TO %[1]s_%[2]s__old;", app, op.Model,
-	)
+	query := fmt.Sprintf("ALTER TABLE %[1]s RENAME TO %[1]s__old;", op.table)
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
@@ -140,18 +141,18 @@ func (op RemoveFields) Run(tx *sql.Tx, app string) error {
 	for name, field := range fields {
 		keepColumns = append(keepColumns, field.DBColumn(name))
 	}
-	createModel := CreateModel{Name: op.Model, Fields: fields}
+	createModel := CreateModel{Name: op.Model, Fields: fields, Table: op.table}
 	if err := createModel.Run(tx, app); err != nil {
 		return err
 	}
 	query = fmt.Sprintf(
-		"INSERT INTO %[1]s_%[2]s (%[3]s) SELECT %[3]s FROM %[1]s_%[2]s__old;",
-		app, op.Model, strings.Join(keepColumns, ", "),
+		"INSERT INTO %[1]s (%[2]s) SELECT %[2]s FROM %[1]s__old;",
+		op.table, strings.Join(keepColumns, ", "),
 	)
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
-	query = fmt.Sprintf("DROP TABLE %s_%s__old;", app, op.Model)
+	query = fmt.Sprintf("DROP TABLE %s__old;", op.table)
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
@@ -160,6 +161,7 @@ func (op RemoveFields) Run(tx *sql.Tx, app string) error {
 			Model:  op.Model,
 			Name:   idxName,
 			Fields: fields,
+			table:  op.table,
 		}
 		if err := addIndex.Run(tx, app); err != nil {
 			return err
@@ -169,7 +171,7 @@ func (op RemoveFields) Run(tx *sql.Tx, app string) error {
 }
 
 func (op RemoveFields) Backwards(tx *sql.Tx, app string, pS *AppState) error {
-	baseQuery := fmt.Sprintf("ALTER TABLE '%s_%s' ADD COLUMN", app, op.Model)
+	baseQuery := fmt.Sprintf("ALTER TABLE '%s' ADD COLUMN", op.table)
 	fields := pS.models[op.Model].Fields()
 	newFields := gomodels.Fields{}
 	for _, name := range op.Fields {

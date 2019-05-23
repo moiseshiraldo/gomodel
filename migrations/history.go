@@ -55,7 +55,7 @@ func (state *AppState) makeMigrations() ([]*Node, error) {
 	node := state.nextNode()
 	for name := range state.models {
 		if _, ok := state.app.Models()[name]; !ok {
-			node.Operations = append(node.Operations, DeleteModel{Name: name})
+			node.Operations = append(node.Operations, &DeleteModel{Name: name})
 		}
 	}
 	for _, model := range state.app.Models() {

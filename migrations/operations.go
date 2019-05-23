@@ -52,11 +52,11 @@ func (op *OperationList) UnmarshalJSON(data []byte) error {
 
 func AvailableOperations() map[string]Operation {
 	return map[string]Operation{
-		"CreateModel":  CreateModel{},
-		"DeleteModel":  DeleteModel{},
-		"AddFields":    AddFields{},
-		"RemoveFields": RemoveFields{},
-		"AddIndex":     AddIndex{},
-		"RemoveIndex":  RemoveIndex{},
+		"CreateModel":  &CreateModel{},
+		"DeleteModel":  &DeleteModel{},
+		"AddFields":    &AddFields{},
+		"RemoveFields": &RemoveFields{},
+		"AddIndex":     &AddIndex{},
+		"RemoveIndex":  &RemoveIndex{},
 	}
 }
