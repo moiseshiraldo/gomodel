@@ -6,8 +6,8 @@ type Manager struct {
 
 func (m Manager) Create(values Values) (*Instance, error) {
 	db := Databases["default"]
-	constructor := getConstructor(*m.Model)
-	instance := &Instance{constructor, m.Model}
+	container := m.Model.Container()
+	instance := &Instance{container, m.Model.meta.conType, m.Model}
 	query, vals := sqlCreateQuery(m.Model.Table(), values)
 	result, err := db.Exec(query, vals...)
 	if err != nil {
@@ -38,15 +38,13 @@ func (m Manager) GetQuerySet() QuerySet {
 	for name := range m.Model.fields {
 		cols = append(cols, name)
 	}
-	constructor := m.Model.meta.Constructor
-	if constructor == nil {
-		constructor = Values{}
-	}
+	container := m.Model.meta.Container
 	return GenericQuerySet{
-		model:       m.Model,
-		constructor: constructor,
-		database:    "default",
-		columns:     cols,
+		model:     m.Model,
+		container: m.Model.meta.Container,
+		conType:   m.Model.meta.conType,
+		database:  "default",
+		columns:   cols,
 	}
 }
 

@@ -11,18 +11,19 @@ type QuerySet interface {
 	Query() (placeholder string, values []interface{})
 	Model() *Model
 	Columns() []string
-	Constructor() Constructor
+	Container() Container
 	Filter(f Filterer) QuerySet
 	Get(f Filterer) (*Instance, error)
 	Delete() (int64, error)
 }
 
 type GenericQuerySet struct {
-	model       *Model
-	constructor Constructor
-	database    string
-	columns     []string
-	filter      Filterer
+	model     *Model
+	container Container
+	conType   string
+	database  string
+	columns   []string
+	filter    Filterer
 }
 
 func (qs GenericQuerySet) dbError(err error) error {
@@ -30,9 +31,9 @@ func (qs GenericQuerySet) dbError(err error) error {
 	return &DatabaseError{qs.database, trace}
 }
 
-func (qs GenericQuerySet) constructorError(err error) error {
+func (qs GenericQuerySet) containerError(err error) error {
 	trace := ErrorTrace{App: qs.model.app, Model: qs.model, Err: err}
-	return &ConstructorError{trace}
+	return &ContainerError{trace}
 }
 
 func (qs GenericQuerySet) addFilter(filter Filterer) GenericQuerySet {
@@ -69,8 +70,8 @@ func (qs GenericQuerySet) Columns() []string {
 	return qs.columns
 }
 
-func (qs GenericQuerySet) Constructor() Constructor {
-	return qs.constructor
+func (qs GenericQuerySet) Container() Container {
+	return qs.container
 }
 
 func (qs GenericQuerySet) Filter(filter Filterer) QuerySet {
@@ -79,10 +80,6 @@ func (qs GenericQuerySet) Filter(filter Filterer) QuerySet {
 
 func (qs GenericQuerySet) Load() ([]*Instance, error) {
 	result := []*Instance{}
-	consType := getConstructorType(qs.constructor)
-	if consType == "" {
-		return nil, qs.dbError(fmt.Errorf("invalid constructor type"))
-	}
 	db, ok := Databases[qs.database]
 	if !ok {
 		return nil, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
@@ -94,23 +91,23 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		constructor, recipients := getRecipients(qs, consType)
+		container, recipients := getRecipients(qs, qs.conType)
 		if len(recipients) != len(qs.columns) {
-			err := fmt.Errorf("invalid constructor recipients")
-			return nil, qs.constructorError(err)
+			err := fmt.Errorf("invalid container recipients")
+			return nil, qs.containerError(err)
 		}
 		err := rows.Scan(recipients...)
 		if err != nil {
-			return nil, qs.constructorError(err)
+			return nil, qs.containerError(err)
 		}
-		if consType == "Map" {
+		if qs.conType == containers.Map {
 			values := Values{}
 			for i, name := range qs.columns {
 				values[name] = reflect.ValueOf(recipients[i]).Elem()
 			}
-			constructor = values
+			container = values
 		}
-		result = append(result, &Instance{constructor, qs.model})
+		result = append(result, &Instance{container, qs.conType, qs.model})
 	}
 	err = rows.Err()
 	if err != nil {
@@ -121,32 +118,28 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 
 func (qs GenericQuerySet) Get(filter Filterer) (*Instance, error) {
 	qs = qs.addFilter(filter)
-	consType := getConstructorType(qs.constructor)
-	if consType == "" {
-		return nil, qs.dbError(fmt.Errorf("invalid constructor type"))
-	}
 	db, ok := Databases[qs.database]
 	if !ok {
 		return nil, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
-	constructor, recipients := getRecipients(qs, consType)
+	container, recipients := getRecipients(qs, qs.conType)
 	if len(recipients) != len(qs.columns) {
-		err := fmt.Errorf("invalid constructor recipients")
-		return nil, qs.constructorError(err)
+		err := fmt.Errorf("invalid container recipients")
+		return nil, qs.containerError(err)
 	}
 	query, values := qs.Query()
 	err := db.QueryRow(query, values...).Scan(recipients...)
 	if err != nil {
 		return nil, qs.dbError(err)
 	}
-	if consType == "Map" {
+	if qs.conType == containers.Map {
 		values := Values{}
 		for i, name := range qs.columns {
 			values[name] = reflect.ValueOf(recipients[i]).Elem()
 		}
-		constructor = values
+		container = values
 	}
-	instance := &Instance{constructor, qs.model}
+	instance := &Instance{container, qs.conType, qs.model}
 	return instance, nil
 }
 

@@ -2,6 +2,7 @@ package gomodels
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -10,20 +11,21 @@ type Dispatcher struct {
 	Objects *Manager
 }
 
+type Indexes map[string][]string
+
+type Options struct {
+	Table     string
+	Container Container
+	Indexes   Indexes
+	conType   string
+}
+
 type Model struct {
 	app    *Application
 	name   string
 	pk     string
 	fields Fields
-	meta   Options
-}
-
-type Indexes map[string][]string
-
-type Options struct {
-	Table       string
-	Constructor Constructor
-	Indexes     Indexes
+	meta   *Options
 }
 
 func (m Model) Name() string {
@@ -62,11 +64,26 @@ func (m Model) Indexes() Indexes {
 	return indexes
 }
 
+func (m Model) Container() Container {
+	switch m.meta.conType {
+	case containers.Map:
+		return Values{}
+	case containers.Builder:
+		return m.meta.Container.(Builder).New()
+	default:
+		ct := reflect.TypeOf(m.meta.Container)
+		if ct.Kind() == reflect.Ptr {
+			ct = ct.Elem()
+		}
+		return reflect.New(ct)
+	}
+}
+
 func New(name string, fields Fields, options Options) *Dispatcher {
 	if options.Indexes == nil {
 		options.Indexes = Indexes{}
 	}
-	model := &Model{name: name, fields: fields, meta: options}
+	model := &Model{name: name, fields: fields, meta: &options}
 	return &Dispatcher{model, &Manager{model}}
 }
 
@@ -130,14 +147,16 @@ func registerModel(app *Application, model *Model) {
 		model.fields["id"] = AutoField{PrimaryKey: true}
 		model.pk = "id"
 	}
-	if model.meta.Constructor != nil {
-		if getConstructorType(model.meta.Constructor) == "" {
+	if model.meta.Container != nil {
+		model.meta.conType = getContainerType(model.meta.Container)
+		if model.meta.conType == "" {
 			panic(fmt.Sprintf(
-				"gomodels: %s: %s: invalid constructor", app.name, model.name,
+				"gomodels: %s: %s: invalid container", app.name, model.name,
 			))
 		}
 	} else {
-		model.meta.Constructor = Values{}
+		model.meta.Container = Values{}
+		model.meta.conType = containers.Map
 	}
 	app.models[model.name] = model
 }

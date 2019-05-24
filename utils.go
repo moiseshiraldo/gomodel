@@ -40,59 +40,42 @@ func sqlCreateQuery(table string, values Values) (string, []interface{}) {
 	return query, vals
 }
 
-func getConstructor(model Model) Constructor {
-	switch model.meta.Constructor.(type) {
+func getContainerType(container Container) string {
+	switch container.(type) {
 	case Values:
-		return Values{}
+		return containers.Map
 	default:
-		if builder, ok := model.meta.Constructor.(Builder); ok {
-			return builder.New()
+		if _, ok := container.(Builder); ok {
+			return containers.Builder
 		} else {
-			ct := reflect.TypeOf(model.meta.Constructor)
-			if ct.Kind() == reflect.Ptr {
-				ct = ct.Elem()
-			}
-			return reflect.New(ct)
-		}
-	}
-}
-
-func getConstructorType(constructor Constructor) string {
-	switch constructor.(type) {
-	case Values:
-		return "Map"
-	default:
-		if _, ok := constructor.(Builder); ok {
-			return "Builder"
-		} else {
-			ct := reflect.TypeOf(constructor)
+			ct := reflect.TypeOf(container)
 			if ct.Kind() == reflect.Ptr {
 				ct = ct.Elem()
 			}
 			if ct.Kind() == reflect.Struct {
-				return "Struct"
+				return containers.Struct
 			}
 		}
 		return ""
 	}
 }
 
-func getRecipients(qs QuerySet, ct string) (Constructor, []interface{}) {
-	var constructor Constructor
+func getRecipients(qs QuerySet, conType string) (Container, []interface{}) {
+	var container Container
 	recipients := make([]interface{}, 0, len(qs.Columns()))
-	switch ct {
-	case "Map":
-		constructor = Values{}
+	switch conType {
+	case containers.Map:
+		container = Values{}
 		for _, name := range qs.Columns() {
 			val := qs.Model().fields[name].NativeVal()
 			recipients = append(recipients, &val)
 		}
-	case "Builder":
-		builder := qs.Constructor().(Builder).New()
+	case containers.Builder:
+		builder := qs.Container().(Builder).New()
 		recipients = builder.Recipients(qs.Columns())
-		constructor = builder
+		container = builder
 	default:
-		ct := reflect.TypeOf(qs.Constructor())
+		ct := reflect.TypeOf(qs.Container())
 		if ct.Kind() == reflect.Ptr {
 			ct = ct.Elem()
 		}
@@ -103,7 +86,7 @@ func getRecipients(qs QuerySet, ct string) (Constructor, []interface{}) {
 				recipients = append(recipients, f.Addr().Interface())
 			}
 		}
-		constructor = cp.Interface()
+		container = cp.Interface()
 	}
-	return constructor, recipients
+	return container, recipients
 }

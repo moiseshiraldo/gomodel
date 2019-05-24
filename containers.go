@@ -6,10 +6,16 @@ import (
 	"strings"
 )
 
+var containers = struct {
+	Map     string
+	Builder string
+	Struct  string
+}{"Map", "Builder", "Struct"}
+
 type Value interface{}
 type Values map[string]Value
 
-type Constructor interface{}
+type Container interface{}
 
 type Builder interface {
 	Get(field string) (val Value, ok bool)
@@ -28,7 +34,7 @@ func (vals Values) Set(field string, val Value) bool {
 	return true
 }
 
-func (vals Values) New() Constructor {
+func (vals Values) New() Container {
 	return Values{}
 }
 
@@ -37,20 +43,21 @@ func (vals Values) Recipients(columns []string) []interface{} {
 }
 
 type Instance struct {
-	Constructor
-	Model *Model
+	Container
+	conType string
+	Model   *Model
 }
 
 func (i Instance) GetIf(field string) (Value, bool) {
 	var val Value
 	ok := true
-	switch constructor := i.Constructor.(type) {
-	case Values:
-		val = constructor[field]
-	case Builder:
-		val, ok = constructor.Get(field)
+	switch i.conType {
+	case containers.Map:
+		val, ok = i.Container.(Values)[field]
+	case containers.Builder:
+		val, ok = i.Container.(Builder).Get(field)
 	default:
-		cv := reflect.Indirect(reflect.ValueOf(constructor))
+		cv := reflect.Indirect(reflect.ValueOf(i.Container))
 		f := cv.FieldByName(strings.Title(field))
 		if f.IsValid() && f.CanInterface() {
 			val = f.Interface()
@@ -67,14 +74,14 @@ func (i Instance) Get(field string) Value {
 }
 
 func (i Instance) Set(field string, val Value) error {
-	switch constructor := i.Constructor.(type) {
-	case Values:
-		constructor[field] = val
+	switch i.conType {
+	case containers.Map:
+		i.Container.(Values)[field] = val
 		return nil
-	case Builder:
-		return constructor.Set(field, val)
+	case containers.Builder:
+		return i.Container.(Builder).Set(field, val)
 	default:
-		cv := reflect.Indirect(reflect.ValueOf(constructor))
+		cv := reflect.Indirect(reflect.ValueOf(i.Container))
 		f := cv.FieldByName(strings.Title(field))
 		if !f.IsValid() || !f.CanSet() {
 			return fmt.Errorf("Invalid field")

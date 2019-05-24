@@ -46,14 +46,14 @@ func (e *DatabaseError) Trace() ErrorTrace {
 	return e.ErrorTrace
 }
 
-type ConstructorError struct {
+type ContainerError struct {
 	ErrorTrace
 }
 
-func (e *ConstructorError) Error() string {
+func (e *ContainerError) Error() string {
 	return fmt.Sprintf("gomodels: %s", e.ErrorTrace.String())
 }
 
-func (e *ConstructorError) Trace() ErrorTrace {
+func (e *ContainerError) Trace() ErrorTrace {
 	return e.ErrorTrace
 }
