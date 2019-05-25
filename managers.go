@@ -59,3 +59,7 @@ func (m Manager) Filter(f Filterer) QuerySet {
 func (m Manager) Get(f Filterer) (*Instance, error) {
 	return m.GetQuerySet().Get(f)
 }
+
+func (m Manager) SetContainer(container Container) QuerySet {
+	return m.GetQuerySet().SetContainer(container)
+}

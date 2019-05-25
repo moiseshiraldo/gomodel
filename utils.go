@@ -40,23 +40,23 @@ func sqlCreateQuery(table string, values Values) (string, []interface{}) {
 	return query, vals
 }
 
-func getContainerType(container Container) string {
+func getContainerType(container Container) (string, error) {
 	switch container.(type) {
 	case Values:
-		return containers.Map
+		return containers.Map, nil
 	default:
 		if _, ok := container.(Builder); ok {
-			return containers.Builder
+			return containers.Builder, nil
 		} else {
 			ct := reflect.TypeOf(container)
 			if ct.Kind() == reflect.Ptr {
 				ct = ct.Elem()
 			}
 			if ct.Kind() == reflect.Struct {
-				return containers.Struct
+				return containers.Struct, nil
 			}
 		}
-		return ""
+		return "", fmt.Errorf("invlid container")
 	}
 }
 

@@ -148,12 +148,13 @@ func registerModel(app *Application, model *Model) {
 		model.pk = "id"
 	}
 	if model.meta.Container != nil {
-		model.meta.conType = getContainerType(model.meta.Container)
-		if model.meta.conType == "" {
+		conType, err := getContainerType(model.meta.Container)
+		if err != nil {
 			panic(fmt.Sprintf(
-				"gomodels: %s: %s: invalid container", app.name, model.name,
+				"gomodels: %s: %s: %s", app.name, model.name, err,
 			))
 		}
+		model.meta.conType = conType
 	} else {
 		model.meta.Container = Values{}
 		model.meta.conType = containers.Map

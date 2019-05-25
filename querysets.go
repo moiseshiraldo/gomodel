@@ -12,6 +12,7 @@ type QuerySet interface {
 	Model() *Model
 	Columns() []string
 	Container() Container
+	SetContainer(c Container) QuerySet
 	Filter(f Filterer) QuerySet
 	Get(f Filterer) (*Instance, error)
 	Delete() (int64, error)
@@ -74,6 +75,13 @@ func (qs GenericQuerySet) Container() Container {
 	return qs.container
 }
 
+func (qs GenericQuerySet) SetContainer(container Container) QuerySet {
+	conType, _ := getContainerType(container)
+	qs.conType = conType
+	qs.container = container
+	return qs
+}
+
 func (qs GenericQuerySet) Filter(filter Filterer) QuerySet {
 	return qs.addFilter(filter)
 }
@@ -83,6 +91,9 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 	db, ok := Databases[qs.database]
 	if !ok {
 		return nil, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
+	}
+	if qs.conType == "" {
+		return nil, qs.containerError(fmt.Errorf("invalid container"))
 	}
 	query, values := qs.Query()
 	rows, err := db.Query(query, values...)
