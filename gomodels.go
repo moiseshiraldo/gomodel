@@ -75,7 +75,7 @@ func (m Model) Container() Container {
 		if ct.Kind() == reflect.Ptr {
 			ct = ct.Elem()
 		}
-		return reflect.New(ct)
+		return reflect.New(ct).Interface()
 	}
 }
 

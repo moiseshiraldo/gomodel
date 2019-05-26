@@ -21,5 +21,7 @@ func TestMain(m *testing.M) {
         fmt.Fprintf(os.Stderr, "%s", err)
         os.Exit(1)
     }
-    os.Exit(m.Run())
+    code := m.Run()
+    User.Objects.All().Delete()
+    os.Exit(code)
 }

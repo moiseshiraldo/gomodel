@@ -72,7 +72,18 @@ func (qs GenericQuerySet) Columns() []string {
 }
 
 func (qs GenericQuerySet) Container() Container {
-	return qs.container
+	switch qs.conType {
+	case containers.Map:
+		return Values{}
+	case containers.Builder:
+		return qs.container.(Builder).New()
+	default:
+		ct := reflect.TypeOf(qs.container)
+		if ct.Kind() == reflect.Ptr {
+			ct = ct.Elem()
+		}
+		return reflect.New(ct).Interface()
+	}
 }
 
 func (qs GenericQuerySet) SetContainer(container Container) QuerySet {
@@ -95,6 +106,11 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 	if qs.conType == "" {
 		return nil, qs.containerError(fmt.Errorf("invalid container"))
 	}
+	container, recipients := getRecipients(qs, qs.conType)
+	if len(recipients) != len(qs.columns) {
+		err := fmt.Errorf("invalid container recipients")
+		return nil, qs.containerError(err)
+	}
 	query, values := qs.Query()
 	rows, err := db.Query(query, values...)
 	if err != nil {
@@ -102,23 +118,25 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		container, recipients := getRecipients(qs, qs.conType)
-		if len(recipients) != len(qs.columns) {
-			err := fmt.Errorf("invalid container recipients")
-			return nil, qs.containerError(err)
+		if qs.conType == containers.Map {
+			container = Values{}
+		} else {
+			container, recipients = getRecipients(qs, qs.conType)
 		}
 		err := rows.Scan(recipients...)
 		if err != nil {
 			return nil, qs.containerError(err)
 		}
+		instance := &Instance{container, qs.conType, qs.model}
 		if qs.conType == containers.Map {
-			values := Values{}
+			values := instance.Container.(Values)
 			for i, name := range qs.columns {
-				values[name] = reflect.ValueOf(recipients[i]).Elem()
+				values[name] = reflect.Indirect(
+					reflect.ValueOf(recipients[i]),
+				).Elem()
 			}
-			container = values
 		}
-		result = append(result, &Instance{container, qs.conType, qs.model})
+		result = append(result, instance)
 	}
 	err = rows.Err()
 	if err != nil {
@@ -143,14 +161,15 @@ func (qs GenericQuerySet) Get(filter Filterer) (*Instance, error) {
 	if err != nil {
 		return nil, qs.dbError(err)
 	}
-	if qs.conType == containers.Map {
-		values := Values{}
-		for i, name := range qs.columns {
-			values[name] = reflect.ValueOf(recipients[i]).Elem()
-		}
-		container = values
-	}
 	instance := &Instance{container, qs.conType, qs.model}
+	if qs.conType == containers.Map {
+		values := instance.Container.(Values)
+		for i, name := range qs.columns {
+			values[name] = reflect.Indirect(
+				reflect.ValueOf(recipients[i]),
+			).Elem()
+		}
+	}
 	return instance, nil
 }
 

@@ -34,7 +34,7 @@ func loadStructInstance(b *testing.B) {
 }
 
 func loadBuilderInstance(b *testing.B) {
-    qs := User.Objects.SetContainer(userBuilder{})
+    qs := User.Objects.SetContainer(&userBuilder{})
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
         user, err := qs.Get(gomodels.Q{"firstName": "Anakin"})
@@ -81,8 +81,8 @@ func BenchmarkInstance(b *testing.B) {
         os.Exit(1)
     }
     os.Stdout,_ = os.Open(os.DevNull)
+    b.Run("RawSqlContainer", loadRawSqlInstance)
     b.Run("MapContainer", loadMapInstance)
     b.Run("StructContainer", loadStructInstance)
     b.Run("BuilderContainer", loadBuilderInstance)
-    b.Run("RawSqlContainer", loadRawSqlInstance)
 }

@@ -61,32 +61,24 @@ func getContainerType(container Container) (string, error) {
 }
 
 func getRecipients(qs QuerySet, conType string) (Container, []interface{}) {
-	var container Container
+	container := qs.Container()
 	recipients := make([]interface{}, 0, len(qs.Columns()))
 	switch conType {
 	case containers.Map:
-		container = Values{}
 		for _, name := range qs.Columns() {
 			val := qs.Model().fields[name].NativeVal()
 			recipients = append(recipients, &val)
 		}
 	case containers.Builder:
-		builder := qs.Container().(Builder).New()
-		recipients = builder.Recipients(qs.Columns())
-		container = builder
+		recipients = container.(Builder).Recipients(qs.Columns())
 	default:
-		ct := reflect.TypeOf(qs.Container())
-		if ct.Kind() == reflect.Ptr {
-			ct = ct.Elem()
-		}
-		cp := reflect.New(ct)
+		cv := reflect.Indirect(reflect.ValueOf(container))
 		for _, name := range qs.Columns() {
-			f := cp.Elem().FieldByName(strings.Title(name))
+			f := cv.FieldByName(strings.Title(name))
 			if f.IsValid() && f.CanAddr() {
 				recipients = append(recipients, f.Addr().Interface())
 			}
 		}
-		container = cp.Interface()
 	}
 	return container, recipients
 }

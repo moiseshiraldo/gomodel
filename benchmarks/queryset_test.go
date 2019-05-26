@@ -31,7 +31,7 @@ func loadStructQuerySet(b *testing.B) {
 }
 
 func loadBuilderQuerySet(b *testing.B) {
-    qs := User.Objects.SetContainer(userBuilder{})
+    qs := User.Objects.SetContainer(&userBuilder{})
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
         users, _ := qs.Filter(gomodels.Q{"firstName": "Luke"}).Load()
@@ -82,8 +82,8 @@ func BenchmarkQuerySet(b *testing.B) {
         }
     }
     os.Stdout,_ = os.Open(os.DevNull)
+    b.Run("RawSqlQuerySet", loadRawSqlQuerySet)
     b.Run("MapContainer", loadMapQuerySet)
     b.Run("StructContainer", loadStructQuerySet)
     b.Run("BuilderContainer", loadBuilderQuerySet)
-    b.Run("RawSqlQuerySet", loadRawSqlQuerySet)
 }
