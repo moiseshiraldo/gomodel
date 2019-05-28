@@ -43,10 +43,10 @@ func (op *AddFields) SetState(state *AppState) error {
 }
 
 func (op AddFields) Run(tx *sql.Tx, app string) error {
-	baseQuery := fmt.Sprintf("ALTER TABLE '%s' ADD COLUMN", op.table)
+	baseQuery := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN", op.table)
 	for name, field := range op.Fields {
 		query := fmt.Sprintf(
-			"%s '%s' %s;", baseQuery, field.DBColumn(name), field.CreateSQL(),
+			"%s \"%s\" %s;", baseQuery, field.DBColumn(name), field.CreateSQL(),
 		)
 		if _, err := tx.Exec(query); err != nil {
 			return err
@@ -56,27 +56,29 @@ func (op AddFields) Run(tx *sql.Tx, app string) error {
 }
 
 func (op AddFields) Backwards(tx *sql.Tx, app string, pS *AppState) error {
-	query := fmt.Sprintf("ALTER TABLE %[1]s RENAME TO %[1]s__old;", op.table)
+	query := fmt.Sprintf(
+		"ALTER TABLE \"%[1]s\" RENAME TO \"%[1]s__old\";", op.table,
+	)
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
 	fields := pS.models[op.Model].Fields()
 	columns := make([]string, 0, len(fields)-len(op.Fields))
 	for name, field := range fields {
-		columns = append(columns, field.DBColumn(name))
+		columns = append(columns, fmt.Sprintf("\"%s\"", field.DBColumn(name)))
 	}
 	createModel := CreateModel{Name: op.Model, Fields: fields, Table: op.table}
 	if err := createModel.Run(tx, app); err != nil {
 		return err
 	}
 	query = fmt.Sprintf(
-		"INSERT INTO %[1]s (%[2]s) SELECT %[2]s FROM %[1]s__old;",
+		"INSERT INTO \"%[1]s\" (%[2]s) SELECT %[2]s FROM \"%[1]s__old\";",
 		op.table, strings.Join(columns, ", "),
 	)
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
-	query = fmt.Sprintf("DROP TABLE %s__old;", op.table)
+	query = fmt.Sprintf("DROP TABLE \"%s__old\";", op.table)
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
@@ -129,7 +131,9 @@ func (op *RemoveFields) SetState(state *AppState) error {
 }
 
 func (op RemoveFields) Run(tx *sql.Tx, app string) error {
-	query := fmt.Sprintf("ALTER TABLE %[1]s RENAME TO %[1]s__old;", op.table)
+	query := fmt.Sprintf(
+		"ALTER TABLE \"%[1]s\" RENAME TO \"%[1]s__old\";", op.table,
+	)
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
@@ -139,20 +143,22 @@ func (op RemoveFields) Run(tx *sql.Tx, app string) error {
 		delete(fields, name)
 	}
 	for name, field := range fields {
-		keepColumns = append(keepColumns, field.DBColumn(name))
+		keepColumns = append(
+			keepColumns, fmt.Sprintf("\"%s\"", field.DBColumn(name)),
+		)
 	}
 	createModel := CreateModel{Name: op.Model, Fields: fields, Table: op.table}
 	if err := createModel.Run(tx, app); err != nil {
 		return err
 	}
 	query = fmt.Sprintf(
-		"INSERT INTO %[1]s (%[2]s) SELECT %[2]s FROM %[1]s__old;",
+		"INSERT INTO \"%[1]s\" (%[2]s) SELECT %[2]s FROM \"%[1]s__old\";",
 		op.table, strings.Join(keepColumns, ", "),
 	)
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
-	query = fmt.Sprintf("DROP TABLE %s__old;", op.table)
+	query = fmt.Sprintf("DROP TABLE \"%s__old\";", op.table)
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
@@ -171,7 +177,7 @@ func (op RemoveFields) Run(tx *sql.Tx, app string) error {
 }
 
 func (op RemoveFields) Backwards(tx *sql.Tx, app string, pS *AppState) error {
-	baseQuery := fmt.Sprintf("ALTER TABLE '%s' ADD COLUMN", op.table)
+	baseQuery := fmt.Sprintf("ALTER TABLE \"%s\" ADD COLUMN", op.table)
 	fields := pS.models[op.Model].Fields()
 	newFields := gomodels.Fields{}
 	for _, name := range op.Fields {
@@ -179,7 +185,7 @@ func (op RemoveFields) Backwards(tx *sql.Tx, app string, pS *AppState) error {
 	}
 	for name, field := range newFields {
 		query := fmt.Sprintf(
-			"%s '%s' %s;", baseQuery, field.DBColumn(name), field.CreateSQL(),
+			"%s \"%s\" %s;", baseQuery, field.DBColumn(name), field.CreateSQL(),
 		)
 		if _, err := tx.Exec(query); err != nil {
 			return err

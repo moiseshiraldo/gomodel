@@ -48,9 +48,9 @@ func loadRawSqlQuerySet(b *testing.B) {
             SELECT
               id, firstName, lastName, email, active, superuser, loginAttempts
             FROM
-              'main_user'
+              "main_user"
             WHERE
-              firstName = ?;`
+              firstName = ?`
 		rows, _ := db.Query(query, "Luke")
 		users := []*userContainer{}
 		for rows.Next() {

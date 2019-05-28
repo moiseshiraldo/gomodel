@@ -33,7 +33,7 @@ func sqlCreateQuery(table string, values Values) (string, []interface{}) {
 		index += 1
 	}
 	query := fmt.Sprintf(
-		"INSERT INTO '%s' (%s) VALUES (%s)",
+		"INSERT INTO \"%s\" (%s) VALUES (%s)",
 		table, strings.Join(cols, ", "), strings.Join(placeholders, ", "),
 	)
 	return query, vals
@@ -71,7 +71,7 @@ func sqlInsertQuery(i Instance, fields []string) (string, []interface{}) {
 		}
 	}
 	query := fmt.Sprintf(
-		"INSERT INTO '%s' (%s) VALUES (%s)",
+		"INSERT INTO \"%s\" (%s) VALUES (%s)",
 		i.Model.Table(),
 		strings.Join(cols, ", "),
 		strings.Join(placeholders, ", "),
@@ -107,7 +107,7 @@ func sqlUpdateQuery(i Instance, fields []string) (string, []interface{}) {
 	}
 	vals = append(vals, i.Get(i.Model.pk))
 	query := fmt.Sprintf(
-		"UPDATE '%s' SET %s WHERE %s = $%d",
+		"UPDATE \"%s\" SET %s WHERE \"%s\" = $%d",
 		i.Model.Table(),
 		strings.Join(cols, ", "),
 		i.Model.pk,

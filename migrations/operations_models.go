@@ -42,7 +42,7 @@ func (op CreateModel) Run(tx *sql.Tx, app string) error {
 	if op.Table == "" {
 		op.Table = fmt.Sprintf("%s_%s", app, op.Name)
 	}
-	query := fmt.Sprintf("CREATE TABLE '%s' (", op.Table)
+	query := fmt.Sprintf("CREATE TABLE \"%s\" (", op.Table)
 	fields := make([]string, 0, len(op.Fields))
 	for name, field := range op.Fields {
 		fields = append(
@@ -61,7 +61,7 @@ func (op CreateModel) Backwards(tx *sql.Tx, app string, pS *AppState) error {
 	if op.Table == "" {
 		op.Table = fmt.Sprintf("%s_%s", app, op.Name)
 	}
-	query := fmt.Sprintf("DROP TABLE '%s';", op.Table)
+	query := fmt.Sprintf("DROP TABLE \"%s\";", op.Table)
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func (op *DeleteModel) SetState(state *AppState) error {
 }
 
 func (op DeleteModel) Run(tx *sql.Tx, app string) error {
-	query := fmt.Sprintf("DROP TABLE '%s';", op.table)
+	query := fmt.Sprintf("DROP TABLE \"%s\";", op.table)
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func (op DeleteModel) Run(tx *sql.Tx, app string) error {
 
 func (op DeleteModel) Backwards(tx *sql.Tx, app string, pS *AppState) error {
 	model := pS.models[op.Name]
-	query := fmt.Sprintf("CREATE TABLE '%s' (", model.Table())
+	query := fmt.Sprintf("CREATE TABLE \"%s\" (", model.Table())
 	fields := make([]string, 0, len(model.Fields()))
 	for name, field := range model.Fields() {
 		fields = append(
@@ -152,7 +152,7 @@ func (op *AddIndex) SetState(state *AppState) error {
 
 func (op AddIndex) Run(tx *sql.Tx, app string) error {
 	query := fmt.Sprintf(
-		"CREATE INDEX '%s' ON '%s'", op.Name, op.table,
+		"CREATE INDEX \"%s\" ON \"%s\"", op.Name, op.table,
 	)
 	fields := history[app].models[op.Model].Fields()
 	columns := make([]string, 0, len(op.Fields))
@@ -168,7 +168,7 @@ func (op AddIndex) Run(tx *sql.Tx, app string) error {
 }
 
 func (op AddIndex) Backwards(tx *sql.Tx, app string, pS *AppState) error {
-	query := fmt.Sprintf("DROP INDEX '%s';", op.Name)
+	query := fmt.Sprintf("DROP INDEX \"%s\";", op.Name)
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
@@ -210,7 +210,7 @@ func (op *RemoveIndex) SetState(state *AppState) error {
 
 func (op RemoveIndex) Run(tx *sql.Tx, app string) error {
 	query := fmt.Sprintf(
-		"DROP INDEX '%s' ON '%s';", op.Name, op.table,
+		"DROP INDEX \"%s\" ON \"%s\";", op.Name, op.table,
 	)
 	if _, err := tx.Exec(query); err != nil {
 		return err
@@ -223,7 +223,7 @@ func (op RemoveIndex) Backwards(tx *sql.Tx, app string, pS *AppState) error {
 	indexes := model.Indexes()
 	fields := model.Fields()
 	query := fmt.Sprintf(
-		"CREATE INDEX '%s' ON '%s'", op.Name, model.Table(),
+		"CREATE INDEX \"%s\" ON \"%s\"", op.Name, model.Table(),
 	)
 	columns := make([]string, 0, len(indexes[op.Name]))
 	for _, fieldName := range indexes[op.Name] {

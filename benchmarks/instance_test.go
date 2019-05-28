@@ -54,9 +54,9 @@ func loadRawSqlInstance(b *testing.B) {
             SELECT
               id, firstName, lastName, email, active, superuser, loginAttempts
             FROM
-              'main_user'
+              "main_user"
             WHERE
-              firstName = ?;`
+              firstName = ?`
 		err := db.QueryRow(query, "Anakin").Scan(
 			&user.Id, &user.FirstName, &user.LastName, &user.Email,
 			&user.Active, &user.Superuser, &user.LoginAttempts,

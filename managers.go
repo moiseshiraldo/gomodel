@@ -38,7 +38,6 @@ func (m Manager) GetQuerySet() QuerySet {
 	for name := range m.Model.fields {
 		cols = append(cols, name)
 	}
-	container := m.Model.meta.Container
 	return GenericQuerySet{
 		model:     m.Model,
 		container: m.Model.meta.Container,

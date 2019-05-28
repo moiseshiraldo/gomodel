@@ -38,7 +38,9 @@ func (q Q) Query(values ...interface{}) (string, []interface{}) {
 	filters := make([]string, 0, len(q))
 	for column, value := range q {
 		values = append(values, value)
-		filters = append(filters, fmt.Sprintf("%s = $%d", column, len(values)))
+		filters = append(
+			filters, fmt.Sprintf("\"%s\" = $%d", column, len(values)),
+		)
 	}
 	query := fmt.Sprintf("(%s)", strings.Join(filters, " AND "))
 	return query, values
