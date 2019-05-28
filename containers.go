@@ -48,6 +48,10 @@ type Instance struct {
 	Model   *Model
 }
 
+func (i Instance) trace(err error) ErrorTrace {
+	return ErrorTrace{App: i.Model.app, Model: i.Model, Err: err}
+}
+
 func (i Instance) GetIf(field string) (Value, bool) {
 	var val Value
 	ok := true
@@ -89,4 +93,43 @@ func (i Instance) Set(field string, val Value) error {
 		f.Set(reflect.ValueOf(val))
 		return nil
 	}
+}
+
+func (i Instance) Save(fields ...string) error {
+	pkVal, hasPk := i.GetIf(i.Model.pk)
+	if !hasPk {
+		return &ContainerError{i.trace(fmt.Errorf("container missing pk"))}
+	}
+	db := Databases["default"]
+	_, autoPk := i.Model.fields[i.Model.pk].(AutoField)
+	if autoPk && pkVal == reflect.Zero(reflect.TypeOf(pkVal)).Interface() {
+		query, vals := sqlInsertQuery(i, fields)
+		result, err := db.Exec(query, vals...)
+		if err != nil {
+			return &DatabaseError{"default", i.trace(err)}
+		}
+		id, err := result.LastInsertId()
+		if err != nil {
+			return &DatabaseError{"default", i.trace(err)}
+		}
+		i.Set(i.Model.pk, id)
+	} else {
+		query, vals := sqlUpdateQuery(i, fields)
+		result, err := db.Exec(query, vals...)
+		if err != nil {
+			return &DatabaseError{"default", i.trace(err)}
+		}
+		rows, err := result.RowsAffected()
+		if err != nil {
+			return &DatabaseError{"default", i.trace(err)}
+		}
+		if rows == 0 {
+			query, vals := sqlInsertQuery(i, fields)
+			_, err := db.Exec(query, vals...)
+			if err != nil {
+				return &DatabaseError{"default", i.trace(err)}
+			}
+		}
+	}
+	return nil
 }

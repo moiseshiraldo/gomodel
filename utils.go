@@ -24,18 +24,94 @@ func sqlColumnOptions(null bool, pk bool, unique bool) string {
 func sqlCreateQuery(table string, values Values) (string, []interface{}) {
 	cols := make([]string, 0, len(values))
 	vals := make([]interface{}, 0, len(values))
-	phs := make([]string, 0, len(values))
+	placeholders := make([]string, 0, len(values))
 	index := 1
 	for col, val := range values {
 		cols = append(cols, fmt.Sprintf("'%s'", col))
 		vals = append(vals, val)
-		phs = append(phs, fmt.Sprintf("$%d", index))
+		placeholders = append(placeholders, fmt.Sprintf("$%d", index))
 		index += 1
 	}
-	colStr := strings.Join(cols, ", ")
-	phStr := strings.Join(phs, ", ")
 	query := fmt.Sprintf(
-		"INSERT INTO '%s' (%s) VALUES (%s)", table, colStr, phStr,
+		"INSERT INTO '%s' (%s) VALUES (%s)",
+		table, strings.Join(cols, ", "), strings.Join(placeholders, ", "),
+	)
+	return query, vals
+}
+
+func sqlInsertQuery(i Instance, fields []string) (string, []interface{}) {
+	vals := make([]interface{}, 0, len(i.Model.fields))
+	cols := make([]string, 0, len(i.Model.fields))
+	placeholders := make([]string, 0, len(i.Model.fields))
+	if len(fields) == 0 {
+		index := 1
+		for name := range i.Model.fields {
+			if name == i.Model.pk {
+				continue
+			}
+			if val, ok := i.GetIf(name); ok {
+				cols = append(cols, fmt.Sprintf("'%s'", name))
+				vals = append(vals, val)
+				placeholders = append(placeholders, fmt.Sprintf("$%d", index))
+			}
+			index += 1
+		}
+	} else {
+		for index, name := range fields {
+			if name == i.Model.pk {
+				continue
+			}
+			if val, ok := i.GetIf(name); ok {
+				cols = append(cols, fmt.Sprintf("'%s'", name))
+				vals = append(vals, val)
+				placeholders = append(
+					placeholders, fmt.Sprintf("$%d", index+1),
+				)
+			}
+		}
+	}
+	query := fmt.Sprintf(
+		"INSERT INTO '%s' (%s) VALUES (%s)",
+		i.Model.Table(),
+		strings.Join(cols, ", "),
+		strings.Join(placeholders, ", "),
+	)
+	return query, vals
+}
+
+func sqlUpdateQuery(i Instance, fields []string) (string, []interface{}) {
+	vals := make([]interface{}, 0, len(i.Model.fields))
+	cols := make([]string, 0, len(i.Model.fields))
+	if len(fields) == 0 {
+		index := 1
+		for name := range i.Model.fields {
+			if name == i.Model.pk {
+				continue
+			}
+			if val, ok := i.GetIf(name); ok {
+				cols = append(cols, fmt.Sprintf("'%s' = $%d", name, index))
+				vals = append(vals, val)
+			}
+			index += 1
+		}
+	} else {
+		for index, name := range fields {
+			if name == i.Model.pk {
+				continue
+			}
+			if val, ok := i.GetIf(name); ok {
+				cols = append(cols, fmt.Sprintf("'%s' = $%d", name, index+1))
+				vals = append(vals, val)
+			}
+		}
+	}
+	vals = append(vals, i.Get(i.Model.pk))
+	query := fmt.Sprintf(
+		"UPDATE '%s' SET %s WHERE %s = $%d",
+		i.Model.Table(),
+		strings.Join(cols, ", "),
+		i.Model.pk,
+		len(cols)+1,
 	)
 	return query, vals
 }
