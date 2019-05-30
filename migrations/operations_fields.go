@@ -35,9 +35,12 @@ func (op *AddFields) SetState(state *AppState) error {
 		}
 		fields[name] = field
 	}
+	options := gomodels.Options{
+		Table: op.table, Indexes: state.models[op.Model].Indexes(),
+	}
 	delete(state.models, op.Model)
 	state.models[op.Model] = gomodels.New(
-		op.Model, fields, gomodels.Options{Table: op.table},
+		op.Model, fields, options,
 	).Model
 	return nil
 }
@@ -123,9 +126,12 @@ func (op *RemoveFields) SetState(state *AppState) error {
 		}
 		delete(fields, name)
 	}
+	options := gomodels.Options{
+		Table: op.table, Indexes: state.models[op.Model].Indexes(),
+	}
 	delete(state.models, op.Model)
 	state.models[op.Model] = gomodels.New(
-		op.Model, fields, gomodels.Options{Table: op.table},
+		op.Model, fields, options,
 	).Model
 	return nil
 }
