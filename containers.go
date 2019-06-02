@@ -1,6 +1,7 @@
 package gomodels
 
 import (
+	"database/sql/driver"
 	"fmt"
 	"reflect"
 	"strings"
@@ -53,23 +54,35 @@ func (i Instance) trace(err error) ErrorTrace {
 }
 
 func (i Instance) GetIf(field string) (Value, bool) {
-	var val Value
-	ok := true
 	switch i.conType {
 	case containers.Map:
-		val, ok = i.Container.(Values)[field]
+		val, ok := i.Container.(Values)[field]
+		if ok {
+			if vlr, isVlr := val.(driver.Valuer); isVlr {
+				if val, err := vlr.Value(); err == nil {
+					return val, true
+				}
+			}
+		}
+		return val, ok
 	case containers.Builder:
-		val, ok = i.Container.(Builder).Get(field)
+		val, ok := i.Container.(Builder).Get(field)
+		return val, ok
 	default:
 		cv := reflect.Indirect(reflect.ValueOf(i.Container))
 		f := cv.FieldByName(strings.Title(field))
 		if f.IsValid() && f.CanInterface() {
-			val = f.Interface()
+			val := f.Interface()
+			if vlr, isVlr := val.(driver.Valuer); isVlr {
+				if val, err := vlr.Value(); err == nil {
+					return val, true
+				}
+			}
+			return val, true
 		} else {
-			ok = false
+			return nil, false
 		}
 	}
-	return val, ok
 }
 
 func (i Instance) Get(field string) Value {
