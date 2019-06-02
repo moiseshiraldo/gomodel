@@ -100,11 +100,10 @@ func (i Instance) Set(field string, val Value) error {
 	default:
 		cv := reflect.Indirect(reflect.ValueOf(i.Container))
 		f := cv.FieldByName(strings.Title(field))
-		if !f.IsValid() || !f.CanSet() {
+		if !f.IsValid() || !f.CanSet() || !f.CanAddr() {
 			return fmt.Errorf("Invalid field")
 		}
-		f.Set(reflect.ValueOf(val))
-		return nil
+		return setStructField(f.Addr().Interface(), val)
 	}
 }
 
