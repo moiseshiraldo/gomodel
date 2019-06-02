@@ -142,8 +142,9 @@ func getRecipients(qs QuerySet, conType string) (Container, []interface{}) {
 	switch conType {
 	case containers.Map:
 		for _, name := range qs.Columns() {
-			val := qs.Model().fields[name].NativeVal()
-			recipients = append(recipients, &val)
+			recipients = append(
+				recipients, qs.Model().fields[name].Recipient(),
+			)
 		}
 	case containers.Builder:
 		recipients = container.(Builder).Recipients(qs.Columns())

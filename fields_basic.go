@@ -1,6 +1,7 @@
 package gomodels
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 )
@@ -51,9 +52,13 @@ func (f CharField) DefaultVal() (bool, Value) {
 	}
 }
 
-func (f CharField) NativeVal() Value {
+func (f CharField) Recipient() interface{} {
+	if f.Null {
+		var val sql.NullString
+		return &val
+	}
 	var val string
-	return val
+	return &val
 }
 
 func (f CharField) CreateSQL() string {
@@ -104,9 +109,13 @@ func (f BooleanField) DefaultVal() (bool, Value) {
 	}
 }
 
-func (f BooleanField) NativeVal() Value {
+func (f BooleanField) Recipient() interface{} {
+	if f.Null {
+		var val sql.NullBool
+		return &val
+	}
 	var val bool
-	return val
+	return &val
 }
 
 func (f BooleanField) CreateSQL() string {
@@ -169,9 +178,13 @@ func (f IntegerField) DefaultVal() (bool, Value) {
 	}
 }
 
-func (f IntegerField) NativeVal() Value {
-	var val int
-	return val
+func (f IntegerField) Recipient() interface{} {
+	if f.Null {
+		var val sql.NullInt64
+		return &val
+	}
+	var val int64
+	return &val
 }
 
 func (f IntegerField) CreateSQL() string {
@@ -209,9 +222,9 @@ func (f AutoField) DefaultVal() (bool, Value) {
 	return false, nil
 }
 
-func (f AutoField) NativeVal() Value {
-	var val int
-	return val
+func (f AutoField) Recipient() interface{} {
+	var val int64
+	return &val
 }
 
 func (f AutoField) CreateSQL() string {

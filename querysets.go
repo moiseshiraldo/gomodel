@@ -118,11 +118,7 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		if qs.conType == containers.Map {
-			container = Values{}
-		} else {
-			container, recipients = getRecipients(qs, qs.conType)
-		}
+		container, recipients = getRecipients(qs, qs.conType)
 		err := rows.Scan(recipients...)
 		if err != nil {
 			return nil, qs.containerError(err)
@@ -131,9 +127,7 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 		if qs.conType == containers.Map {
 			values := instance.Container.(Values)
 			for i, name := range qs.columns {
-				values[name] = reflect.Indirect(
-					reflect.ValueOf(recipients[i]),
-				).Elem()
+				values[name] = reflect.Indirect(reflect.ValueOf(recipients[i]))
 			}
 		}
 		result = append(result, instance)
@@ -165,9 +159,7 @@ func (qs GenericQuerySet) Get(filter Filterer) (*Instance, error) {
 	if qs.conType == containers.Map {
 		values := instance.Container.(Values)
 		for i, name := range qs.columns {
-			values[name] = reflect.Indirect(
-				reflect.ValueOf(recipients[i]),
-			).Elem()
+			values[name] = reflect.Indirect(reflect.ValueOf(recipients[i]))
 		}
 	}
 	return instance, nil
