@@ -23,11 +23,14 @@ func (m Manager) Create(values Values) (*Instance, error) {
 	}
 	instance.Set(m.Model.pk, pk)
 	for name, field := range m.Model.fields {
-		val, ok := values[name]
-		if ok {
-			instance.Set(name, val)
-		} else if hasDefault, defaultVal := field.DefaultVal(); hasDefault {
-			instance.Set(name, defaultVal)
+		if val, ok := values[name]; ok {
+			if err := instance.Set(name, val); err != nil {
+				return nil, err
+			}
+		} else if val, hasDefault := field.DefaultVal(); hasDefault {
+			if err := instance.Set(name, val); err != nil {
+				return nil, err
+			}
 		}
 	}
 	return instance, nil

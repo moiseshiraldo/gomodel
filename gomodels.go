@@ -11,6 +11,23 @@ type Dispatcher struct {
 	Objects *Manager
 }
 
+func (d Dispatcher) New(values Values) (*Instance, error) {
+	model := d.Model
+	instance := &Instance{model.meta.Container, model.meta.conType, model}
+	for name, field := range model.fields {
+		if val, ok := values[name]; ok {
+			if err := instance.Set(name, val); err != nil {
+				return nil, err
+			}
+		} else if val, hasDefault := field.DefaultVal(); hasDefault {
+			if err := instance.Set(name, val); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return instance, nil
+}
+
 type Indexes map[string][]string
 
 type Options struct {

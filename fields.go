@@ -13,7 +13,7 @@ type Field interface {
 	DBColumn(fieldName string) string
 	HasIndex() bool
 	CreateSQL() string
-	DefaultVal() (hasDefault bool, val Value)
+	DefaultVal() (val Value, hasDefault bool)
 	Recipient() interface{}
 }
 

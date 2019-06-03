@@ -44,11 +44,11 @@ func (f CharField) HasIndex() bool {
 	return f.Index && !(f.PrimaryKey || f.Unique)
 }
 
-func (f CharField) DefaultVal() (bool, Value) {
+func (f CharField) DefaultVal() (Value, bool) {
 	if f.Default != "" || f.DefaultEmpty {
-		return true, f.Default
+		return f.Default, true
 	} else {
-		return false, nil
+		return nil, false
 	}
 }
 
@@ -99,13 +99,13 @@ func (f BooleanField) HasIndex() bool {
 	return f.Index
 }
 
-func (f BooleanField) DefaultVal() (bool, Value) {
+func (f BooleanField) DefaultVal() (Value, bool) {
 	if f.Default {
 		return true, true
 	} else if f.DefaultFalse {
-		return true, false
+		return false, true
 	} else {
-		return false, nil
+		return nil, false
 	}
 }
 
@@ -170,11 +170,11 @@ func (f IntegerField) HasIndex() bool {
 	return f.Index && !(f.PrimaryKey || f.Unique)
 }
 
-func (f IntegerField) DefaultVal() (bool, Value) {
+func (f IntegerField) DefaultVal() (Value, bool) {
 	if f.Default != 0 || f.DefaultZero {
-		return true, f.Default
+		return f.Default, true
 	} else {
-		return false, nil
+		return nil, false
 	}
 }
 
@@ -218,8 +218,8 @@ func (f AutoField) HasIndex() bool {
 	return f.Index && !(f.PrimaryKey || f.Unique)
 }
 
-func (f AutoField) DefaultVal() (bool, Value) {
-	return false, nil
+func (f AutoField) DefaultVal() (Value, bool) {
+	return nil, false
 }
 
 func (f AutoField) Recipient() interface{} {

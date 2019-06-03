@@ -93,18 +93,32 @@ func (i Instance) Get(field string) Value {
 func (i Instance) Set(field string, val Value) error {
 	switch i.conType {
 	case containers.Map:
-		i.Container.(Values)[field] = val
-		return nil
+		if f, ok := i.Model.fields[field]; ok {
+			recipient := f.Recipient()
+			if err := setContainerField(recipient, val); err != nil {
+				return &ContainerError{i.trace(err)}
+			}
+			i.Container.(Values)[field] = reflect.Indirect(
+				reflect.ValueOf(recipient),
+			).Interface()
+		} else {
+			i.Container.(Values)[field] = val
+		}
 	case containers.Builder:
-		return i.Container.(Builder).Set(field, val)
+		if err := i.Container.(Builder).Set(field, val); err != nil {
+			return &ContainerError{i.trace(err)}
+		}
 	default:
 		cv := reflect.Indirect(reflect.ValueOf(i.Container))
 		f := cv.FieldByName(strings.Title(field))
 		if !f.IsValid() || !f.CanSet() || !f.CanAddr() {
-			return fmt.Errorf("Invalid field")
+			return &ContainerError{i.trace(fmt.Errorf("Invalid field"))}
 		}
-		return setStructField(f.Addr().Interface(), val)
+		if err := setContainerField(f.Addr().Interface(), val); err != nil {
+			return &ContainerError{i.trace(err)}
+		}
 	}
+	return nil
 }
 
 func (i Instance) Save(fields ...string) error {
