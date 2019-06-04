@@ -7,7 +7,7 @@ type Manager struct {
 func (m Manager) Create(values Values) (*Instance, error) {
 	db := Databases["default"]
 	container := m.Model.Container()
-	instance := &Instance{container, m.Model.meta.conType, m.Model}
+	instance := &Instance{m.Model, container, m.Model.meta.conType}
 	query, vals := sqlCreateQuery(m.Model.Table(), values)
 	result, err := db.Exec(query, vals...)
 	if err != nil {

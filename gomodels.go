@@ -13,7 +13,7 @@ type Dispatcher struct {
 
 func (d Dispatcher) New(values Values) (*Instance, error) {
 	model := d.Model
-	instance := &Instance{model.meta.Container, model.meta.conType, model}
+	instance := &Instance{model, model.meta.Container, model.meta.conType}
 	for name, field := range model.fields {
 		if val, ok := values[name]; ok {
 			if err := instance.Set(name, val); err != nil {

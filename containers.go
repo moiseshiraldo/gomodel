@@ -44,19 +44,27 @@ func (vals Values) Recipients(columns []string) []interface{} {
 }
 
 type Instance struct {
-	Container
-	conType string
-	Model   *Model
+	model     *Model
+	container Container
+	conType   string
 }
 
 func (i Instance) trace(err error) ErrorTrace {
-	return ErrorTrace{App: i.Model.app, Model: i.Model, Err: err}
+	return ErrorTrace{App: i.model.app, Model: i.model, Err: err}
+}
+
+func (i Instance) Container() Container {
+	return i.container
+}
+
+func (i Instance) Model() *Model {
+	return i.model
 }
 
 func (i Instance) GetIf(field string) (Value, bool) {
 	switch i.conType {
 	case containers.Map:
-		val, ok := i.Container.(Values)[field]
+		val, ok := i.container.(Values)[field]
 		if ok {
 			if vlr, isVlr := val.(driver.Valuer); isVlr {
 				if val, err := vlr.Value(); err == nil {
@@ -66,10 +74,10 @@ func (i Instance) GetIf(field string) (Value, bool) {
 		}
 		return val, ok
 	case containers.Builder:
-		val, ok := i.Container.(Builder).Get(field)
+		val, ok := i.container.(Builder).Get(field)
 		return val, ok
 	default:
-		cv := reflect.Indirect(reflect.ValueOf(i.Container))
+		cv := reflect.Indirect(reflect.ValueOf(i.container))
 		f := cv.FieldByName(strings.Title(field))
 		if f.IsValid() && f.CanInterface() {
 			val := f.Interface()
@@ -93,23 +101,23 @@ func (i Instance) Get(field string) Value {
 func (i Instance) Set(field string, val Value) error {
 	switch i.conType {
 	case containers.Map:
-		if f, ok := i.Model.fields[field]; ok {
+		if f, ok := i.model.fields[field]; ok {
 			recipient := f.Recipient()
 			if err := setContainerField(recipient, val); err != nil {
 				return &ContainerError{i.trace(err)}
 			}
-			i.Container.(Values)[field] = reflect.Indirect(
+			i.container.(Values)[field] = reflect.Indirect(
 				reflect.ValueOf(recipient),
 			).Interface()
 		} else {
-			i.Container.(Values)[field] = val
+			i.container.(Values)[field] = val
 		}
 	case containers.Builder:
-		if err := i.Container.(Builder).Set(field, val); err != nil {
+		if err := i.container.(Builder).Set(field, val); err != nil {
 			return &ContainerError{i.trace(err)}
 		}
 	default:
-		cv := reflect.Indirect(reflect.ValueOf(i.Container))
+		cv := reflect.Indirect(reflect.ValueOf(i.container))
 		f := cv.FieldByName(strings.Title(field))
 		if !f.IsValid() || !f.CanSet() || !f.CanAddr() {
 			return &ContainerError{i.trace(fmt.Errorf("Invalid field"))}
@@ -122,12 +130,12 @@ func (i Instance) Set(field string, val Value) error {
 }
 
 func (i Instance) Save(fields ...string) error {
-	pkVal, hasPk := i.GetIf(i.Model.pk)
+	pkVal, hasPk := i.GetIf(i.model.pk)
 	if !hasPk {
 		return &ContainerError{i.trace(fmt.Errorf("container missing pk"))}
 	}
 	db := Databases["default"]
-	_, autoPk := i.Model.fields[i.Model.pk].(AutoField)
+	_, autoPk := i.model.fields[i.model.pk].(AutoField)
 	if autoPk && pkVal == reflect.Zero(reflect.TypeOf(pkVal)).Interface() {
 		query, vals := sqlInsertQuery(i, fields)
 		result, err := db.Exec(query, vals...)
@@ -138,7 +146,7 @@ func (i Instance) Save(fields ...string) error {
 		if err != nil {
 			return &DatabaseError{"default", i.trace(err)}
 		}
-		i.Set(i.Model.pk, id)
+		i.Set(i.model.pk, id)
 	} else {
 		query, vals := sqlUpdateQuery(i, fields)
 		result, err := db.Exec(query, vals...)

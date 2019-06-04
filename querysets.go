@@ -123,9 +123,9 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 		if err != nil {
 			return nil, qs.containerError(err)
 		}
-		instance := &Instance{container, qs.conType, qs.model}
+		instance := &Instance{qs.model, container, qs.conType}
 		if qs.conType == containers.Map {
-			values := instance.Container.(Values)
+			values := instance.container.(Values)
 			for i, name := range qs.columns {
 				values[name] = reflect.Indirect(
 					reflect.ValueOf(recipients[i]),
@@ -157,9 +157,9 @@ func (qs GenericQuerySet) Get(filter Filterer) (*Instance, error) {
 	if err != nil {
 		return nil, qs.dbError(err)
 	}
-	instance := &Instance{container, qs.conType, qs.model}
+	instance := &Instance{qs.model, container, qs.conType}
 	if qs.conType == containers.Map {
-		values := instance.Container.(Values)
+		values := instance.container.(Values)
 		for i, name := range qs.columns {
 			values[name] = reflect.Indirect(
 				reflect.ValueOf(recipients[i]),

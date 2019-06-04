@@ -44,13 +44,13 @@ func sqlCreateQuery(table string, values Values) (string, []interface{}) {
 }
 
 func sqlInsertQuery(i Instance, fields []string) (string, []interface{}) {
-	vals := make([]interface{}, 0, len(i.Model.fields))
-	cols := make([]string, 0, len(i.Model.fields))
-	placeholders := make([]string, 0, len(i.Model.fields))
+	vals := make([]interface{}, 0, len(i.model.fields))
+	cols := make([]string, 0, len(i.model.fields))
+	placeholders := make([]string, 0, len(i.model.fields))
 	if len(fields) == 0 {
 		index := 1
-		for name := range i.Model.fields {
-			if name == i.Model.pk {
+		for name := range i.model.fields {
+			if name == i.model.pk {
 				continue
 			}
 			if val, ok := i.GetIf(name); ok {
@@ -62,7 +62,7 @@ func sqlInsertQuery(i Instance, fields []string) (string, []interface{}) {
 		}
 	} else {
 		for index, name := range fields {
-			if name == i.Model.pk {
+			if name == i.model.pk {
 				continue
 			}
 			if val, ok := i.GetIf(name); ok {
@@ -76,7 +76,7 @@ func sqlInsertQuery(i Instance, fields []string) (string, []interface{}) {
 	}
 	query := fmt.Sprintf(
 		"INSERT INTO \"%s\" (%s) VALUES (%s)",
-		i.Model.Table(),
+		i.model.Table(),
 		strings.Join(cols, ", "),
 		strings.Join(placeholders, ", "),
 	)
@@ -84,12 +84,12 @@ func sqlInsertQuery(i Instance, fields []string) (string, []interface{}) {
 }
 
 func sqlUpdateQuery(i Instance, fields []string) (string, []interface{}) {
-	vals := make([]interface{}, 0, len(i.Model.fields))
-	cols := make([]string, 0, len(i.Model.fields))
+	vals := make([]interface{}, 0, len(i.model.fields))
+	cols := make([]string, 0, len(i.model.fields))
 	if len(fields) == 0 {
 		index := 1
-		for name := range i.Model.fields {
-			if name == i.Model.pk {
+		for name := range i.model.fields {
+			if name == i.model.pk {
 				continue
 			}
 			if val, ok := i.GetIf(name); ok {
@@ -100,7 +100,7 @@ func sqlUpdateQuery(i Instance, fields []string) (string, []interface{}) {
 		}
 	} else {
 		for index, name := range fields {
-			if name == i.Model.pk {
+			if name == i.model.pk {
 				continue
 			}
 			if val, ok := i.GetIf(name); ok {
@@ -109,12 +109,12 @@ func sqlUpdateQuery(i Instance, fields []string) (string, []interface{}) {
 			}
 		}
 	}
-	vals = append(vals, i.Get(i.Model.pk))
+	vals = append(vals, i.Get(i.model.pk))
 	query := fmt.Sprintf(
 		"UPDATE \"%s\" SET %s WHERE \"%s\" = $%d",
-		i.Model.Table(),
+		i.model.Table(),
 		strings.Join(cols, ", "),
-		i.Model.pk,
+		i.model.pk,
 		len(cols)+1,
 	)
 	return query, vals
