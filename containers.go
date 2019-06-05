@@ -138,7 +138,7 @@ func (i Instance) Save(fields ...string) error {
 	_, autoPk := i.model.fields[i.model.pk].(AutoField)
 	if autoPk && pkVal == reflect.Zero(reflect.TypeOf(pkVal)).Interface() {
 		query, vals := sqlInsertQuery(i, fields)
-		result, err := db.Exec(query, vals...)
+		result, err := db.conn.Exec(query, vals...)
 		if err != nil {
 			return &DatabaseError{"default", i.trace(err)}
 		}
@@ -149,7 +149,7 @@ func (i Instance) Save(fields ...string) error {
 		i.Set(i.model.pk, id)
 	} else {
 		query, vals := sqlUpdateQuery(i, fields)
-		result, err := db.Exec(query, vals...)
+		result, err := db.conn.Exec(query, vals...)
 		if err != nil {
 			return &DatabaseError{"default", i.trace(err)}
 		}
@@ -159,7 +159,7 @@ func (i Instance) Save(fields ...string) error {
 		}
 		if rows == 0 {
 			query, vals := sqlInsertQuery(i, fields)
-			_, err := db.Exec(query, vals...)
+			_, err := db.conn.Exec(query, vals...)
 			if err != nil {
 				return &DatabaseError{"default", i.trace(err)}
 			}

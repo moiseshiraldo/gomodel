@@ -51,7 +51,7 @@ func loadRawSqlQuerySet(b *testing.B) {
               "main_user"
             WHERE
               firstName = ?`
-		rows, _ := db.Query(query, "Luke")
+		rows, _ := db.Conn().Query(query, "Luke")
 		users := []*userContainer{}
 		for rows.Next() {
 			user := userContainer{}

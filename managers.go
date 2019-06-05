@@ -9,7 +9,7 @@ func (m Manager) Create(values Values) (*Instance, error) {
 	container := m.Model.Container()
 	instance := &Instance{m.Model, container, m.Model.meta.conType}
 	query, vals := sqlCreateQuery(m.Model.Table(), values)
-	result, err := db.Exec(query, vals...)
+	result, err := db.conn.Exec(query, vals...)
 	if err != nil {
 		return instance, &DatabaseError{
 			"default", ErrorTrace{App: m.Model.app, Model: m.Model, Err: err},
@@ -54,12 +54,12 @@ func (m Manager) All() QuerySet {
 	return m.GetQuerySet()
 }
 
-func (m Manager) Filter(f Filterer) QuerySet {
-	return m.GetQuerySet().Filter(f)
+func (m Manager) Filter(c Conditioner) QuerySet {
+	return m.GetQuerySet().Filter(c)
 }
 
-func (m Manager) Get(f Filterer) (*Instance, error) {
-	return m.GetQuerySet().Get(f)
+func (m Manager) Get(c Conditioner) (*Instance, error) {
+	return m.GetQuerySet().Get(c)
 }
 
 func (m Manager) SetContainer(container Container) QuerySet {

@@ -8,13 +8,13 @@ import (
 
 type QuerySet interface {
 	Load() ([]*Instance, error)
-	Query() (placeholder string, values []interface{})
+	Query() (query string, values []interface{})
 	Model() *Model
 	Columns() []string
 	Container() Container
 	SetContainer(c Container) QuerySet
-	Filter(f Filterer) QuerySet
-	Get(f Filterer) (*Instance, error)
+	Filter(c Conditioner) QuerySet
+	Get(c Conditioner) (*Instance, error)
 	Delete() (int64, error)
 }
 
@@ -24,7 +24,7 @@ type GenericQuerySet struct {
 	conType   string
 	database  string
 	columns   []string
-	filter    Filterer
+	cond      Conditioner
 }
 
 func (qs GenericQuerySet) dbError(err error) error {
@@ -37,29 +37,37 @@ func (qs GenericQuerySet) containerError(err error) error {
 	return &ContainerError{trace}
 }
 
-func (qs GenericQuerySet) addFilter(filter Filterer) GenericQuerySet {
-	if qs.filter == nil {
-		if query, ok := filter.(Q); ok {
-			qs.filter = Filter{sibs: []Filterer{query}}
+func (qs GenericQuerySet) addConditioner(c Conditioner) GenericQuerySet {
+	if qs.cond == nil {
+		if cond, ok := c.(Q); ok {
+			qs.cond = Filter{root: cond}
 		} else {
-			qs.filter = filter
+			qs.cond = c
 		}
 	} else {
-		qs.filter = qs.filter.And(filter)
+		qs.cond = qs.cond.And(c)
 	}
 	return qs
 }
 
 func (qs GenericQuerySet) Query() (string, []interface{}) {
-	query := fmt.Sprintf(
+	driver := ""
+	db, ok := Databases[qs.database]
+	if !ok {
+		db, ok = Databases["default"]
+	}
+	if ok {
+		driver = db.Driver
+	}
+	stmt := fmt.Sprintf(
 		"SELECT %s FROM %s", strings.Join(qs.columns, ", "), qs.model.Table(),
 	)
-	if qs.filter != nil {
-		filter, values := qs.filter.Query()
-		query += fmt.Sprintf(" WHERE %s", filter)
-		return query, values
+	if qs.cond != nil {
+		pred, values := qs.cond.Predicate(driver, 1)
+		stmt += fmt.Sprintf(" WHERE %s", pred)
+		return stmt, values
 	} else {
-		return query, make([]interface{}, 0)
+		return stmt, make([]interface{}, 0)
 	}
 }
 
@@ -93,8 +101,8 @@ func (qs GenericQuerySet) SetContainer(container Container) QuerySet {
 	return qs
 }
 
-func (qs GenericQuerySet) Filter(filter Filterer) QuerySet {
-	return qs.addFilter(filter)
+func (qs GenericQuerySet) Filter(c Conditioner) QuerySet {
+	return qs.addConditioner(c)
 }
 
 func (qs GenericQuerySet) Load() ([]*Instance, error) {
@@ -111,8 +119,8 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 		err := fmt.Errorf("invalid container recipients")
 		return nil, qs.containerError(err)
 	}
-	query, values := qs.Query()
-	rows, err := db.Query(query, values...)
+	stmt, values := qs.Query()
+	rows, err := db.conn.Query(stmt, values...)
 	if err != nil {
 		return nil, qs.dbError(err)
 	}
@@ -141,8 +149,8 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 	return result, nil
 }
 
-func (qs GenericQuerySet) Get(filter Filterer) (*Instance, error) {
-	qs = qs.addFilter(filter)
+func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
+	qs = qs.addConditioner(c)
 	db, ok := Databases[qs.database]
 	if !ok {
 		return nil, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
@@ -152,8 +160,8 @@ func (qs GenericQuerySet) Get(filter Filterer) (*Instance, error) {
 		err := fmt.Errorf("invalid container recipients")
 		return nil, qs.containerError(err)
 	}
-	query, values := qs.Query()
-	err := db.QueryRow(query, values...).Scan(recipients...)
+	stmt, values := qs.Query()
+	err := db.conn.QueryRow(stmt, values...).Scan(recipients...)
 	if err != nil {
 		return nil, qs.dbError(err)
 	}
@@ -174,14 +182,14 @@ func (qs GenericQuerySet) Delete() (int64, error) {
 	if !ok {
 		return 0, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
-	query := fmt.Sprintf("DELETE FROM %s", qs.model.Table())
-	filter := ""
+	stmt := fmt.Sprintf("DELETE FROM %s", qs.model.Table())
 	values := make([]interface{}, 0)
-	if qs.filter != nil {
-		filter, values = qs.filter.Query()
-		query += fmt.Sprintf(" WHERE %s", filter)
+	if qs.cond != nil {
+		pred, vals := qs.cond.Predicate(db.Driver, 1)
+		stmt += fmt.Sprintf(" WHERE %s", pred)
+		values = append(values, vals)
 	}
-	result, err := db.Exec(query, values...)
+	result, err := db.conn.Exec(stmt, values...)
 	if err != nil {
 		return 0, qs.dbError(err)
 	}

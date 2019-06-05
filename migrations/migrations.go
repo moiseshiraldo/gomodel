@@ -68,7 +68,7 @@ func Run(options RunOptions) error {
 		return err
 	}
 	defer clearHistory()
-	if err := loadAppliedMigrations(db); err != nil {
+	if err := loadAppliedMigrations(db.Conn()); err != nil {
 		return &gomodels.DatabaseError{dbName, gomodels.ErrorTrace{Err: err}}
 	}
 	if options.App != "" {
@@ -106,7 +106,7 @@ func MakeAndRun() error {
 		}
 	}
 	for dbName, db := range gomodels.Databases {
-		if err := loadAppliedMigrations(db); err != nil {
+		if err := loadAppliedMigrations(db.Conn()); err != nil {
 			return &gomodels.DatabaseError{
 				dbName, gomodels.ErrorTrace{Err: err},
 			}
