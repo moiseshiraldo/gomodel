@@ -61,8 +61,8 @@ func (f CharField) Recipient() interface{} {
 	return &val
 }
 
-func (f CharField) CreateSQL() string {
-	query := fmt.Sprintf("varchar(%d)", f.MaxLength)
+func (f CharField) SqlDatatype(driver string) string {
+	query := fmt.Sprintf("VARCHAR(%d)", f.MaxLength)
 	query += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
 	if f.Default != "" || f.DefaultEmpty {
 		query += fmt.Sprintf(" DEFAULT '%s'", f.Default)
@@ -118,8 +118,8 @@ func (f BooleanField) Recipient() interface{} {
 	return &val
 }
 
-func (f BooleanField) CreateSQL() string {
-	query := "bool"
+func (f BooleanField) SqlDatatype(driver string) string {
+	query := "BOOLEAN"
 	if f.Null {
 		query += " NULL"
 	} else {
@@ -187,8 +187,8 @@ func (f IntegerField) Recipient() interface{} {
 	return &val
 }
 
-func (f IntegerField) CreateSQL() string {
-	query := "integer"
+func (f IntegerField) SqlDatatype(driver string) string {
+	query := "INTEGER"
 	query += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
 	if f.Default != 0 || f.DefaultZero {
 		query += fmt.Sprintf(" DEFAULT %d", f.Default)
@@ -227,9 +227,12 @@ func (f AutoField) Recipient() interface{} {
 	return &val
 }
 
-func (f AutoField) CreateSQL() string {
-	query := "integer"
+func (f AutoField) SqlDatatype(driver string) string {
+	query := "INTEGER"
 	query += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
 	query += " AUTOINCREMENT"
+	if driver == "postgres" {
+		query = "SERIAL"
+	}
 	return query
 }

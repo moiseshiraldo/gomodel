@@ -1,7 +1,7 @@
 package migrations
 
 import (
-	"database/sql"
+	"fmt"
 	"github.com/moiseshiraldo/gomodels"
 )
 
@@ -77,14 +77,20 @@ func getModelChanges(model *gomodels.Model) OperationList {
 	return operations
 }
 
-func prepareDatabase(db *sql.DB) error {
-	query := `CREATE TABLE IF NOT EXISTS gomodels_Migration (
-		'id' integer NOT NULL PRIMARY KEY AUTOINCREMENT,
-		'app' varchar(50) NOT NULL,
-		'name' varchar(100) NOT NULL,
-		'number' integer NOT NULL
-	)`
-	if _, err := db.Exec(query); err != nil {
+func prepareDatabase(db gomodels.Database) error {
+	idColumn := "SERIAL"
+	if db.Driver == "sqlite3" {
+		idColumn = "INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT"
+	}
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS gomodels_migration (
+		  "id" %s,
+		  "app" VARCHAR(50) NOT NULL,
+		  "name" VARCHAR(100) NOT NULL,
+		  "number" VARCHAR NOT NULL
+		)`, idColumn,
+	)
+	if _, err := db.Conn().Exec(query); err != nil {
 		return err
 	}
 	return nil

@@ -38,30 +38,32 @@ func (op *CreateModel) SetState(state *AppState) error {
 	return nil
 }
 
-func (op CreateModel) Run(tx *sql.Tx, app string) error {
+func (op CreateModel) Run(tx *sql.Tx, app string, driver string) error {
 	if op.Table == "" {
 		op.Table = fmt.Sprintf("%s_%s", app, op.Name)
 	}
 	query := fmt.Sprintf("CREATE TABLE \"%s\" (", op.Table)
 	fields := make([]string, 0, len(op.Fields))
 	for name, field := range op.Fields {
-		fields = append(
-			fields,
-			fmt.Sprintf("'%s' %s", field.DBColumn(name), field.CreateSQL()),
+		sqlColumn := fmt.Sprintf(
+			"\"%s\" %s", field.DBColumn(name), field.SqlDatatype(driver),
 		)
+		fields = append(fields, sqlColumn)
 	}
-	query += strings.Join(fields, ", ") + ");"
+	query += strings.Join(fields, ", ") + ")"
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (op CreateModel) Backwards(tx *sql.Tx, app string, pS *AppState) error {
+func (op CreateModel) Backwards(
+	tx *sql.Tx, app string, driver string, pS *AppState,
+) error {
 	if op.Table == "" {
 		op.Table = fmt.Sprintf("%s_%s", app, op.Name)
 	}
-	query := fmt.Sprintf("DROP TABLE \"%s\";", op.Table)
+	query := fmt.Sprintf("DROP TABLE \"%s\"", op.Table)
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
@@ -91,23 +93,25 @@ func (op *DeleteModel) SetState(state *AppState) error {
 	return nil
 }
 
-func (op DeleteModel) Run(tx *sql.Tx, app string) error {
-	query := fmt.Sprintf("DROP TABLE \"%s\";", op.table)
+func (op DeleteModel) Run(tx *sql.Tx, app string, driver string) error {
+	query := fmt.Sprintf("DROP TABLE \"%s\"", op.table)
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (op DeleteModel) Backwards(tx *sql.Tx, app string, pS *AppState) error {
+func (op DeleteModel) Backwards(
+	tx *sql.Tx, app string, driver string, pS *AppState,
+) error {
 	model := pS.models[op.Name]
 	query := fmt.Sprintf("CREATE TABLE \"%s\" (", model.Table())
 	fields := make([]string, 0, len(model.Fields()))
 	for name, field := range model.Fields() {
-		fields = append(
-			fields,
-			fmt.Sprintf("'%s' %s", field.DBColumn(name), field.CreateSQL()),
+		sqlColumn := fmt.Sprintf(
+			"\"%s\" %s", field.DBColumn(name), field.SqlDatatype(driver),
 		)
+		fields = append(fields, sqlColumn)
 	}
 	query += strings.Join(fields, ", ") + ");"
 	if _, err := tx.Exec(query); err != nil {
@@ -150,7 +154,7 @@ func (op *AddIndex) SetState(state *AppState) error {
 	return nil
 }
 
-func (op AddIndex) Run(tx *sql.Tx, app string) error {
+func (op AddIndex) Run(tx *sql.Tx, app string, driver string) error {
 	query := fmt.Sprintf(
 		"CREATE INDEX \"%s\" ON \"%s\"", op.Name, op.table,
 	)
@@ -158,17 +162,19 @@ func (op AddIndex) Run(tx *sql.Tx, app string) error {
 	columns := make([]string, 0, len(op.Fields))
 	for _, name := range op.Fields {
 		column := fields[name].DBColumn(name)
-		columns = append(columns, fmt.Sprintf("'%s'", column))
+		columns = append(columns, fmt.Sprintf("\"%s\"", column))
 	}
-	query += fmt.Sprintf(" (%s);", strings.Join(columns, ", "))
+	query += fmt.Sprintf(" (%s)", strings.Join(columns, ", "))
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (op AddIndex) Backwards(tx *sql.Tx, app string, pS *AppState) error {
-	query := fmt.Sprintf("DROP INDEX \"%s\";", op.Name)
+func (op AddIndex) Backwards(
+	tx *sql.Tx, app string, driver string, pS *AppState,
+) error {
+	query := fmt.Sprintf("DROP INDEX \"%s\"", op.Name)
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
@@ -208,9 +214,9 @@ func (op *RemoveIndex) SetState(state *AppState) error {
 	return nil
 }
 
-func (op RemoveIndex) Run(tx *sql.Tx, app string) error {
+func (op RemoveIndex) Run(tx *sql.Tx, app string, driver string) error {
 	query := fmt.Sprintf(
-		"DROP INDEX \"%s\" ON \"%s\";", op.Name, op.table,
+		"DROP INDEX \"%s\" ON \"%s\"", op.Name, op.table,
 	)
 	if _, err := tx.Exec(query); err != nil {
 		return err
@@ -218,7 +224,9 @@ func (op RemoveIndex) Run(tx *sql.Tx, app string) error {
 	return nil
 }
 
-func (op RemoveIndex) Backwards(tx *sql.Tx, app string, pS *AppState) error {
+func (op RemoveIndex) Backwards(
+	tx *sql.Tx, app string, driver string, pS *AppState,
+) error {
 	model := pS.models[op.Model]
 	indexes := model.Indexes()
 	fields := model.Fields()
@@ -228,9 +236,9 @@ func (op RemoveIndex) Backwards(tx *sql.Tx, app string, pS *AppState) error {
 	columns := make([]string, 0, len(indexes[op.Name]))
 	for _, fieldName := range indexes[op.Name] {
 		column := fields[fieldName].DBColumn(fieldName)
-		columns = append(columns, fmt.Sprintf("'%s'", column))
+		columns = append(columns, fmt.Sprintf("\"%s\"", column))
 	}
-	query += fmt.Sprintf(" (%s);", strings.Join(columns, ", "))
+	query += fmt.Sprintf(" (%s)", strings.Join(columns, ", "))
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}

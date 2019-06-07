@@ -1,7 +1,6 @@
 package migrations
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/moiseshiraldo/gomodels"
 	"io/ioutil"
@@ -97,11 +96,11 @@ func (state AppState) Migrate(database string, nodeName string) error {
 	}
 	var err error
 	if node == nil {
-		err = state.migrations[0].Backwards(db.Conn())
+		err = state.migrations[0].Backwards(db)
 	} else if node.number < state.lastApplied {
-		err = state.migrations[node.number].Backwards(db.Conn())
+		err = state.migrations[node.number].Backwards(db)
 	} else {
-		err = node.Run(db.Conn())
+		err = node.Run(db)
 	}
 	if dbErr, ok := err.(*gomodels.DatabaseError); ok {
 		dbErr.Name = database
@@ -180,16 +179,18 @@ func loadPreviousState(node Node) map[string]*AppState {
 	for name := range history {
 		prevState[name] = &AppState{models: map[string]*gomodels.Model{}}
 	}
-	prevNode := history[node.App].migrations[node.number-2]
-	prevNode.setPreviousState(prevState)
+	if node.number > 1 {
+		prevNode := history[node.App].migrations[node.number-2]
+		prevNode.setPreviousState(prevState)
+	}
 	return prevState
 }
 
-func loadAppliedMigrations(db *sql.DB) error {
+func loadAppliedMigrations(db gomodels.Database) error {
 	if err := prepareDatabase(db); err != nil {
 		return err
 	}
-	rows, err := db.Query("SELECT app, number FROM gomodels_migration")
+	rows, err := db.Conn().Query("SELECT app, number FROM gomodels_migration")
 	if err != nil {
 		return err
 	}

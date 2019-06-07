@@ -6,9 +6,11 @@ import (
 )
 
 type Database struct {
-	Driver string
-	Name   string
-	conn   *sql.DB
+	Driver   string
+	Name     string
+	User     string
+	Password string
+	conn     *sql.DB
 }
 
 func (db Database) Conn() *sql.DB {
@@ -19,13 +21,29 @@ var Databases = map[string]Database{}
 
 func Start(options map[string]Database) error {
 	for name, db := range options {
-		conn, err := sql.Open(db.Driver, db.Name)
+		credentials := ""
+		switch driver := db.Driver; driver {
+		case "sqlite3":
+			credentials = db.Name
+		case "postgres":
+			credentials = fmt.Sprintf(
+				"dbname=%s user=%s password=%s sslmode=disable",
+				db.Name, db.User, db.Password,
+			)
+		default:
+			err := fmt.Errorf("unsupported driver: %s", driver)
+			return &DatabaseError{name, ErrorTrace{Err: err}}
+		}
+		conn, err := sql.Open(db.Driver, credentials)
 		if err != nil {
-			fmt.Printf("%+v", err)
 			return &DatabaseError{name, ErrorTrace{Err: err}}
 		}
 		db.conn = conn
 		Databases[name] = db
+	}
+	if _, ok := Databases["default"]; !ok {
+		err := fmt.Errorf("missing default database")
+		return &DatabaseError{"default", ErrorTrace{Err: err}}
 	}
 	return nil
 }

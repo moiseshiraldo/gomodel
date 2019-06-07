@@ -12,7 +12,7 @@ type Field interface {
 	FromJSON(raw []byte) (Field, error)
 	DBColumn(fieldName string) string
 	HasIndex() bool
-	CreateSQL() string
+	SqlDatatype(driver string) string
 	DefaultVal() (val Value, hasDefault bool)
 	Recipient() interface{}
 }

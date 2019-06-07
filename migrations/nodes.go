@@ -1,7 +1,6 @@
 package migrations
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/moiseshiraldo/gomodels"
@@ -53,7 +52,7 @@ func (n *Node) Load() error {
 	return nil
 }
 
-func (n *Node) Run(db *sql.DB) error {
+func (n *Node) Run(db gomodels.Database) error {
 	if n.applied {
 		return nil
 	}
@@ -67,7 +66,7 @@ func (n *Node) Run(db *sql.DB) error {
 	return nil
 }
 
-func (n Node) runDependencies(db *sql.DB) error {
+func (n Node) runDependencies(db gomodels.Database) error {
 	for _, dep := range n.Dependencies {
 		app, name := dep[0], dep[1]
 		number, _ := strconv.Atoi(name[:4])
@@ -81,13 +80,13 @@ func (n Node) runDependencies(db *sql.DB) error {
 	return nil
 }
 
-func (n Node) runOperations(db *sql.DB) error {
-	tx, err := db.Begin()
+func (n Node) runOperations(db gomodels.Database) error {
+	tx, err := db.Conn().Begin()
 	if err != nil {
 		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
 	}
 	for _, op := range n.Operations {
-		if err := op.Run(tx, n.App); err != nil {
+		if err := op.Run(tx, n.App, db.Driver); err != nil {
 			if txErr := tx.Rollback(); txErr != nil {
 				return &gomodels.DatabaseError{
 					"", gomodels.ErrorTrace{Err: txErr},
@@ -113,7 +112,7 @@ func (n Node) runOperations(db *sql.DB) error {
 	return nil
 }
 
-func (n *Node) Backwards(db *sql.DB) error {
+func (n *Node) Backwards(db gomodels.Database) error {
 	if !n.applied {
 		return nil
 	}
@@ -127,7 +126,7 @@ func (n *Node) Backwards(db *sql.DB) error {
 	return nil
 }
 
-func (n Node) backwardDependencies(db *sql.DB) error {
+func (n Node) backwardDependencies(db gomodels.Database) error {
 	for _, state := range history {
 		for _, node := range state.migrations {
 			for _, dep := range node.Dependencies {
@@ -142,15 +141,16 @@ func (n Node) backwardDependencies(db *sql.DB) error {
 	return nil
 }
 
-func (n Node) backwardOperations(db *sql.DB) error {
-	tx, err := db.Begin()
+func (n Node) backwardOperations(db gomodels.Database) error {
+	tx, err := db.Conn().Begin()
 	if err != nil {
 		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
 	}
 	prevState := loadPreviousState(n)
 	for k := range n.Operations {
 		op := n.Operations[len(n.Operations)-1-k]
-		if err := op.Backwards(tx, n.App, prevState[n.App]); err != nil {
+		err := op.Backwards(tx, n.App, db.Driver, prevState[n.App])
+		if err != nil {
 			if txErr := tx.Rollback(); txErr != nil {
 				return &gomodels.DatabaseError{
 					"", gomodels.ErrorTrace{Err: txErr},
