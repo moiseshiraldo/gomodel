@@ -137,16 +137,25 @@ func (i Instance) Save(fields ...string) error {
 	db := Databases["default"]
 	_, autoPk := i.model.fields[i.model.pk].(AutoField)
 	if autoPk && pkVal == reflect.Zero(reflect.TypeOf(pkVal)).Interface() {
-		query, vals := sqlInsertQuery(i, fields)
-		result, err := db.conn.Exec(query, vals...)
-		if err != nil {
-			return &DatabaseError{"default", i.trace(err)}
+		query, vals := sqlInsertQuery(i, fields, db.Driver)
+		if db.Driver == "postgres" {
+			var pk int64
+			err := db.conn.QueryRow(query, vals...).Scan(&pk)
+			if err != nil {
+				return &DatabaseError{"default", i.trace(err)}
+			}
+			i.Set(i.model.pk, pk)
+		} else {
+			result, err := db.conn.Exec(query, vals...)
+			if err != nil {
+				return &DatabaseError{"default", i.trace(err)}
+			}
+			id, err := result.LastInsertId()
+			if err != nil {
+				return &DatabaseError{"default", i.trace(err)}
+			}
+			i.Set(i.model.pk, id)
 		}
-		id, err := result.LastInsertId()
-		if err != nil {
-			return &DatabaseError{"default", i.trace(err)}
-		}
-		i.Set(i.model.pk, id)
 	} else {
 		query, vals := sqlUpdateQuery(i, fields)
 		result, err := db.conn.Exec(query, vals...)
@@ -158,7 +167,7 @@ func (i Instance) Save(fields ...string) error {
 			return &DatabaseError{"default", i.trace(err)}
 		}
 		if rows == 0 {
-			query, vals := sqlInsertQuery(i, fields)
+			query, vals := sqlInsertQuery(i, fields, db.Driver)
 			_, err := db.conn.Exec(query, vals...)
 			if err != nil {
 				return &DatabaseError{"default", i.trace(err)}

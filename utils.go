@@ -25,25 +25,34 @@ func sqlColumnOptions(null bool, pk bool, unique bool) string {
 	return options
 }
 
-func sqlCreateQuery(table string, values Values) (string, []interface{}) {
+func sqlCreateQuery(
+	model *Model, values Values, driver string,
+) (string, []interface{}) {
 	cols := make([]string, 0, len(values))
 	vals := make([]interface{}, 0, len(values))
 	placeholders := make([]string, 0, len(values))
 	index := 1
 	for col, val := range values {
-		cols = append(cols, fmt.Sprintf("'%s'", col))
+		cols = append(cols, fmt.Sprintf("\"%s\"", col))
 		vals = append(vals, val)
 		placeholders = append(placeholders, fmt.Sprintf("$%d", index))
 		index += 1
 	}
 	query := fmt.Sprintf(
 		"INSERT INTO \"%s\" (%s) VALUES (%s)",
-		table, strings.Join(cols, ", "), strings.Join(placeholders, ", "),
+		model.Table(),
+		strings.Join(cols, ", "),
+		strings.Join(placeholders, ", "),
 	)
+	if driver == "postgres" {
+		query = fmt.Sprintf("%s RETURNING \"%s\"", query, model.pk)
+	}
 	return query, vals
 }
 
-func sqlInsertQuery(i Instance, fields []string) (string, []interface{}) {
+func sqlInsertQuery(
+	i Instance, fields []string, driver string,
+) (string, []interface{}) {
 	vals := make([]interface{}, 0, len(i.model.fields))
 	cols := make([]string, 0, len(i.model.fields))
 	placeholders := make([]string, 0, len(i.model.fields))
@@ -54,7 +63,7 @@ func sqlInsertQuery(i Instance, fields []string) (string, []interface{}) {
 				continue
 			}
 			if val, ok := i.GetIf(name); ok {
-				cols = append(cols, fmt.Sprintf("'%s'", name))
+				cols = append(cols, fmt.Sprintf("\"%s\"", name))
 				vals = append(vals, val)
 				placeholders = append(placeholders, fmt.Sprintf("$%d", index))
 			}
@@ -66,7 +75,7 @@ func sqlInsertQuery(i Instance, fields []string) (string, []interface{}) {
 				continue
 			}
 			if val, ok := i.GetIf(name); ok {
-				cols = append(cols, fmt.Sprintf("'%s'", name))
+				cols = append(cols, fmt.Sprintf("\"%s\"", name))
 				vals = append(vals, val)
 				placeholders = append(
 					placeholders, fmt.Sprintf("$%d", index+1),
@@ -80,6 +89,9 @@ func sqlInsertQuery(i Instance, fields []string) (string, []interface{}) {
 		strings.Join(cols, ", "),
 		strings.Join(placeholders, ", "),
 	)
+	if driver == "postgres" {
+		query = fmt.Sprintf("%s RETURNING \"%s\"", query, i.model.pk)
+	}
 	return query, vals
 }
 
@@ -93,7 +105,7 @@ func sqlUpdateQuery(i Instance, fields []string) (string, []interface{}) {
 				continue
 			}
 			if val, ok := i.GetIf(name); ok {
-				cols = append(cols, fmt.Sprintf("'%s' = $%d", name, index))
+				cols = append(cols, fmt.Sprintf("\"%s\" = $%d", name, index))
 				vals = append(vals, val)
 			}
 			index += 1
@@ -104,7 +116,7 @@ func sqlUpdateQuery(i Instance, fields []string) (string, []interface{}) {
 				continue
 			}
 			if val, ok := i.GetIf(name); ok {
-				cols = append(cols, fmt.Sprintf("'%s' = $%d", name, index+1))
+				cols = append(cols, fmt.Sprintf("\"%s\" = $%d", name, index+1))
 				vals = append(vals, val)
 			}
 		}
