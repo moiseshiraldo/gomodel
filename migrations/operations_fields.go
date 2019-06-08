@@ -76,8 +76,11 @@ func (op AddFields) Backwards(
 ) error {
 	if driver == "postgres" {
 		columns := make([]string, 0, len(op.Fields))
-		for name := range op.Fields {
-			columns = append(columns, fmt.Sprintf("DROP COLUMN %s", name))
+		for name, field := range op.Fields {
+			dropColumn := fmt.Sprintf(
+				"DROP COLUMN \"%s\"", field.DBColumn(name),
+			)
+			columns = append(columns, dropColumn)
 		}
 		query := fmt.Sprintf(
 			"ALTER TABLE %s %s", op.table, strings.Join(columns, ", "),
@@ -165,10 +168,15 @@ func (op *RemoveFields) SetState(state *AppState) error {
 }
 
 func (op RemoveFields) Run(tx *sql.Tx, app string, driver string) error {
+	fields := history[app].models[op.Model].Fields()
 	if driver == "postgres" {
 		columns := make([]string, 0, len(op.Fields))
 		for _, name := range op.Fields {
-			columns = append(columns, fmt.Sprintf("DROP COLUMN %s", name))
+			field := fields[name]
+			dropColumn := fmt.Sprintf(
+				"DROP COLUMN \"%s\"", field.DBColumn(name),
+			)
+			columns = append(columns, dropColumn)
 		}
 		query := fmt.Sprintf(
 			"ALTER TABLE %s %s", op.table, strings.Join(columns, ", "),
@@ -184,7 +192,6 @@ func (op RemoveFields) Run(tx *sql.Tx, app string, driver string) error {
 	if _, err := tx.Exec(query); err != nil {
 		return err
 	}
-	fields := history[app].models[op.Model].Fields()
 	keepColumns := make([]string, 0, len(fields)-len(op.Fields))
 	for _, name := range op.Fields {
 		delete(fields, name)

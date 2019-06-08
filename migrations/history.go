@@ -41,9 +41,8 @@ func (state AppState) nextNode() *Node {
 	}
 	if len(state.migrations) > 0 {
 		lastNode := state.migrations[len(state.migrations)-1]
-		depName := fmt.Sprintf("%04d_%s", lastNode.number, lastNode.Name)
 		node.Dependencies = append(
-			node.Dependencies, []string{state.app.Name(), depName},
+			node.Dependencies, []string{state.app.Name(), lastNode.fullname()},
 		)
 	}
 	return node

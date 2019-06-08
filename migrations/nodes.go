@@ -20,6 +20,14 @@ type Node struct {
 	Operations   OperationList
 }
 
+func (n Node) fullname() string {
+	return fmt.Sprintf("%04d_%s", n.number, n.Name)
+}
+
+func (n Node) filename() string {
+	return fmt.Sprintf("%s.json", n.fullname())
+}
+
 func (n Node) Save() error {
 	if n.Path == "" {
 		return fmt.Errorf("no path")
@@ -28,8 +36,7 @@ func (n Node) Save() error {
 	if err != nil {
 		return err
 	}
-	filename := fmt.Sprintf("%04d_%s.json", n.number, n.Name)
-	fp := filepath.Join(n.Path, filename)
+	fp := filepath.Join(n.Path, n.filename())
 	if err := ioutil.WriteFile(fp, data, 0644); err != nil {
 		return err
 	}
@@ -40,8 +47,7 @@ func (n *Node) Load() error {
 	if n.Path == "" {
 		return fmt.Errorf("no path")
 	}
-	filename := fmt.Sprintf("%04d_%s.json", n.number, n.Name)
-	fp := filepath.Join(n.Path, filename)
+	fp := filepath.Join(n.Path, n.filename())
 	data, err := ioutil.ReadFile(fp)
 	if err != nil {
 		return err
@@ -130,7 +136,7 @@ func (n Node) backwardDependencies(db gomodels.Database) error {
 	for _, state := range history {
 		for _, node := range state.migrations {
 			for _, dep := range node.Dependencies {
-				if dep[0] == n.App && dep[1] == n.Name {
+				if dep[0] == n.App && dep[1] == n.fullname() {
 					if err := node.Backwards(db); err != nil {
 						return err
 					}
@@ -163,8 +169,7 @@ func (n Node) backwardOperations(db gomodels.Database) error {
 	}
 	query := "DELETE FROM gomodels_migration WHERE app = $1 and number = $2"
 	if _, err := tx.Exec(query, n.App, n.number); err != nil {
-		txErr := tx.Rollback()
-		if txErr != nil {
+		if txErr := tx.Rollback(); txErr != nil {
 			err = txErr
 		}
 		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
