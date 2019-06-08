@@ -59,8 +59,16 @@ func (qs GenericQuerySet) Query() (string, []interface{}) {
 	if ok {
 		driver = db.Driver
 	}
+	columns := make([]string, 0, len(qs.columns))
+	for _, name := range qs.columns {
+		col := name
+		if field, ok := qs.model.fields[name]; ok {
+			col = field.DBColumn(name)
+		}
+		columns = append(columns, fmt.Sprintf("\"%s\"", col))
+	}
 	stmt := fmt.Sprintf(
-		"SELECT %s FROM %s", strings.Join(qs.columns, ", "), qs.model.Table(),
+		"SELECT %s FROM %s", strings.Join(columns, ", "), qs.model.Table(),
 	)
 	if qs.cond != nil {
 		pred, values := qs.cond.Predicate(driver, 1)
