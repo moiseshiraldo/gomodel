@@ -62,7 +62,8 @@ func Run(options RunOptions) error {
 	}
 	db, ok := gomodels.Databases[dbName]
 	if !ok {
-		return &gomodels.DatabaseError{dbName, gomodels.ErrorTrace{}}
+		err := fmt.Errorf("database not found")
+		return &gomodels.DatabaseError{dbName, gomodels.ErrorTrace{Err: err}}
 	}
 	if err := loadHistory(); err != nil {
 		return err

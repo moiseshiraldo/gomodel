@@ -19,16 +19,19 @@ type ErrorTrace struct {
 func (e *ErrorTrace) String() string {
 	trace := ""
 	if e.App != nil {
-		trace += fmt.Sprintf(": %s", e.App.name)
+		trace += fmt.Sprintf("%s: ", e.App.name)
 	}
 	if e.Model != nil {
-		trace += fmt.Sprintf(": %s", e.Model.name)
+		trace += fmt.Sprintf("%s: ", e.Model.name)
 	}
 	if e.Field != "" {
-		trace += fmt.Sprintf(": %s", e.Field)
+		trace += fmt.Sprintf("%s: ", e.Field)
 	}
 	if e.Err != nil {
-		trace += fmt.Sprintf(": %s", e.Err)
+		if trace != "" {
+			trace += ": "
+		}
+		trace += e.Err.Error()
 	}
 	return trace
 }
@@ -39,7 +42,7 @@ type DatabaseError struct {
 }
 
 func (e *DatabaseError) Error() string {
-	return fmt.Sprintf("gomodels: %s", e.ErrorTrace.String())
+	return fmt.Sprintf("gomodels: %s: %s", e.Name, e.ErrorTrace.String())
 }
 
 func (e *DatabaseError) Trace() ErrorTrace {
