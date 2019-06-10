@@ -43,6 +43,50 @@ func (vals Values) Recipients(columns []string) []interface{} {
 	return nil
 }
 
+func getContainerType(container Container) (string, error) {
+	switch container.(type) {
+	case Values:
+		return containers.Map, nil
+	default:
+		if _, ok := container.(Builder); ok {
+			return containers.Builder, nil
+		} else {
+			ct := reflect.TypeOf(container)
+			if ct.Kind() == reflect.Ptr {
+				ct = ct.Elem()
+			}
+			if ct.Kind() == reflect.Struct {
+				return containers.Struct, nil
+			}
+		}
+		return "", fmt.Errorf("invlid container")
+	}
+}
+
+func getRecipients(qs QuerySet, conType string) (Container, []interface{}) {
+	container := qs.Container()
+	recipients := make([]interface{}, 0, len(qs.Columns()))
+	switch conType {
+	case containers.Map:
+		for _, name := range qs.Columns() {
+			recipients = append(
+				recipients, qs.Model().fields[name].Recipient(),
+			)
+		}
+	case containers.Builder:
+		recipients = container.(Builder).Recipients(qs.Columns())
+	default:
+		cv := reflect.Indirect(reflect.ValueOf(container))
+		for _, name := range qs.Columns() {
+			f := cv.FieldByName(strings.Title(name))
+			if f.IsValid() && f.CanAddr() {
+				recipients = append(recipients, f.Addr().Interface())
+			}
+		}
+	}
+	return container, recipients
+}
+
 type Instance struct {
 	model     *Model
 	container Container
