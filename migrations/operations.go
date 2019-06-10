@@ -8,7 +8,6 @@ import (
 
 type Operation interface {
 	OpName() string
-	FromJSON(raw []byte) (Operation, error)
 	SetState(state *AppState) error
 	Run(tx *sql.Tx, app string, driver string) error
 	Backwards(tx *sql.Tx, app string, driver string, prevState *AppState) error
@@ -35,12 +34,11 @@ func (op *OperationList) UnmarshalJSON(data []byte) error {
 	}
 	for _, rawMap := range rawList {
 		for name, rawOp := range rawMap {
-			native, ok := AvailableOperations()[name]
+			operation, ok := AvailableOperations()[name]
 			if !ok {
 				return fmt.Errorf("invalid operation: %s", name)
 			}
-			operation, err := native.FromJSON(rawOp)
-			if err != nil {
+			if err := json.Unmarshal(rawOp, &operation); err != nil {
 				return err
 			}
 			opList = append(opList, operation)

@@ -2,7 +2,6 @@ package migrations
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"github.com/moiseshiraldo/gomodels"
 	"strings"
@@ -16,11 +15,6 @@ type AddFields struct {
 
 func (op AddFields) OpName() string {
 	return "AddFields"
-}
-
-func (op AddFields) FromJSON(raw []byte) (Operation, error) {
-	err := json.Unmarshal(raw, &op)
-	return &op, err
 }
 
 func (op *AddFields) SetState(state *AppState) error {
@@ -138,11 +132,6 @@ type RemoveFields struct {
 
 func (op RemoveFields) OpName() string {
 	return "RemoveFields"
-}
-
-func (op RemoveFields) FromJSON(raw []byte) (Operation, error) {
-	err := json.Unmarshal(raw, &op)
-	return &op, err
 }
 
 func (op *RemoveFields) SetState(state *AppState) error {

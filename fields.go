@@ -9,7 +9,6 @@ import (
 
 type Field interface {
 	IsPk() bool
-	FromJSON(raw []byte) (Field, error)
 	DBColumn(fieldName string) string
 	HasIndex() bool
 	SqlDatatype(driver string) string
@@ -38,12 +37,12 @@ func (fp *Fields) UnmarshalJSON(data []byte) error {
 	}
 	for name, fMap := range rawMap {
 		for fType, raw := range fMap {
-			native, ok := AvailableFields()[fType]
+			field, ok := AvailableFields()[fType]
 			if !ok {
 				return fmt.Errorf("invalid field type: %s", fType)
 			}
-			field, err := native.FromJSON(raw)
-			if err != nil {
+			if err := json.Unmarshal(raw, &field); err != nil {
+				fmt.Println(err)
 				return err
 			}
 			fields[name] = field
@@ -55,9 +54,9 @@ func (fp *Fields) UnmarshalJSON(data []byte) error {
 
 func AvailableFields() map[string]Field {
 	return map[string]Field{
-		"IntegerField": IntegerField{},
-		"AutoField":    AutoField{},
-		"BooleanField": BooleanField{},
-		"CharField":    CharField{},
+		"IntegerField": &IntegerField{},
+		"AutoField":    &AutoField{},
+		"BooleanField": &BooleanField{},
+		"CharField":    &CharField{},
 	}
 }

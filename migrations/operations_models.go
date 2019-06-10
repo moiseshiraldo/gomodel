@@ -2,7 +2,6 @@ package migrations
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"github.com/moiseshiraldo/gomodels"
 	"strings"
@@ -16,11 +15,6 @@ type CreateModel struct {
 
 func (op CreateModel) OpName() string {
 	return "CreateModel"
-}
-
-func (op CreateModel) FromJSON(raw []byte) (Operation, error) {
-	err := json.Unmarshal(raw, &op)
-	return &op, err
 }
 
 func (op *CreateModel) SetState(state *AppState) error {
@@ -79,11 +73,6 @@ func (op DeleteModel) OpName() string {
 	return "DeleteModel"
 }
 
-func (op DeleteModel) FromJSON(raw []byte) (Operation, error) {
-	err := json.Unmarshal(raw, &op)
-	return &op, err
-}
-
 func (op *DeleteModel) SetState(state *AppState) error {
 	if _, ok := state.models[op.Name]; !ok {
 		return fmt.Errorf("model not found: %s", op.Name)
@@ -129,11 +118,6 @@ type AddIndex struct {
 
 func (op AddIndex) OpName() string {
 	return "AddIndex"
-}
-
-func (op AddIndex) FromJSON(raw []byte) (Operation, error) {
-	err := json.Unmarshal(raw, &op)
-	return &op, err
 }
 
 func (op *AddIndex) SetState(state *AppState) error {
@@ -189,11 +173,6 @@ type RemoveIndex struct {
 
 func (op RemoveIndex) OpName() string {
 	return "RemoveIndex"
-}
-
-func (op RemoveIndex) FromJSON(raw []byte) (Operation, error) {
-	err := json.Unmarshal(raw, &op)
-	return &op, err
 }
 
 func (op *RemoveIndex) SetState(state *AppState) error {

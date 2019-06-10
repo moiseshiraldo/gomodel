@@ -2,7 +2,6 @@ package gomodels
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 )
 
@@ -22,11 +21,6 @@ type CharField struct {
 	PrimaryKey   bool         `json:",omitempty"`
 	Unique       bool         `json:",omitempty"`
 	MaxLength    int          `json:",omitempty"`
-}
-
-func (f CharField) FromJSON(raw []byte) (Field, error) {
-	err := json.Unmarshal(raw, &f)
-	return f, err
 }
 
 func (f CharField) DBColumn(name string) string {
@@ -77,11 +71,6 @@ type BooleanField struct {
 	Index        bool   `json:",omitempty"`
 	Default      bool   `json:",omitempty"`
 	DefaultFalse bool   `json:",omitempty"`
-}
-
-func (f BooleanField) FromJSON(raw []byte) (Field, error) {
-	err := json.Unmarshal(raw, &f)
-	return f, err
 }
 
 func (f BooleanField) DBColumn(name string) string {
@@ -150,11 +139,6 @@ type IntegerField struct {
 	Unique      bool        `json:",omitempty"`
 }
 
-func (f IntegerField) FromJSON(raw []byte) (Field, error) {
-	err := json.Unmarshal(raw, &f)
-	return f, err
-}
-
 func (f IntegerField) DBColumn(name string) string {
 	if f.Column != "" {
 		return f.Column
@@ -197,11 +181,6 @@ func (f IntegerField) SqlDatatype(driver string) string {
 }
 
 type AutoField IntegerField
-
-func (f AutoField) FromJSON(raw []byte) (Field, error) {
-	err := json.Unmarshal(raw, &f)
-	return f, err
-}
 
 func (f AutoField) DBColumn(name string) string {
 	if f.Column != "" {
