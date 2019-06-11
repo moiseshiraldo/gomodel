@@ -30,17 +30,17 @@ type userContainer struct {
 }
 
 type userBuilder struct {
-	Id            int
+	Id            int64
 	FirstName     string
 	LastName      string
 	Email         string
 	Active        bool
 	Superuser     bool
-	LoginAttempts int
+	LoginAttempts int64
 }
 
-func (u userBuilder) Get(field string) (gomodels.Value, bool) {
-	switch field {
+func (u userBuilder) Get(key string) (gomodels.Value, bool) {
+	switch key {
 	case "id":
 		return u.Id, true
 	case "firstName":
@@ -60,11 +60,13 @@ func (u userBuilder) Get(field string) (gomodels.Value, bool) {
 	}
 }
 
-func (u *userBuilder) Set(field string, val gomodels.Value) error {
+func (u *userBuilder) Set(
+	key string, val gomodels.Value, field gomodels.Field,
+) error {
 	var err error
-	switch field {
+	switch key {
 	case "id":
-		u.Id = val.(int)
+		u.Id = val.(int64)
 	case "firstName":
 		u.FirstName = val.(string)
 	case "lastName":
@@ -76,7 +78,7 @@ func (u *userBuilder) Set(field string, val gomodels.Value) error {
 	case "superuser":
 		u.Superuser = val.(bool)
 	case "loginAttempts":
-		u.LoginAttempts = val.(int)
+		u.LoginAttempts = val.(int64)
 	default:
 		err = fmt.Errorf("Field not found")
 	}
@@ -85,27 +87,4 @@ func (u *userBuilder) Set(field string, val gomodels.Value) error {
 
 func (u userBuilder) New() gomodels.Builder {
 	return &userBuilder{}
-}
-
-func (u *userBuilder) Recipients(columns []string) []interface{} {
-	recipients := make([]interface{}, 0, len(columns))
-	for _, col := range columns {
-		switch col {
-		case "id":
-			recipients = append(recipients, &u.Id)
-		case "firstName":
-			recipients = append(recipients, &u.FirstName)
-		case "lastName":
-			recipients = append(recipients, &u.LastName)
-		case "email":
-			recipients = append(recipients, &u.Email)
-		case "active":
-			recipients = append(recipients, &u.Active)
-		case "superuser":
-			recipients = append(recipients, &u.Superuser)
-		case "loginAttempts":
-			recipients = append(recipients, &u.LoginAttempts)
-		}
-	}
-	return recipients
 }

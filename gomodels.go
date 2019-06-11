@@ -13,7 +13,7 @@ type Dispatcher struct {
 
 func (d Dispatcher) New(values Values) (*Instance, error) {
 	model := d.Model
-	instance := &Instance{model, model.meta.Container, model.meta.conType}
+	instance := &Instance{model, model.meta.Container}
 	for name, field := range model.fields {
 		if val, ok := values[name]; ok {
 			if err := instance.Set(name, val); err != nil {
@@ -34,7 +34,6 @@ type Options struct {
 	Table     string
 	Container Container
 	Indexes   Indexes
-	conType   string
 }
 
 type Model struct {
@@ -82,12 +81,9 @@ func (m Model) Indexes() Indexes {
 }
 
 func (m Model) Container() Container {
-	switch m.meta.conType {
-	case containers.Map:
-		return Values{}
-	case containers.Builder:
-		return m.meta.Container.(Builder).New()
-	default:
+	if b, ok := m.meta.Container.(Builder); ok {
+		return b.New()
+	} else {
 		ct := reflect.TypeOf(m.meta.Container)
 		if ct.Kind() == reflect.Ptr {
 			ct = ct.Elem()
@@ -165,16 +161,13 @@ func registerModel(app *Application, model *Model) {
 		model.pk = "id"
 	}
 	if model.meta.Container != nil {
-		conType, err := getContainerType(model.meta.Container)
-		if err != nil {
+		if !isValidContainer(model.meta.Container) {
 			panic(fmt.Sprintf(
-				"gomodels: %s: %s: %s", app.name, model.name, err,
+				"gomodels: %s: %s: invalid container", app.name, model.name,
 			))
 		}
-		model.meta.conType = conType
 	} else {
 		model.meta.Container = Values{}
-		model.meta.conType = containers.Map
 	}
 	app.models[model.name] = model
 }

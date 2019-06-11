@@ -69,7 +69,7 @@ func loadRawSqlQuerySet(b *testing.B) {
 }
 
 func BenchmarkQuerySet(b *testing.B) {
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 100; i++ {
 		_, err := User.Objects.Create(gomodels.Values{
 			"firstName": "Luke",
 			"lastName":  "Skywalker",

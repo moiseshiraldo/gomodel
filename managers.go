@@ -7,7 +7,7 @@ type Manager struct {
 func (m Manager) Create(values Values) (*Instance, error) {
 	db := Databases["default"]
 	container := m.Model.Container()
-	instance := &Instance{m.Model, container, m.Model.meta.conType}
+	instance := &Instance{m.Model, container}
 	query, vals := sqlCreateQuery(m.Model, values, db.Driver)
 	if db.Driver == "postgres" {
 		var pk int64
@@ -58,7 +58,6 @@ func (m Manager) GetQuerySet() QuerySet {
 	return GenericQuerySet{
 		model:     m.Model,
 		container: m.Model.meta.Container,
-		conType:   m.Model.meta.conType,
 		database:  "default",
 		columns:   cols,
 	}

@@ -10,7 +10,6 @@ type QuerySet interface {
 	Load() ([]*Instance, error)
 	Query() (query string, values []interface{})
 	Model() *Model
-	Columns() []string
 	Container() Container
 	SetContainer(c Container) QuerySet
 	Filter(c Conditioner) QuerySet
@@ -21,7 +20,6 @@ type QuerySet interface {
 type GenericQuerySet struct {
 	model     *Model
 	container Container
-	conType   string
 	database  string
 	columns   []string
 	cond      Conditioner
@@ -83,17 +81,10 @@ func (qs GenericQuerySet) Model() *Model {
 	return qs.model
 }
 
-func (qs GenericQuerySet) Columns() []string {
-	return qs.columns
-}
-
 func (qs GenericQuerySet) Container() Container {
-	switch qs.conType {
-	case containers.Map:
-		return Values{}
-	case containers.Builder:
-		return qs.container.(Builder).New()
-	default:
+	if b, ok := qs.container.(Builder); ok {
+		return b.New()
+	} else {
 		ct := reflect.TypeOf(qs.container)
 		if ct.Kind() == reflect.Ptr {
 			ct = ct.Elem()
@@ -103,9 +94,11 @@ func (qs GenericQuerySet) Container() Container {
 }
 
 func (qs GenericQuerySet) SetContainer(container Container) QuerySet {
-	conType, _ := getContainerType(container)
-	qs.conType = conType
-	qs.container = container
+	if isValidContainer(container) {
+		qs.container = container
+	} else {
+		qs.container = nil
+	}
 	return qs
 }
 
@@ -119,10 +112,11 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 	if !ok {
 		return nil, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
-	if qs.conType == "" {
+	if qs.container == nil {
 		return nil, qs.containerError(fmt.Errorf("invalid container"))
 	}
-	container, recipients := getRecipients(qs, qs.conType)
+	container := qs.Container()
+	recipients := getRecipients(container, qs.columns, qs.model)
 	if len(recipients) != len(qs.columns) {
 		err := fmt.Errorf("invalid container recipients")
 		return nil, qs.containerError(err)
@@ -134,18 +128,21 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		container, recipients = getRecipients(qs, qs.conType)
+		container = qs.Container()
+		if _, ok := container.(Setter); !ok {
+			recipients = getRecipients(container, qs.columns, qs.model)
+		}
 		err := rows.Scan(recipients...)
 		if err != nil {
 			return nil, qs.containerError(err)
 		}
-		instance := &Instance{qs.model, container, qs.conType}
-		if qs.conType == containers.Map {
-			values := instance.container.(Values)
+		instance := &Instance{qs.model, container}
+		if _, ok := container.(Setter); ok {
 			for i, name := range qs.columns {
-				values[name] = reflect.Indirect(
+				val := reflect.Indirect(
 					reflect.ValueOf(recipients[i]),
 				).Interface()
+				instance.Set(name, val)
 			}
 		}
 		result = append(result, instance)
@@ -163,7 +160,8 @@ func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 	if !ok {
 		return nil, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
-	container, recipients := getRecipients(qs, qs.conType)
+	container := qs.Container()
+	recipients := getRecipients(container, qs.columns, qs.model)
 	if len(recipients) != len(qs.columns) {
 		err := fmt.Errorf("invalid container recipients")
 		return nil, qs.containerError(err)
@@ -173,13 +171,13 @@ func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 	if err != nil {
 		return nil, qs.dbError(err)
 	}
-	instance := &Instance{qs.model, container, qs.conType}
-	if qs.conType == containers.Map {
-		values := instance.container.(Values)
+	instance := &Instance{qs.model, container}
+	if _, ok := container.(Setter); ok {
 		for i, name := range qs.columns {
-			values[name] = reflect.Indirect(
+			val := reflect.Indirect(
 				reflect.ValueOf(recipients[i]),
 			).Interface()
+			instance.Set(name, val)
 		}
 	}
 	return instance, nil
