@@ -42,7 +42,7 @@ func loadBuilderQuerySet(b *testing.B) {
 }
 
 func loadRawSqlQuerySet(b *testing.B) {
-	db := gomodels.Databases["default"]
+	db := gomodels.Databases()["default"]
 	for i := 0; i < b.N; i++ {
 		query := `
             SELECT
@@ -51,7 +51,7 @@ func loadRawSqlQuerySet(b *testing.B) {
               "main_user"
             WHERE
               firstName = ?`
-		rows, _ := db.Conn().Query(query, "Luke")
+		rows, _ := db.Conn.Query(query, "Luke")
 		users := []*userContainer{}
 		for rows.Next() {
 			user := userContainer{}

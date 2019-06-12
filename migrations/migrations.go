@@ -60,7 +60,7 @@ func Run(options RunOptions) error {
 	if dbName == "" {
 		dbName = "default"
 	}
-	db, ok := gomodels.Databases[dbName]
+	db, ok := gomodels.Databases()[dbName]
 	if !ok {
 		err := fmt.Errorf("database not found")
 		return &gomodels.DatabaseError{dbName, gomodels.ErrorTrace{Err: err}}
@@ -106,7 +106,7 @@ func MakeAndRun() error {
 			return err
 		}
 	}
-	for dbName, db := range gomodels.Databases {
+	for dbName, db := range gomodels.Databases() {
 		if err := loadAppliedMigrations(db); err != nil {
 			return &gomodels.DatabaseError{
 				dbName, gomodels.ErrorTrace{Err: err},

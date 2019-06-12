@@ -52,8 +52,8 @@ func (fp *Fields) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func AvailableFields() map[string]Field {
-	return map[string]Field{
+func AvailableFields() Fields {
+	return Fields{
 		"IntegerField": &IntegerField{},
 		"AutoField":    &AutoField{},
 		"BooleanField": &BooleanField{},

@@ -47,7 +47,7 @@ func loadBuilderInstance(b *testing.B) {
 }
 
 func loadRawSqlInstance(b *testing.B) {
-	db := gomodels.Databases["default"]
+	db := gomodels.Databases()["default"]
 	for i := 0; i < b.N; i++ {
 		user := userContainer{}
 		query := `
@@ -57,7 +57,7 @@ func loadRawSqlInstance(b *testing.B) {
               "main_user"
             WHERE
               firstName = ?`
-		err := db.Conn().QueryRow(query, "Anakin").Scan(
+		err := db.Conn.QueryRow(query, "Anakin").Scan(
 			&user.Id, &user.FirstName, &user.LastName, &user.Email,
 			&user.Active, &user.Superuser, &user.LoginAttempts,
 		)

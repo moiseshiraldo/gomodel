@@ -87,7 +87,7 @@ func (n Node) runDependencies(db gomodels.Database) error {
 }
 
 func (n Node) runOperations(db gomodels.Database) error {
-	tx, err := db.Conn().Begin()
+	tx, err := db.Conn.Begin()
 	if err != nil {
 		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
 	}
@@ -148,7 +148,7 @@ func (n Node) backwardDependencies(db gomodels.Database) error {
 }
 
 func (n Node) backwardOperations(db gomodels.Database) error {
-	tx, err := db.Conn().Begin()
+	tx, err := db.Conn.Begin()
 	if err != nil {
 		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
 	}

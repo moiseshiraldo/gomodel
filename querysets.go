@@ -50,9 +50,9 @@ func (qs GenericQuerySet) addConditioner(c Conditioner) GenericQuerySet {
 
 func (qs GenericQuerySet) Query() (string, []interface{}) {
 	driver := ""
-	db, ok := Databases[qs.database]
+	db, ok := databases[qs.database]
 	if !ok {
-		db, ok = Databases["default"]
+		db, ok = databases["default"]
 	}
 	if ok {
 		driver = db.Driver
@@ -108,7 +108,7 @@ func (qs GenericQuerySet) Filter(c Conditioner) QuerySet {
 
 func (qs GenericQuerySet) Load() ([]*Instance, error) {
 	result := []*Instance{}
-	db, ok := Databases[qs.database]
+	db, ok := databases[qs.database]
 	if !ok {
 		return nil, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
@@ -122,7 +122,7 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 		return nil, qs.containerError(err)
 	}
 	stmt, values := qs.Query()
-	rows, err := db.conn.Query(stmt, values...)
+	rows, err := db.Conn.Query(stmt, values...)
 	if err != nil {
 		return nil, qs.dbError(err)
 	}
@@ -156,7 +156,7 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 
 func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 	qs = qs.addConditioner(c)
-	db, ok := Databases[qs.database]
+	db, ok := databases[qs.database]
 	if !ok {
 		return nil, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
@@ -167,7 +167,7 @@ func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 		return nil, qs.containerError(err)
 	}
 	stmt, values := qs.Query()
-	err := db.conn.QueryRow(stmt, values...).Scan(recipients...)
+	err := db.Conn.QueryRow(stmt, values...).Scan(recipients...)
 	if err != nil {
 		return nil, qs.dbError(err)
 	}
@@ -184,7 +184,7 @@ func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 }
 
 func (qs GenericQuerySet) Delete() (int64, error) {
-	db, ok := Databases[qs.database]
+	db, ok := databases[qs.database]
 	if !ok {
 		return 0, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
@@ -195,7 +195,7 @@ func (qs GenericQuerySet) Delete() (int64, error) {
 		stmt += fmt.Sprintf(" WHERE %s", pred)
 		values = append(values, vals)
 	}
-	result, err := db.conn.Exec(stmt, values...)
+	result, err := db.Conn.Exec(stmt, values...)
 	if err != nil {
 		return 0, qs.dbError(err)
 	}

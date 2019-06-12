@@ -77,7 +77,7 @@ func (state AppState) Migrate(database string, nodeName string) error {
 	if len(state.migrations) == 0 {
 		return &NoAppMigrationsError{state.app.Name(), ErrorTrace{}}
 	}
-	db, ok := gomodels.Databases[database]
+	db, ok := gomodels.Databases()[database]
 	if !ok {
 		return &gomodels.DatabaseError{database, gomodels.ErrorTrace{}}
 	}
@@ -189,7 +189,7 @@ func loadAppliedMigrations(db gomodels.Database) error {
 	if err := prepareDatabase(db); err != nil {
 		return err
 	}
-	rows, err := db.Conn().Query("SELECT app, number FROM gomodels_migration")
+	rows, err := db.Conn.Query("SELECT app, number FROM gomodels_migration")
 	if err != nil {
 		return err
 	}

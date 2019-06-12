@@ -12,7 +12,7 @@ import (
 func TestMain(m *testing.M) {
 	app := gomodels.NewApp("main", "", User.Model)
 	gomodels.Register(app)
-	gomodels.Start(map[string]gomodels.Database{
+	gomodels.Start(gomodels.DBSettings{
 		"default": {Driver: "sqlite3", Name: ":memory:"},
 	})
 	defer gomodels.Stop()

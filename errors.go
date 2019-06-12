@@ -27,12 +27,7 @@ func (e *ErrorTrace) String() string {
 	if e.Field != "" {
 		trace += fmt.Sprintf("%s: ", e.Field)
 	}
-	if e.Err != nil {
-		if trace != "" {
-			trace += ": "
-		}
-		trace += e.Err.Error()
-	}
+	trace += e.Err.Error()
 	return trace
 }
 

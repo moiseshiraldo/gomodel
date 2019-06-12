@@ -5,13 +5,13 @@ type Manager struct {
 }
 
 func (m Manager) Create(values Values) (*Instance, error) {
-	db := Databases["default"]
+	db := databases["default"]
 	container := m.Model.Container()
 	instance := &Instance{m.Model, container}
 	query, vals := sqlCreateQuery(m.Model, values, db.Driver)
 	if db.Driver == "postgres" {
 		var pk int64
-		err := db.conn.QueryRow(query, vals...).Scan(&pk)
+		err := db.Conn.QueryRow(query, vals...).Scan(&pk)
 		if err != nil {
 			return instance, &DatabaseError{
 				"default",
@@ -20,7 +20,7 @@ func (m Manager) Create(values Values) (*Instance, error) {
 		}
 		instance.Set(m.Model.pk, pk)
 	} else {
-		result, err := db.conn.Exec(query, vals...)
+		result, err := db.Conn.Exec(query, vals...)
 		if err != nil {
 			return instance, &DatabaseError{
 				"default",
