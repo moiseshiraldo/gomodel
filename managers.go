@@ -1,13 +1,21 @@
 package gomodels
 
+import (
+	"fmt"
+)
+
 type Manager struct {
 	Model *Model
 }
 
-func (m Manager) Create(values Values) (*Instance, error) {
+func (m Manager) Create(values Container) (*Instance, error) {
 	db := databases["default"]
 	container := m.Model.Container()
 	instance := &Instance{m.Model, container}
+	if !isValidContainer(values) {
+		err := fmt.Errorf("invalid values container")
+		return nil, &ContainerError{instance.trace(err)}
+	}
 	query, vals := sqlCreateQuery(m.Model, values, db.Driver)
 	if db.Driver == "postgres" {
 		var pk int64
@@ -37,13 +45,25 @@ func (m Manager) Create(values Values) (*Instance, error) {
 		instance.Set(m.Model.pk, pk)
 	}
 	for name, field := range m.Model.fields {
-		if val, ok := values[name]; ok {
-			if err := instance.Set(name, val); err != nil {
-				return nil, err
+		if vals, ok := values.(Getter); ok {
+			if val, ok := vals.Get(name); ok {
+				if err := instance.Set(name, val); err != nil {
+					return nil, err
+				}
+			} else if val, hasDefault := field.DefaultVal(); hasDefault {
+				if err := instance.Set(name, val); err != nil {
+					return nil, err
+				}
 			}
-		} else if val, hasDefault := field.DefaultVal(); hasDefault {
-			if err := instance.Set(name, val); err != nil {
-				return nil, err
+		} else {
+			if val, ok := getStructField(values, name); ok {
+				if err := instance.Set(name, val); err != nil {
+					return nil, err
+				}
+			} else if val, hasDefault := field.DefaultVal(); hasDefault {
+				if err := instance.Set(name, val); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}

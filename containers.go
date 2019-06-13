@@ -87,3 +87,19 @@ func getRecipients(con Container, cols []string, model *Model) []interface{} {
 	}
 	return recipients
 }
+
+func getStructField(container Container, field string) (Value, bool) {
+	cv := reflect.Indirect(reflect.ValueOf(container))
+	f := cv.FieldByName(strings.Title(field))
+	if f.IsValid() && f.CanInterface() {
+		val := f.Interface()
+		if vlr, isVlr := val.(driver.Valuer); isVlr {
+			if val, err := vlr.Value(); err == nil {
+				return val, true
+			}
+		}
+		return val, true
+	} else {
+		return nil, false
+	}
+}

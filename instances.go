@@ -1,7 +1,6 @@
 package gomodels
 
 import (
-	"database/sql/driver"
 	"fmt"
 	"reflect"
 	"strings"
@@ -28,19 +27,7 @@ func (i Instance) GetIf(key string) (Value, bool) {
 	if c, ok := i.container.(Getter); ok {
 		return c.Get(key)
 	} else {
-		cv := reflect.Indirect(reflect.ValueOf(i.container))
-		f := cv.FieldByName(strings.Title(key))
-		if f.IsValid() && f.CanInterface() {
-			val := f.Interface()
-			if vlr, isVlr := val.(driver.Valuer); isVlr {
-				if val, err := vlr.Value(); err == nil {
-					return val, true
-				}
-			}
-			return val, true
-		} else {
-			return nil, false
-		}
+		return getStructField(i.container, key)
 	}
 }
 
