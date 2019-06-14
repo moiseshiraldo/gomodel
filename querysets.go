@@ -14,6 +14,8 @@ type QuerySet interface {
 	SetContainer(c Container) QuerySet
 	Filter(c Conditioner) QuerySet
 	Get(c Conditioner) (*Instance, error)
+	Exists() (bool, error)
+	Count() (int64, error)
 	Delete() (int64, error)
 }
 
@@ -181,6 +183,42 @@ func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 		}
 	}
 	return instance, nil
+}
+
+func (qs GenericQuerySet) Exists() (bool, error) {
+	db, ok := databases[qs.database]
+	if !ok {
+		return false, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
+	}
+	var exists bool
+	qs.columns = []string{qs.model.pk}
+	stmt, values := qs.Query()
+	stmt = fmt.Sprintf("SELECT EXISTS (%s)", stmt)
+	err := db.Conn.QueryRow(stmt, values...).Scan(&exists)
+	if err != nil {
+		return false, qs.dbError(err)
+	}
+	return exists, nil
+}
+
+func (qs GenericQuerySet) Count() (int64, error) {
+	var count int64
+	var values []interface{}
+	db, ok := databases[qs.database]
+	if !ok {
+		return count, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
+	}
+	stmt := fmt.Sprintf("SELECT COUNT(*) FROM %s", qs.model.Table())
+	if qs.cond != nil {
+		pred, vals := qs.cond.Predicate(db.Driver, 1)
+		stmt += fmt.Sprintf(" WHERE %s", pred)
+		values = vals
+	}
+	err := db.Conn.QueryRow(stmt, values...).Scan(&count)
+	if err != nil {
+		return count, qs.dbError(err)
+	}
+	return count, nil
 }
 
 func (qs GenericQuerySet) Delete() (int64, error) {
