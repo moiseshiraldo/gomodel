@@ -20,7 +20,7 @@ func sqlColumnOptions(null bool, pk bool, unique bool) string {
 	return options
 }
 
-func sqlCreateQuery(
+func createModelSQL(
 	model *Model, values Container, driver string,
 ) (string, []interface{}) {
 	cols := make([]string, 0, len(model.fields))
@@ -54,7 +54,7 @@ func sqlCreateQuery(
 	return query, vals
 }
 
-func sqlInsertQuery(
+func createInstanceSQL(
 	i Instance, fields []string, driver string,
 ) (string, []interface{}) {
 	vals := make([]interface{}, 0, len(i.model.fields))
@@ -99,7 +99,7 @@ func sqlInsertQuery(
 	return query, vals
 }
 
-func sqlUpdateQuery(i Instance, fields []string) (string, []interface{}) {
+func updateInstanceSQL(i Instance, fields []string) (string, []interface{}) {
 	vals := make([]interface{}, 0, len(i.model.fields))
 	cols := make([]string, 0, len(i.model.fields))
 	if len(fields) == 0 {

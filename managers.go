@@ -16,7 +16,7 @@ func (m Manager) Create(values Container) (*Instance, error) {
 		err := fmt.Errorf("invalid values container")
 		return nil, &ContainerError{instance.trace(err)}
 	}
-	query, vals := sqlCreateQuery(m.Model, values, db.Driver)
+	query, vals := createModelSQL(m.Model, values, db.Driver)
 	if db.Driver == "postgres" {
 		var pk int64
 		err := db.Conn.QueryRow(query, vals...).Scan(&pk)

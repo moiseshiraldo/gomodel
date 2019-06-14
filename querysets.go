@@ -16,6 +16,7 @@ type QuerySet interface {
 	Get(c Conditioner) (*Instance, error)
 	Exists() (bool, error)
 	Count() (int64, error)
+	Update(values Container) (int64, error)
 	Delete() (int64, error)
 }
 
@@ -217,6 +218,50 @@ func (qs GenericQuerySet) Count() (int64, error) {
 	err := db.Conn.QueryRow(stmt, values...).Scan(&count)
 	if err != nil {
 		return count, qs.dbError(err)
+	}
+	return count, nil
+}
+
+func (qs GenericQuerySet) Update(values Container) (int64, error) {
+	db, ok := databases[qs.database]
+	if !ok {
+		return 0, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
+	}
+	if !isValidContainer(values) {
+		err := fmt.Errorf("invalid values container")
+		return 0, qs.containerError(err)
+	}
+	cols := make([]string, 0, len(qs.model.fields))
+	vals := make([]interface{}, 0)
+	index := 1
+	for name := range qs.model.fields {
+		if getter, ok := values.(Getter); ok {
+			if val, ok := getter.Get(name); ok {
+				cols = append(cols, fmt.Sprintf("\"%s\" = $%d", name, index))
+				vals = append(vals, val)
+				index += 1
+			}
+		} else if val, ok := getStructField(values, name); ok {
+			cols = append(cols, fmt.Sprintf("\"%s\" = $%d", name, index))
+			vals = append(vals, val)
+			index += 1
+		}
+	}
+	stmt := fmt.Sprintf(
+		"UPDATE \"%s\" SET %s", qs.model.Table(), strings.Join(cols, ", "),
+	)
+	if qs.cond != nil {
+		pred, pVals := qs.cond.Predicate(db.Driver, index)
+		stmt += fmt.Sprintf(" WHERE %s", pred)
+		vals = append(vals, pVals...)
+	}
+	result, err := db.Conn.Exec(stmt, vals...)
+	if err != nil {
+		return 0, qs.dbError(err)
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return 0, qs.dbError(err)
 	}
 	return count, nil
 }
