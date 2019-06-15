@@ -12,7 +12,13 @@ func loadMapQuerySet(b *testing.B) {
 	os.Stdout, _ = os.Open(os.DevNull)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		users, _ := User.Objects.Filter(gomodels.Q{"firstName": "Luke"}).Load()
+		users, err := User.Objects.Filter(
+			gomodels.Q{"firstName": "Anakin"},
+		).Load()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
 		for _, user := range users {
 			fmt.Printf("%s", user.Get("email"))
 		}
@@ -23,7 +29,11 @@ func loadStructQuerySet(b *testing.B) {
 	qs := User.Objects.SetContainer(userContainer{})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		users, _ := qs.Filter(gomodels.Q{"firstName": "Luke"}).Load()
+		users, err := qs.Filter(gomodels.Q{"firstName": "Anakin"}).Load()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
 		for _, user := range users {
 			fmt.Printf("%s", user.Get("email"))
 		}
@@ -34,7 +44,11 @@ func loadBuilderQuerySet(b *testing.B) {
 	qs := User.Objects.SetContainer(&userBuilder{})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		users, _ := qs.Filter(gomodels.Q{"firstName": "Luke"}).Load()
+		users, err := qs.Filter(gomodels.Q{"firstName": "Anakin"}).Load()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
 		for _, user := range users {
 			fmt.Printf("%s", user.Get("email"))
 		}
@@ -51,29 +65,41 @@ func loadRawSqlQuerySet(b *testing.B) {
               "main_user"
             WHERE
               firstName = ?`
-		rows, _ := db.Conn.Query(query, "Luke")
+		rows, err := db.Conn.Query(query, "Anakin")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
 		users := []*userContainer{}
 		for rows.Next() {
 			user := userContainer{}
-			rows.Scan(
+			err = rows.Scan(
 				&user.Id, &user.FirstName, &user.LastName, &user.Email,
 				&user.Active, &user.Superuser, &user.LoginAttempts,
 			)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s", err)
+				os.Exit(1)
+			}
 			users = append(users, &user)
 		}
-		rows.Close()
+		err = rows.Close()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s", err)
+			os.Exit(1)
+		}
 		for _, user := range users {
 			fmt.Printf("%s", user.Email)
 		}
 	}
 }
 
-func BenchmarkQuerySet(b *testing.B) {
+func BenchmarkMultiRead(b *testing.B) {
 	for i := 0; i < 100; i++ {
 		_, err := User.Objects.Create(gomodels.Values{
-			"firstName": "Luke",
+			"firstName": "Anakin",
 			"lastName":  "Skywalker",
-			"email":     "luke.skywalker@deathstar.com",
+			"email":     "anakin.skywalker@deathstar.com",
 			"superuser": true,
 		})
 		if err != nil {

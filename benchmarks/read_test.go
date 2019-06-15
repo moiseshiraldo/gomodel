@@ -69,7 +69,7 @@ func loadRawSqlInstance(b *testing.B) {
 	}
 }
 
-func BenchmarkInstance(b *testing.B) {
+func BenchmarkRead(b *testing.B) {
 	_, err := User.Objects.Create(gomodels.Values{
 		"firstName": "Anakin",
 		"lastName":  "Skywalker",
