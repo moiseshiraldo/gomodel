@@ -93,4 +93,5 @@ func BenchmarkUpdate(b *testing.B) {
 	b.Run("MapContainer", updateMapContainer)
 	b.Run("StructContainer", updateStructContainer)
 	b.Run("BuilderContainer", updateBuilderContainer)
+	User.Objects.All().Delete()
 }

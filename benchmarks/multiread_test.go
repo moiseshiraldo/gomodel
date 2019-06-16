@@ -112,4 +112,5 @@ func BenchmarkMultiRead(b *testing.B) {
 	b.Run("MapContainer", loadMapQuerySet)
 	b.Run("StructContainer", loadStructQuerySet)
 	b.Run("BuilderContainer", loadBuilderQuerySet)
+	User.Objects.All().Delete()
 }

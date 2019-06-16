@@ -85,4 +85,5 @@ func BenchmarkRead(b *testing.B) {
 	b.Run("MapContainer", loadMapInstance)
 	b.Run("StructContainer", loadStructInstance)
 	b.Run("BuilderContainer", loadBuilderInstance)
+	User.Objects.All().Delete()
 }

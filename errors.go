@@ -55,3 +55,15 @@ func (e *ContainerError) Error() string {
 func (e *ContainerError) Trace() ErrorTrace {
 	return e.ErrorTrace
 }
+
+type QuerySetError struct {
+	ErrorTrace
+}
+
+func (e *QuerySetError) Error() string {
+	return fmt.Sprintf("gomodels: %s", e.ErrorTrace.String())
+}
+
+func (e *QuerySetError) Trace() ErrorTrace {
+	return e.ErrorTrace
+}

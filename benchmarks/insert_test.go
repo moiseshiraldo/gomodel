@@ -89,4 +89,5 @@ func BenchmarkInsert(b *testing.B) {
 	b.Run("MapContainer", insertMapContainer)
 	b.Run("StructContainer", insertStructContainer)
 	b.Run("BuilderContainer", insertBuilderContainer)
+	User.Objects.All().Delete()
 }

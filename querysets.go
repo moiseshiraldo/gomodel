@@ -7,13 +7,14 @@ import (
 )
 
 type QuerySet interface {
-	Load() ([]*Instance, error)
-	Query() (query string, values []interface{})
 	Model() *Model
 	Container() Container
 	SetContainer(c Container) QuerySet
 	Filter(c Conditioner) QuerySet
+	Query() (query string, values []interface{})
+	Load() ([]*Instance, error)
 	Get(c Conditioner) (*Instance, error)
+	Slice(start int, end int) ([]*Instance, error)
 	Exists() (bool, error)
 	Count() (int64, error)
 	Update(values Container) (int64, error)
@@ -36,6 +37,11 @@ func (qs GenericQuerySet) dbError(err error) error {
 func (qs GenericQuerySet) containerError(err error) error {
 	trace := ErrorTrace{App: qs.model.app, Model: qs.model, Err: err}
 	return &ContainerError{trace}
+}
+
+func (qs GenericQuerySet) querySetError(err error) error {
+	trace := ErrorTrace{App: qs.model.app, Model: qs.model, Err: err}
+	return &QuerySetError{trace}
 }
 
 func (qs GenericQuerySet) addConditioner(c Conditioner) GenericQuerySet {
@@ -109,7 +115,11 @@ func (qs GenericQuerySet) Filter(c Conditioner) QuerySet {
 	return qs.addConditioner(c)
 }
 
-func (qs GenericQuerySet) Load() ([]*Instance, error) {
+func (qs GenericQuerySet) load(start int, end int) ([]*Instance, error) {
+	if start < 0 || end != -1 && start >= end || end < -1 {
+		err := fmt.Errorf("invalid slice indexes: %d %d", start, end)
+		return nil, qs.querySetError(err)
+	}
 	result := []*Instance{}
 	db, ok := databases[qs.database]
 	if !ok {
@@ -125,6 +135,18 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 		return nil, qs.containerError(err)
 	}
 	stmt, values := qs.Query()
+	if end > 0 {
+		stmt = fmt.Sprintf("%s LIMIT %d", stmt, end-start)
+	} else if start > 0 {
+		if db.Driver == "sqlite3" {
+			stmt += " LIMIT -1"
+		} else {
+			stmt += " LIMIT ALL"
+		}
+	}
+	if start > 0 {
+		stmt = fmt.Sprintf("%s OFFSET %d", stmt, start)
+	}
 	rows, err := db.Conn.Query(stmt, values...)
 	if err != nil {
 		return nil, qs.dbError(err)
@@ -155,6 +177,14 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 		return nil, qs.dbError(err)
 	}
 	return result, nil
+}
+
+func (qs GenericQuerySet) Load() ([]*Instance, error) {
+	return qs.load(0, -1)
+}
+
+func (qs GenericQuerySet) Slice(start int, end int) ([]*Instance, error) {
+	return qs.load(start, end)
 }
 
 func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
