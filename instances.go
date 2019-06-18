@@ -61,42 +61,26 @@ func (i Instance) Save(fields ...string) error {
 		return &ContainerError{i.trace(fmt.Errorf("container missing pk"))}
 	}
 	db := databases["default"]
-	_, autoPk := i.model.fields[i.model.pk].(AutoField)
+	autoPk := i.model.fields[i.model.pk].IsAuto()
 	if autoPk && pkVal == reflect.Zero(reflect.TypeOf(pkVal)).Interface() {
-		query, vals := createInstanceSQL(i, fields, db.Driver)
-		if db.Driver == "postgres" {
-			var pk int64
-			err := db.Conn.QueryRow(query, vals...).Scan(&pk)
-			if err != nil {
-				return &DatabaseError{"default", i.trace(err)}
-			}
-			i.Set(i.model.pk, pk)
-		} else {
-			result, err := db.Conn.Exec(query, vals...)
-			if err != nil {
-				return &DatabaseError{"default", i.trace(err)}
-			}
-			id, err := result.LastInsertId()
-			if err != nil {
-				return &DatabaseError{"default", i.trace(err)}
-			}
-			i.Set(i.model.pk, id)
+		pk, err := db.InsertRow(i.model, i.container, fields...)
+		if err != nil {
+			return &DatabaseError{db.name, i.trace(err)}
+		}
+		if err := i.Set(i.model.pk, pk); err != nil {
+			return err
 		}
 	} else {
-		query, vals := updateInstanceSQL(i, fields)
-		result, err := db.Conn.Exec(query, vals...)
+		rows, err := db.UpdateRows(
+			i.model, i.container, Q{i.model.pk: pkVal}, fields...,
+		)
 		if err != nil {
-			return &DatabaseError{"default", i.trace(err)}
-		}
-		rows, err := result.RowsAffected()
-		if err != nil {
-			return &DatabaseError{"default", i.trace(err)}
+			return &DatabaseError{db.name, i.trace(err)}
 		}
 		if rows == 0 {
-			query, vals := createInstanceSQL(i, fields, db.Driver)
-			_, err := db.Conn.Exec(query, vals...)
+			_, err := db.InsertRow(i.model, i.container, fields...)
 			if err != nil {
-				return &DatabaseError{"default", i.trace(err)}
+				return &DatabaseError{db.name, i.trace(err)}
 			}
 		}
 	}

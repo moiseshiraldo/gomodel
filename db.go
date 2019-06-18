@@ -6,10 +6,12 @@ import (
 )
 
 type Database struct {
+	Engine
 	Driver   string
 	Name     string
 	User     string
 	Password string
+	name     string
 	Conn     *sql.DB
 }
 
@@ -27,24 +29,17 @@ func Databases() DBSettings {
 
 func Start(options DBSettings) error {
 	for name, db := range options {
-		credentials := ""
-		switch driver := db.Driver; driver {
-		case "sqlite3":
-			credentials = db.Name
-		case "postgres":
-			credentials = fmt.Sprintf(
-				"dbname=%s user=%s password=%s sslmode=disable",
-				db.Name, db.User, db.Password,
-			)
-		default:
-			err := fmt.Errorf("unsupported driver: %s", driver)
+		engine, ok := engines[db.Driver]
+		if !ok {
+			err := fmt.Errorf("unsupported driver: %s", db.Driver)
 			return &DatabaseError{name, ErrorTrace{Err: err}}
 		}
-		conn, err := sql.Open(db.Driver, credentials)
+		eng, err := engine.Start(&db)
 		if err != nil {
 			return &DatabaseError{name, ErrorTrace{Err: err}}
 		}
-		db.Conn = conn
+		db.Engine = eng
+		db.name = name
 		db.Password = ""
 		databases[name] = db
 	}

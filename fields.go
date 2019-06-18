@@ -9,6 +9,7 @@ import (
 
 type Field interface {
 	IsPk() bool
+	IsAuto() bool
 	DBColumn(fieldName string) string
 	HasIndex() bool
 	SqlDatatype(driver string) string
@@ -59,4 +60,13 @@ func AvailableFields() Fields {
 		"BooleanField": &BooleanField{},
 		"CharField":    &CharField{},
 	}
+}
+
+func fieldInList(name string, fields []string) bool {
+	for _, field := range fields {
+		if field == name {
+			return true
+		}
+	}
+	return false
 }

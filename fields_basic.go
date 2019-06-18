@@ -34,6 +34,10 @@ func (f CharField) IsPk() bool {
 	return f.PrimaryKey
 }
 
+func (f CharField) IsAuto() bool {
+	return false
+}
+
 func (f CharField) HasIndex() bool {
 	return f.Index && !(f.PrimaryKey || f.Unique)
 }
@@ -81,6 +85,10 @@ func (f BooleanField) DBColumn(name string) string {
 }
 
 func (f BooleanField) IsPk() bool {
+	return false
+}
+
+func (f BooleanField) IsAuto() bool {
 	return false
 }
 
@@ -150,6 +158,10 @@ func (f IntegerField) IsPk() bool {
 	return f.PrimaryKey
 }
 
+func (f IntegerField) IsAuto() bool {
+	return false
+}
+
 func (f IntegerField) HasIndex() bool {
 	return f.Index && !(f.PrimaryKey || f.Unique)
 }
@@ -191,6 +203,10 @@ func (f AutoField) DBColumn(name string) string {
 
 func (f AutoField) IsPk() bool {
 	return f.PrimaryKey
+}
+
+func (f AutoField) IsAuto() bool {
+	return true
 }
 
 func (f AutoField) HasIndex() bool {

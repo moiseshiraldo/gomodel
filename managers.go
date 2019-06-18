@@ -16,54 +16,28 @@ func (m Manager) Create(values Container) (*Instance, error) {
 		err := fmt.Errorf("invalid values container")
 		return nil, &ContainerError{instance.trace(err)}
 	}
-	query, vals := createModelSQL(m.Model, values, db.Driver)
-	if db.Driver == "postgres" {
-		var pk int64
-		err := db.Conn.QueryRow(query, vals...).Scan(&pk)
-		if err != nil {
-			return instance, &DatabaseError{
-				"default",
-				ErrorTrace{App: m.Model.app, Model: m.Model, Err: err},
-			}
+	pk, err := db.InsertRow(m.Model, values)
+	if err != nil {
+		return instance, &DatabaseError{
+			db.name,
+			ErrorTrace{App: m.Model.app, Model: m.Model, Err: err},
 		}
-		instance.Set(m.Model.pk, pk)
-	} else {
-		result, err := db.Conn.Exec(query, vals...)
-		if err != nil {
-			return instance, &DatabaseError{
-				"default",
-				ErrorTrace{App: m.Model.app, Model: m.Model, Err: err},
-			}
-		}
-		pk, err := result.LastInsertId()
-		if err != nil {
-			return instance, &DatabaseError{
-				"default",
-				ErrorTrace{App: m.Model.app, Model: m.Model, Err: err},
-			}
-		}
-		instance.Set(m.Model.pk, pk)
 	}
+	instance.Set(m.Model.pk, pk)
 	for name, field := range m.Model.fields {
-		if vals, ok := values.(Getter); ok {
-			if val, ok := vals.Get(name); ok {
-				if err := instance.Set(name, val); err != nil {
-					return nil, err
-				}
-			} else if val, hasDefault := field.DefaultVal(); hasDefault {
-				if err := instance.Set(name, val); err != nil {
-					return nil, err
-				}
+		var value Value
+		if getter, ok := values.(Getter); ok {
+			if val, ok := getter.Get(name); ok {
+				value = val
 			}
-		} else {
-			if val, ok := getStructField(values, name); ok {
-				if err := instance.Set(name, val); err != nil {
-					return nil, err
-				}
-			} else if val, hasDefault := field.DefaultVal(); hasDefault {
-				if err := instance.Set(name, val); err != nil {
-					return nil, err
-				}
+		} else if val, ok := getStructField(values, name); ok {
+			value = val
+		} else if val, hasDefault := field.DefaultVal(); hasDefault {
+			value = val
+		}
+		if value != nil {
+			if err := instance.Set(name, value); err != nil {
+				return nil, err
 			}
 		}
 	}
