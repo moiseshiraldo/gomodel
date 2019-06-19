@@ -90,7 +90,7 @@ func (e SqliteEngine) UpdateRows(
 	)
 	if conditioner != nil {
 		pred, pVals := conditioner.Predicate("sqlite3", 0)
-		stmt += fmt.Sprintf(" WHERE %s", pred)
+		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
 		vals = append(vals, pVals...)
 	}
 	result, err := e.Exec(stmt, vals...)
@@ -102,4 +102,57 @@ func (e SqliteEngine) UpdateRows(
 		return 0, err
 	}
 	return rows, nil
+}
+
+func (e SqliteEngine) DeleteRows(model *Model, c Conditioner) (int64, error) {
+	var values []interface{}
+	stmt := fmt.Sprintf("DELETE FROM %s", model.Table())
+	if c != nil {
+		pred, vals := c.Predicate("sqlite3", 1)
+		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
+		values = vals
+	}
+	result, err := e.Exec(stmt, values...)
+	if err != nil {
+		return 0, err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return rows, nil
+}
+
+func (e SqliteEngine) CountRows(model *Model, c Conditioner) (int64, error) {
+	var values []interface{}
+	stmt := fmt.Sprintf("SELECT COUNT(*) FROM %s", model.Table())
+	if c != nil {
+		pred, vals := c.Predicate("sqlite3", 1)
+		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
+		values = vals
+	}
+	var rows int64
+	err := e.QueryRow(stmt, values...).Scan(&rows)
+	if err != nil {
+		return 0, err
+	}
+	return rows, nil
+}
+
+func (e SqliteEngine) Exists(model *Model, c Conditioner) (bool, error) {
+	var values []interface{}
+	stmt := fmt.Sprintf(
+		"SELECT EXISTS (SELECT %s FROM %s)", model.pk, model.Table(),
+	)
+	if c != nil {
+		pred, vals := c.Predicate("sqlite3", 1)
+		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
+		values = vals
+	}
+	var exists bool
+	err := e.QueryRow(stmt, values...).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
 }

@@ -221,11 +221,7 @@ func (qs GenericQuerySet) Exists() (bool, error) {
 	if !ok {
 		return false, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
-	var exists bool
-	qs.columns = []string{qs.model.pk}
-	stmt, values := qs.Query()
-	stmt = fmt.Sprintf("SELECT EXISTS (%s)", stmt)
-	err := db.Conn.QueryRow(stmt, values...).Scan(&exists)
+	exists, err := db.Exists(qs.model, qs.cond)
 	if err != nil {
 		return false, qs.dbError(err)
 	}
@@ -233,21 +229,13 @@ func (qs GenericQuerySet) Exists() (bool, error) {
 }
 
 func (qs GenericQuerySet) Count() (int64, error) {
-	var count int64
-	var values []interface{}
 	db, ok := databases[qs.database]
 	if !ok {
-		return count, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
+		return 0, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
-	stmt := fmt.Sprintf("SELECT COUNT(*) FROM %s", qs.model.Table())
-	if qs.cond != nil {
-		pred, vals := qs.cond.Predicate(db.Driver, 1)
-		stmt += fmt.Sprintf(" WHERE %s", pred)
-		values = vals
-	}
-	err := db.Conn.QueryRow(stmt, values...).Scan(&count)
+	count, err := db.CountRows(qs.model, qs.cond)
 	if err != nil {
-		return count, qs.dbError(err)
+		return 0, qs.dbError(err)
 	}
 	return count, nil
 }
@@ -261,39 +249,11 @@ func (qs GenericQuerySet) Update(values Container) (int64, error) {
 		err := fmt.Errorf("invalid values container")
 		return 0, qs.containerError(err)
 	}
-	cols := make([]string, 0, len(qs.model.fields))
-	vals := make([]interface{}, 0)
-	index := 1
-	for name := range qs.model.fields {
-		if getter, ok := values.(Getter); ok {
-			if val, ok := getter.Get(name); ok {
-				cols = append(cols, fmt.Sprintf("\"%s\" = $%d", name, index))
-				vals = append(vals, val)
-				index += 1
-			}
-		} else if val, ok := getStructField(values, name); ok {
-			cols = append(cols, fmt.Sprintf("\"%s\" = $%d", name, index))
-			vals = append(vals, val)
-			index += 1
-		}
-	}
-	stmt := fmt.Sprintf(
-		"UPDATE \"%s\" SET %s", qs.model.Table(), strings.Join(cols, ", "),
-	)
-	if qs.cond != nil {
-		pred, pVals := qs.cond.Predicate(db.Driver, index)
-		stmt += fmt.Sprintf(" WHERE %s", pred)
-		vals = append(vals, pVals...)
-	}
-	result, err := db.Conn.Exec(stmt, vals...)
+	rows, err := db.UpdateRows(qs.model, values, qs.cond)
 	if err != nil {
 		return 0, qs.dbError(err)
 	}
-	count, err := result.RowsAffected()
-	if err != nil {
-		return 0, qs.dbError(err)
-	}
-	return count, nil
+	return rows, nil
 }
 
 func (qs GenericQuerySet) Delete() (int64, error) {
@@ -301,20 +261,9 @@ func (qs GenericQuerySet) Delete() (int64, error) {
 	if !ok {
 		return 0, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
-	stmt := fmt.Sprintf("DELETE FROM %s", qs.model.Table())
-	values := make([]interface{}, 0)
-	if qs.cond != nil {
-		pred, vals := qs.cond.Predicate(db.Driver, 1)
-		stmt += fmt.Sprintf(" WHERE %s", pred)
-		values = append(values, vals)
-	}
-	result, err := db.Conn.Exec(stmt, values...)
+	rows, err := db.DeleteRows(qs.model, qs.cond)
 	if err != nil {
 		return 0, qs.dbError(err)
 	}
-	count, err := result.RowsAffected()
-	if err != nil {
-		return 0, qs.dbError(err)
-	}
-	return count, nil
+	return rows, nil
 }

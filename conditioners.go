@@ -71,10 +71,14 @@ func (q Q) Predicate(driver string, pHolder int) (string, []interface{}) {
 	values := make([]interface{}, 0, len(q))
 	for column, value := range q {
 		values = append(values, value)
-		conditions = append(
-			conditions, fmt.Sprintf("\"%s\" = $%d", column, pHolder),
-		)
-		pHolder += 1
+		if driver == "postgres" {
+			conditions = append(
+				conditions, fmt.Sprintf("\"%s\" = $%d", column, pHolder),
+			)
+			pHolder += 1
+		} else {
+			conditions = append(conditions, fmt.Sprintf("\"%s\" = ?", column))
+		}
 	}
 	pred := fmt.Sprintf("%s", strings.Join(conditions, " AND "))
 	return pred, values
