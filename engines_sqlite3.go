@@ -20,6 +20,58 @@ func (e SqliteEngine) Start(db *Database) (Engine, error) {
 	return e, nil
 }
 
+func (e SqliteEngine) SelectStmt(
+	m *Model, c Conditioner, fields ...string,
+) (string, []interface{}) {
+	columns := make([]string, 0, len(m.fields))
+	if len(fields) == 0 {
+		for name, field := range m.fields {
+			columns = append(
+				columns, fmt.Sprintf("\"%s\"", field.DBColumn(name)),
+			)
+		}
+	} else {
+		if !fieldInList(m.pk, fields) {
+			columns = append(
+				columns, fmt.Sprintf("\"%s\"", m.fields[m.pk].DBColumn(m.pk)),
+			)
+		}
+		for _, name := range fields {
+			col := name
+			if field, ok := m.fields[name]; ok {
+				col = field.DBColumn(name)
+			}
+			columns = append(columns, fmt.Sprintf("\"%s\"", col))
+		}
+	}
+	stmt := fmt.Sprintf(
+		"SELECT %s FROM %s", strings.Join(columns, ", "), m.Table(),
+	)
+	if c != nil {
+		pred, values := c.Predicate("sqlite3", 1)
+		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
+		return stmt, values
+	} else {
+		return stmt, nil
+	}
+}
+
+func (e SqliteEngine) GetRows(
+	m *Model, c Conditioner, start int64, end int64, fields ...string,
+) (*sql.Rows, error) {
+	stmt, values := e.SelectStmt(m, c, fields...)
+	if end > 0 {
+		stmt = fmt.Sprintf("%s LIMIT %d", stmt, end-start)
+	} else if start > 0 {
+		stmt += " LIMIT -1"
+	}
+	if start > 0 {
+		stmt = fmt.Sprintf("%s OFFSET %d", stmt, start)
+	}
+	rows, err := e.Query(stmt, values...)
+	return rows, err
+}
+
 func (e SqliteEngine) InsertRow(
 	model *Model, container Container, fields ...string,
 ) (int64, error) {

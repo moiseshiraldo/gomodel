@@ -3,7 +3,6 @@ package gomodels
 import (
 	"fmt"
 	"reflect"
-	"strings"
 )
 
 type QuerySet interface {
@@ -11,10 +10,10 @@ type QuerySet interface {
 	Container() Container
 	SetContainer(c Container) QuerySet
 	Filter(c Conditioner) QuerySet
-	Query() (query string, values []interface{})
+	Statement() (stmt string, values []interface{})
 	Load() ([]*Instance, error)
 	Get(c Conditioner) (*Instance, error)
-	Slice(start int, end int) ([]*Instance, error)
+	Slice(start int64, end int64) ([]*Instance, error)
 	Exists() (bool, error)
 	Count() (int64, error)
 	Update(values Container) (int64, error)
@@ -29,19 +28,16 @@ type GenericQuerySet struct {
 	cond      Conditioner
 }
 
+func (qs GenericQuerySet) trace(err error) ErrorTrace {
+	return ErrorTrace{App: qs.model.app, Model: qs.model, Err: err}
+}
+
 func (qs GenericQuerySet) dbError(err error) error {
-	trace := ErrorTrace{App: qs.model.app, Model: qs.model, Err: err}
-	return &DatabaseError{qs.database, trace}
+	return &DatabaseError{qs.database, qs.trace(err)}
 }
 
 func (qs GenericQuerySet) containerError(err error) error {
-	trace := ErrorTrace{App: qs.model.app, Model: qs.model, Err: err}
-	return &ContainerError{trace}
-}
-
-func (qs GenericQuerySet) querySetError(err error) error {
-	trace := ErrorTrace{App: qs.model.app, Model: qs.model, Err: err}
-	return &QuerySetError{trace}
+	return &ContainerError{qs.trace(err)}
 }
 
 func (qs GenericQuerySet) addConditioner(c Conditioner) GenericQuerySet {
@@ -57,33 +53,12 @@ func (qs GenericQuerySet) addConditioner(c Conditioner) GenericQuerySet {
 	return qs
 }
 
-func (qs GenericQuerySet) Query() (string, []interface{}) {
-	driver := ""
+func (qs GenericQuerySet) Statement() (string, []interface{}) {
 	db, ok := databases[qs.database]
 	if !ok {
-		db, ok = databases["default"]
+		return "", nil
 	}
-	if ok {
-		driver = db.Driver
-	}
-	columns := make([]string, 0, len(qs.columns))
-	for _, name := range qs.columns {
-		col := name
-		if field, ok := qs.model.fields[name]; ok {
-			col = field.DBColumn(name)
-		}
-		columns = append(columns, fmt.Sprintf("\"%s\"", col))
-	}
-	stmt := fmt.Sprintf(
-		"SELECT %s FROM %s", strings.Join(columns, ", "), qs.model.Table(),
-	)
-	if qs.cond != nil {
-		pred, values := qs.cond.Predicate(driver, 1)
-		stmt += fmt.Sprintf(" WHERE %s", pred)
-		return stmt, values
-	} else {
-		return stmt, make([]interface{}, 0)
-	}
+	return db.SelectStmt(qs.model, qs.cond, qs.columns...)
 }
 
 func (qs GenericQuerySet) Model() *Model {
@@ -115,10 +90,10 @@ func (qs GenericQuerySet) Filter(c Conditioner) QuerySet {
 	return qs.addConditioner(c)
 }
 
-func (qs GenericQuerySet) load(start int, end int) ([]*Instance, error) {
+func (qs GenericQuerySet) load(start int64, end int64) ([]*Instance, error) {
 	if start < 0 || end != -1 && start >= end || end < -1 {
 		err := fmt.Errorf("invalid slice indexes: %d %d", start, end)
-		return nil, qs.querySetError(err)
+		return nil, &QuerySetError{qs.trace(err)}
 	}
 	result := []*Instance{}
 	db, ok := databases[qs.database]
@@ -134,20 +109,7 @@ func (qs GenericQuerySet) load(start int, end int) ([]*Instance, error) {
 		err := fmt.Errorf("invalid container recipients")
 		return nil, qs.containerError(err)
 	}
-	stmt, values := qs.Query()
-	if end > 0 {
-		stmt = fmt.Sprintf("%s LIMIT %d", stmt, end-start)
-	} else if start > 0 {
-		if db.Driver == "sqlite3" {
-			stmt += " LIMIT -1"
-		} else {
-			stmt += " LIMIT ALL"
-		}
-	}
-	if start > 0 {
-		stmt = fmt.Sprintf("%s OFFSET %d", stmt, start)
-	}
-	rows, err := db.Conn.Query(stmt, values...)
+	rows, err := db.GetRows(qs.model, qs.cond, start, end, qs.columns...)
 	if err != nil {
 		return nil, qs.dbError(err)
 	}
@@ -183,7 +145,7 @@ func (qs GenericQuerySet) Load() ([]*Instance, error) {
 	return qs.load(0, -1)
 }
 
-func (qs GenericQuerySet) Slice(start int, end int) ([]*Instance, error) {
+func (qs GenericQuerySet) Slice(start int64, end int64) ([]*Instance, error) {
 	return qs.load(start, end)
 }
 
@@ -199,10 +161,29 @@ func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 		err := fmt.Errorf("invalid container recipients")
 		return nil, qs.containerError(err)
 	}
-	stmt, values := qs.Query()
-	err := db.Conn.QueryRow(stmt, values...).Scan(recipients...)
+	rows, err := db.GetRows(qs.model, qs.cond, 0, 2, qs.columns...)
 	if err != nil {
 		return nil, qs.dbError(err)
+	}
+	defer rows.Close()
+	if err != nil {
+		return nil, qs.dbError(err)
+	}
+	n := 0
+	for rows.Next() {
+		if n > 0 {
+			err := fmt.Errorf("get query returned multiple objects")
+			return nil, &MultipleObjectsError{qs.trace(err)}
+		}
+		err := rows.Scan(recipients...)
+		if err != nil {
+			return nil, qs.containerError(err)
+		}
+		n += 1
+	}
+	if n == 0 {
+		err := fmt.Errorf("object does not exist")
+		return nil, &ObjectNotFoundError{qs.trace(err)}
 	}
 	instance := &Instance{qs.model, container}
 	if _, ok := container.(Setter); ok {

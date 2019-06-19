@@ -67,3 +67,27 @@ func (e *QuerySetError) Error() string {
 func (e *QuerySetError) Trace() ErrorTrace {
 	return e.ErrorTrace
 }
+
+type ObjectNotFoundError struct {
+	ErrorTrace
+}
+
+func (e *ObjectNotFoundError) Error() string {
+	return fmt.Sprintf("gomodels: %s", e.ErrorTrace.String())
+}
+
+func (e *ObjectNotFoundError) Trace() ErrorTrace {
+	return e.ErrorTrace
+}
+
+type MultipleObjectsError struct {
+	ErrorTrace
+}
+
+func (e *MultipleObjectsError) Error() string {
+	return fmt.Sprintf("gomodels: %s", e.ErrorTrace.String())
+}
+
+func (e *MultipleObjectsError) Trace() ErrorTrace {
+	return e.ErrorTrace
+}

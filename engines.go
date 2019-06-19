@@ -1,7 +1,17 @@
 package gomodels
 
+import (
+	"database/sql"
+)
+
 type Engine interface {
 	Start(*Database) (Engine, error)
+	SelectStmt(
+		m *Model, cond Conditioner, fields ...string,
+	) (string, []interface{})
+	GetRows(
+		m *Model, cond Conditioner, start int64, end int64, fields ...string,
+	) (*sql.Rows, error)
 	InsertRow(m *Model, c Container, fields ...string) (int64, error)
 	UpdateRows(
 		m *Model, c Container, cond Conditioner, fields ...string,
