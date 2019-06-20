@@ -6,6 +6,8 @@ import (
 
 type Engine interface {
 	Start(*Database) (Engine, error)
+	Stop() error
+	BeginTx() (Engine, error)
 	SelectStmt(
 		m *Model, cond Conditioner, fields ...string,
 	) (string, []interface{})

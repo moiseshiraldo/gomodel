@@ -1,7 +1,6 @@
 package gomodels
 
 import (
-	"database/sql"
 	"fmt"
 )
 
@@ -12,7 +11,19 @@ type Database struct {
 	User     string
 	Password string
 	name     string
-	Conn     *sql.DB
+}
+
+func (db Database) BeginTx() (*Transaction, error) {
+	engine, err := db.Engine.BeginTx()
+	if err != nil {
+		return nil, &DatabaseError{db.name, ErrorTrace{Err: err}}
+	}
+	return &Transaction{engine, db}, nil
+}
+
+type Transaction struct {
+	Engine
+	DB Database
 }
 
 type DBSettings map[string]Database
@@ -53,7 +64,7 @@ func Start(options DBSettings) error {
 func Stop() error {
 	var err error
 	for name, db := range databases {
-		if dbErr := db.Conn.Close(); dbErr != nil {
+		if dbErr := db.Stop(); dbErr != nil {
 			err = &DatabaseError{name, ErrorTrace{Err: dbErr}}
 		}
 	}

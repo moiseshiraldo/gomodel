@@ -7,7 +7,8 @@ import (
 )
 
 type SqliteEngine struct {
-	*sql.DB
+	db *sql.DB
+	tx *sql.Tx
 }
 
 func (e SqliteEngine) Start(db *Database) (Engine, error) {
@@ -15,8 +16,20 @@ func (e SqliteEngine) Start(db *Database) (Engine, error) {
 	if err != nil {
 		return nil, err
 	}
-	e.DB = conn
-	db.Conn = conn
+	e.db = conn
+	return e, nil
+}
+
+func (e SqliteEngine) Stop() error {
+	return e.db.Close()
+}
+
+func (e SqliteEngine) BeginTx() (Engine, error) {
+	tx, err := e.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	e.tx = tx
 	return e, nil
 }
 
@@ -68,8 +81,11 @@ func (e SqliteEngine) GetRows(
 	if start > 0 {
 		stmt = fmt.Sprintf("%s OFFSET %d", stmt, start)
 	}
-	rows, err := e.Query(stmt, values...)
-	return rows, err
+	if e.tx != nil {
+		return e.tx.Query(stmt, values...)
+	} else {
+		return e.db.Query(stmt, values...)
+	}
 }
 
 func (e SqliteEngine) InsertRow(
@@ -102,7 +118,13 @@ func (e SqliteEngine) InsertRow(
 		strings.Join(cols, ", "),
 		strings.Join(placeholders, ", "),
 	)
-	result, err := e.Exec(stmt, vals...)
+	var result sql.Result
+	var err error
+	if e.tx != nil {
+		result, err = e.tx.Exec(stmt, vals...)
+	} else {
+		result, err = e.db.Exec(stmt, vals...)
+	}
 	if err != nil {
 		return 0, err
 	}
@@ -145,7 +167,13 @@ func (e SqliteEngine) UpdateRows(
 		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
 		vals = append(vals, pVals...)
 	}
-	result, err := e.Exec(stmt, vals...)
+	var result sql.Result
+	var err error
+	if e.tx != nil {
+		result, err = e.tx.Exec(stmt, vals...)
+	} else {
+		result, err = e.db.Exec(stmt, vals...)
+	}
 	if err != nil {
 		return 0, err
 	}
@@ -164,7 +192,13 @@ func (e SqliteEngine) DeleteRows(model *Model, c Conditioner) (int64, error) {
 		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
 		values = vals
 	}
-	result, err := e.Exec(stmt, values...)
+	var result sql.Result
+	var err error
+	if e.tx != nil {
+		result, err = e.tx.Exec(stmt, values...)
+	} else {
+		result, err = e.db.Exec(stmt, values...)
+	}
 	if err != nil {
 		return 0, err
 	}
@@ -184,7 +218,12 @@ func (e SqliteEngine) CountRows(model *Model, c Conditioner) (int64, error) {
 		values = vals
 	}
 	var rows int64
-	err := e.QueryRow(stmt, values...).Scan(&rows)
+	var err error
+	if e.tx != nil {
+		err = e.tx.QueryRow(stmt, values...).Scan(&rows)
+	} else {
+		err = e.db.QueryRow(stmt, values...).Scan(&rows)
+	}
 	if err != nil {
 		return 0, err
 	}
@@ -202,7 +241,12 @@ func (e SqliteEngine) Exists(model *Model, c Conditioner) (bool, error) {
 		values = vals
 	}
 	var exists bool
-	err := e.QueryRow(stmt, values...).Scan(&exists)
+	var err error
+	if e.tx != nil {
+		err = e.tx.QueryRow(stmt, values...).Scan(&exists)
+	} else {
+		err = e.db.QueryRow(stmt, values...).Scan(&exists)
+	}
 	if err != nil {
 		return false, err
 	}
