@@ -87,12 +87,12 @@ func (n Node) runDependencies(db gomodels.Database) error {
 }
 
 func (n Node) runOperations(db gomodels.Database) error {
-	tx, err := db.Conn.Begin()
+	tx, err := db.BeginTx()
 	if err != nil {
 		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
 	}
 	for _, op := range n.Operations {
-		if err := op.Run(tx, n.App, db.Driver); err != nil {
+		if err := op.Run(tx, history[n.App]); err != nil {
 			if txErr := tx.Rollback(); txErr != nil {
 				return &gomodels.DatabaseError{
 					"", gomodels.ErrorTrace{Err: txErr},
@@ -105,7 +105,7 @@ func (n Node) runOperations(db gomodels.Database) error {
 	}
 	query := `INSERT INTO gomodels_migration(app, name, number)
 		VALUES($1, $2, $3)`
-	if _, err := tx.Exec(query, n.App, n.Name, n.number); err != nil {
+	if _, err := tx.Conn().Exec(query, n.App, n.Name, n.number); err != nil {
 		txErr := tx.Rollback()
 		if txErr != nil {
 			err = txErr
@@ -148,14 +148,14 @@ func (n Node) backwardDependencies(db gomodels.Database) error {
 }
 
 func (n Node) backwardOperations(db gomodels.Database) error {
-	tx, err := db.Conn.Begin()
+	tx, err := db.BeginTx()
 	if err != nil {
 		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
 	}
 	prevState := loadPreviousState(n)
 	for k := range n.Operations {
 		op := n.Operations[len(n.Operations)-1-k]
-		err := op.Backwards(tx, n.App, db.Driver, prevState[n.App])
+		err := op.Backwards(tx, prevState[n.App])
 		if err != nil {
 			if txErr := tx.Rollback(); txErr != nil {
 				return &gomodels.DatabaseError{
@@ -168,7 +168,7 @@ func (n Node) backwardOperations(db gomodels.Database) error {
 		}
 	}
 	query := "DELETE FROM gomodels_migration WHERE app = $1 and number = $2"
-	if _, err := tx.Exec(query, n.App, n.number); err != nil {
+	if _, err := tx.Conn().Exec(query, n.App, n.number); err != nil {
 		if txErr := tx.Rollback(); txErr != nil {
 			err = txErr
 		}

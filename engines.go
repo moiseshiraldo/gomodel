@@ -4,10 +4,26 @@ import (
 	"database/sql"
 )
 
+type Migrator interface {
+	CreateTable(table string, fields Fields) error
+	RenameTable(table string, name string) error
+	CopyTable(table string, name string, columns ...string) error
+	DropTable(table string) error
+	AddIndex(table string, name string, columns ...string) error
+	DropIndex(table string, name string) error
+	AddColumns(table string, fields Fields) error
+	DropColumns(table string, columns ...string) error
+}
+
 type Engine interface {
+	Migrator
 	Start(*Database) (Engine, error)
 	Stop() error
+	DB() *sql.DB
+	Tx() *sql.Tx
 	BeginTx() (Engine, error)
+	CommitTx() error
+	RollbackTx() error
 	SelectStmt(
 		m *Model, cond Conditioner, fields ...string,
 	) (string, []interface{})

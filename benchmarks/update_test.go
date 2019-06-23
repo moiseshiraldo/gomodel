@@ -66,7 +66,7 @@ func updateRawSqlContainer(b *testing.B) {
               firstName = $1, lastName = $2, email = $3
             WHERE
               firstName = $4`
-		_, err := db.Conn.Exec(
+		_, err := db.Conn().Exec(
 			query, "Darth", "Vader", "darth.vader@deathstar.com", "Anakin",
 		)
 		if err != nil {

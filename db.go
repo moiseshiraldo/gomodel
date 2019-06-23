@@ -1,6 +1,7 @@
 package gomodels
 
 import (
+	"database/sql"
 	"fmt"
 )
 
@@ -11,6 +12,10 @@ type Database struct {
 	User     string
 	Password string
 	name     string
+}
+
+func (db Database) Conn() *sql.DB {
+	return db.Engine.DB()
 }
 
 func (db Database) BeginTx() (*Transaction, error) {
@@ -24,6 +29,18 @@ func (db Database) BeginTx() (*Transaction, error) {
 type Transaction struct {
 	Engine
 	DB Database
+}
+
+func (tx Transaction) Conn() *sql.Tx {
+	return tx.Engine.Tx()
+}
+
+func (tx Transaction) Commit() error {
+	return tx.CommitTx()
+}
+
+func (tx Transaction) Rollback() error {
+	return tx.RollbackTx()
 }
 
 type DBSettings map[string]Database

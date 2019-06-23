@@ -90,7 +90,7 @@ func prepareDatabase(db gomodels.Database) error {
 		  "number" VARCHAR NOT NULL
 		)`, idColumn,
 	)
-	if _, err := db.Conn.Exec(query); err != nil {
+	if _, err := db.Conn().Exec(query); err != nil {
 		return err
 	}
 	return nil

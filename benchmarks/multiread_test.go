@@ -65,7 +65,7 @@ func loadRawSqlQuerySet(b *testing.B) {
               "main_user"
             WHERE
               firstName = ?`
-		rows, err := db.Conn.Query(query, "Anakin")
+		rows, err := db.Conn().Query(query, "Anakin")
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s", err)
 			os.Exit(1)

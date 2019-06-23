@@ -1,10 +1,8 @@
 package migrations
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/moiseshiraldo/gomodels"
-	"strings"
 )
 
 type AddFields struct {
@@ -39,89 +37,45 @@ func (op *AddFields) SetState(state *AppState) error {
 	return nil
 }
 
-func (op AddFields) Run(tx *sql.Tx, app string, driver string) error {
-	baseQuery := fmt.Sprintf("ALTER TABLE \"%s\"", op.table)
-	columns := make([]string, 0, len(op.Fields))
-	for name, field := range op.Fields {
-		addColumn := fmt.Sprintf(
-			"ADD COLUMN \"%s\" %s",
-			field.DBColumn(name), field.SqlDatatype(driver),
-		)
-		if driver == "sqlite3" {
-			query := fmt.Sprintf("%s %s", baseQuery, addColumn)
-			if _, err := tx.Exec(query); err != nil {
-				return err
-			}
-		} else {
-			columns = append(columns, addColumn)
-		}
-	}
-	if driver == "postgres" {
-		query := fmt.Sprintf("%s %s", baseQuery, strings.Join(columns, ", "))
-		if _, err := tx.Exec(query); err != nil {
-			return err
-		}
-	}
-	return nil
+func (op AddFields) Run(tx *gomodels.Transaction, state *AppState) error {
+	return tx.AddColumns(op.table, op.Fields)
 }
 
-func (op AddFields) Backwards(
-	tx *sql.Tx, app string, driver string, pS *AppState,
-) error {
-	if driver == "postgres" {
-		columns := make([]string, 0, len(op.Fields))
-		for name, field := range op.Fields {
-			dropColumn := fmt.Sprintf(
-				"DROP COLUMN \"%s\"", field.DBColumn(name),
-			)
-			columns = append(columns, dropColumn)
+func (op AddFields) Backwards(tx *gomodels.Transaction, pS *AppState) error {
+	if _, ok := tx.Engine.(gomodels.SqliteEngine); ok {
+		fields := pS.models[op.Model].Fields()
+		keepCols := make([]string, 0, len(fields)-len(op.Fields))
+		for name, field := range fields {
+			keepCols = append(keepCols, field.DBColumn(name))
 		}
-		query := fmt.Sprintf(
-			"ALTER TABLE %s %s", op.table, strings.Join(columns, ", "),
-		)
-		if _, err := tx.Exec(query); err != nil {
+		name := op.table + "__new"
+		if err := tx.CopyTable(op.table, name, keepCols...); err != nil {
 			return err
+		}
+		if err := tx.DropTable(op.table); err != nil {
+			return err
+		}
+		if err := tx.RenameTable(name, op.table); err != nil {
+			return err
+		}
+		for idxName, fields := range pS.models[op.Model].Indexes() {
+			addIndex := AddIndex{
+				Model:  op.Model,
+				Name:   idxName,
+				Fields: fields,
+				table:  op.table,
+			}
+			if err := addIndex.Run(tx, history[pS.app.Name()]); err != nil {
+				return err
+			}
 		}
 		return nil
 	}
-	query := fmt.Sprintf(
-		"ALTER TABLE \"%[1]s\" RENAME TO \"%[1]s__old\"", op.table,
-	)
-	if _, err := tx.Exec(query); err != nil {
-		return err
+	columns := make([]string, 0, len(op.Fields))
+	for name, field := range op.Fields {
+		columns = append(columns, field.DBColumn(name))
 	}
-	fields := pS.models[op.Model].Fields()
-	columns := make([]string, 0, len(fields)-len(op.Fields))
-	for name, field := range fields {
-		columns = append(columns, fmt.Sprintf("\"%s\"", field.DBColumn(name)))
-	}
-	createModel := CreateModel{Name: op.Model, Fields: fields, Table: op.table}
-	if err := createModel.Run(tx, app, driver); err != nil {
-		return err
-	}
-	query = fmt.Sprintf(
-		"INSERT INTO \"%[1]s\" (%[2]s) SELECT %[2]s FROM \"%[1]s__old\"",
-		op.table, strings.Join(columns, ", "),
-	)
-	if _, err := tx.Exec(query); err != nil {
-		return err
-	}
-	query = fmt.Sprintf("DROP TABLE \"%s__old\"", op.table)
-	if _, err := tx.Exec(query); err != nil {
-		return err
-	}
-	for idxName, fields := range pS.models[op.Model].Indexes() {
-		addIndex := AddIndex{
-			Model:  op.Model,
-			Name:   idxName,
-			Fields: fields,
-			table:  op.table,
-		}
-		if err := addIndex.Run(tx, app, driver); err != nil {
-			return err
-		}
-	}
-	return nil
+	return tx.DropColumns(op.table, columns...)
 }
 
 type RemoveFields struct {
@@ -156,98 +110,47 @@ func (op *RemoveFields) SetState(state *AppState) error {
 	return nil
 }
 
-func (op RemoveFields) Run(tx *sql.Tx, app string, driver string) error {
-	fields := history[app].models[op.Model].Fields()
-	if driver == "postgres" {
-		columns := make([]string, 0, len(op.Fields))
+func (op RemoveFields) Run(tx *gomodels.Transaction, state *AppState) error {
+	if _, ok := tx.Engine.(gomodels.SqliteEngine); ok {
+		fields := state.models[op.Model].Fields()
+		keepCols := make([]string, 0, len(fields)-len(op.Fields))
 		for _, name := range op.Fields {
-			field := fields[name]
-			dropColumn := fmt.Sprintf(
-				"DROP COLUMN \"%s\"", field.DBColumn(name),
-			)
-			columns = append(columns, dropColumn)
+			delete(fields, name)
 		}
-		query := fmt.Sprintf(
-			"ALTER TABLE %s %s", op.table, strings.Join(columns, ", "),
-		)
-		if _, err := tx.Exec(query); err != nil {
+		for name, field := range fields {
+			keepCols = append(keepCols, field.DBColumn(name))
+		}
+		name := op.table + "__new"
+		if err := tx.CopyTable(op.table, name, keepCols...); err != nil {
 			return err
+		}
+		if err := tx.DropTable(op.table); err != nil {
+			return err
+		}
+		if err := tx.RenameTable(name, op.table); err != nil {
+			return err
+		}
+		for idxName, fields := range state.models[op.Model].Indexes() {
+			addIndex := AddIndex{
+				Model:  op.Model,
+				Name:   idxName,
+				Fields: fields,
+				table:  op.table,
+			}
+			if err := addIndex.Run(tx, state); err != nil {
+				return err
+			}
 		}
 		return nil
 	}
-	query := fmt.Sprintf(
-		"ALTER TABLE \"%[1]s\" RENAME TO \"%[1]s__old\"", op.table,
-	)
-	if _, err := tx.Exec(query); err != nil {
-		return err
-	}
-	keepColumns := make([]string, 0, len(fields)-len(op.Fields))
-	for _, name := range op.Fields {
-		delete(fields, name)
-	}
-	for name, field := range fields {
-		keepColumns = append(
-			keepColumns, fmt.Sprintf("\"%s\"", field.DBColumn(name)),
-		)
-	}
-	createModel := CreateModel{Name: op.Model, Fields: fields, Table: op.table}
-	if err := createModel.Run(tx, app, driver); err != nil {
-		return err
-	}
-	query = fmt.Sprintf(
-		"INSERT INTO \"%[1]s\" (%[2]s) SELECT %[2]s FROM \"%[1]s__old\"",
-		op.table, strings.Join(keepColumns, ", "),
-	)
-	if _, err := tx.Exec(query); err != nil {
-		return err
-	}
-	query = fmt.Sprintf("DROP TABLE \"%s__old\"", op.table)
-	if _, err := tx.Exec(query); err != nil {
-		return err
-	}
-	for idxName, fields := range history[app].models[op.Model].Indexes() {
-		addIndex := AddIndex{
-			Model:  op.Model,
-			Name:   idxName,
-			Fields: fields,
-			table:  op.table,
-		}
-		if err := addIndex.Run(tx, app, driver); err != nil {
-			return err
-		}
-	}
-	return nil
+	return tx.DropColumns(op.table, op.Fields...)
 }
 
-func (op RemoveFields) Backwards(
-	tx *sql.Tx, app string, driver string, pS *AppState,
-) error {
-	baseQuery := fmt.Sprintf("ALTER TABLE \"%s\"", op.table)
+func (op RemoveFields) Backwards(tx *gomodels.Transaction, pS *AppState) error {
 	fields := pS.models[op.Model].Fields()
 	newFields := gomodels.Fields{}
 	for _, name := range op.Fields {
 		newFields[name] = fields[name]
 	}
-	columns := make([]string, 0, len(op.Fields))
-	for name, field := range newFields {
-		addColumn := fmt.Sprintf(
-			"ADD COLUMN \"%s\" %s",
-			field.DBColumn(name), field.SqlDatatype(driver),
-		)
-		if driver == "sqlite3" {
-			query := fmt.Sprintf("%s %s", baseQuery, addColumn)
-			if _, err := tx.Exec(query); err != nil {
-				return err
-			}
-		} else {
-			columns = append(columns, addColumn)
-		}
-	}
-	if driver == "postgres" {
-		query := fmt.Sprintf("%s %s", baseQuery, strings.Join(columns, ", "))
-		if _, err := tx.Exec(query); err != nil {
-			return err
-		}
-	}
-	return nil
+	return tx.AddColumns(op.table, newFields)
 }

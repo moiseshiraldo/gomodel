@@ -24,6 +24,14 @@ func (e SqliteEngine) Stop() error {
 	return e.db.Close()
 }
 
+func (e SqliteEngine) DB() *sql.DB {
+	return e.db
+}
+
+func (e SqliteEngine) Tx() *sql.Tx {
+	return e.tx
+}
+
 func (e SqliteEngine) BeginTx() (Engine, error) {
 	tx, err := e.db.Begin()
 	if err != nil {
@@ -31,6 +39,120 @@ func (e SqliteEngine) BeginTx() (Engine, error) {
 	}
 	e.tx = tx
 	return e, nil
+}
+
+func (e SqliteEngine) CommitTx() error {
+	if e.tx == nil {
+		return fmt.Errorf("no transaction to commit")
+	}
+	return e.tx.Commit()
+}
+
+func (e SqliteEngine) RollbackTx() error {
+	if e.tx == nil {
+		return fmt.Errorf("no transaction to roll back")
+	}
+	return e.tx.Rollback()
+}
+
+func (e SqliteEngine) exec(
+	stmt string, values ...interface{},
+) (sql.Result, error) {
+	if e.tx != nil {
+		return e.tx.Exec(stmt, values...)
+	} else {
+		return e.db.Exec(stmt, values...)
+	}
+}
+
+func (e SqliteEngine) query(
+	stmt string, values ...interface{},
+) (*sql.Rows, error) {
+	if e.tx != nil {
+		return e.tx.Query(stmt, values...)
+	} else {
+		return e.db.Query(stmt, values...)
+	}
+}
+
+func (e SqliteEngine) queryRow(stmt string, values ...interface{}) *sql.Row {
+	if e.tx != nil {
+		return e.tx.QueryRow(stmt, values...)
+	} else {
+		return e.db.QueryRow(stmt, values...)
+	}
+}
+
+func (e SqliteEngine) CreateTable(tbl string, fields Fields) error {
+	columns := make([]string, 0, len(fields))
+	for name, field := range fields {
+		sqlColumn := fmt.Sprintf(
+			"\"%s\" %s", field.DBColumn(name), field.SqlDatatype("sqlite3"),
+		)
+		columns = append(columns, sqlColumn)
+	}
+	stmt := fmt.Sprintf(
+		"CREATE TABLE \"%s\" (%s)", tbl, strings.Join(columns, ", "),
+	)
+	_, err := e.exec(stmt)
+	return err
+}
+
+func (e SqliteEngine) DropTable(tbl string) error {
+	stmt := fmt.Sprintf("DROP TABLE \"%s\"", tbl)
+	_, err := e.exec(stmt)
+	return err
+}
+
+func (e SqliteEngine) RenameTable(tbl string, name string) error {
+	stmt := fmt.Sprintf("ALTER TABLE \"%s\" RENAME TO \"%s\"", tbl, name)
+	_, err := e.exec(stmt)
+	return err
+}
+
+func (e SqliteEngine) CopyTable(tbl string, name string, cols ...string) error {
+	columns := make([]string, 0, len(cols))
+	for _, col := range cols {
+		columns = append(columns, fmt.Sprintf("\"%s\"", col))
+	}
+	stmt := fmt.Sprintf(
+		"CREATE TABLE \"%s\" AS SELECT %s FROM \"%s\"",
+		name, strings.Join(columns, ", "), tbl,
+	)
+	_, err := e.exec(stmt)
+	return err
+}
+
+func (e SqliteEngine) AddIndex(tbl string, name string, cols ...string) error {
+	stmt := fmt.Sprintf(
+		"CREATE INDEX \"%s\" ON \"%s\" (%s)",
+		name, tbl, strings.Join(cols, ", "),
+	)
+	_, err := e.exec(stmt)
+	return err
+}
+
+func (e SqliteEngine) DropIndex(tbl string, name string) error {
+	stmt := fmt.Sprintf("DROP INDEX \"%s\"", name)
+	_, err := e.exec(stmt)
+	return err
+}
+
+func (e SqliteEngine) AddColumns(tbl string, fields Fields) error {
+	for name, field := range fields {
+		stmt := fmt.Sprintf(
+			"ALTER TABLE \"%s\" ADD COLUMN \"%s\" %s",
+			tbl, field.DBColumn(name), field.SqlDatatype("sqlite3"),
+		)
+		if _, err := e.exec(stmt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (e SqliteEngine) DropColumns(tbl string, columns ...string) error {
+	return fmt.Errorf("sqlite engine: drop columns not supported")
 }
 
 func (e SqliteEngine) SelectStmt(
@@ -81,11 +203,7 @@ func (e SqliteEngine) GetRows(
 	if start > 0 {
 		stmt = fmt.Sprintf("%s OFFSET %d", stmt, start)
 	}
-	if e.tx != nil {
-		return e.tx.Query(stmt, values...)
-	} else {
-		return e.db.Query(stmt, values...)
-	}
+	return e.query(stmt, values...)
 }
 
 func (e SqliteEngine) InsertRow(
@@ -118,13 +236,7 @@ func (e SqliteEngine) InsertRow(
 		strings.Join(cols, ", "),
 		strings.Join(placeholders, ", "),
 	)
-	var result sql.Result
-	var err error
-	if e.tx != nil {
-		result, err = e.tx.Exec(stmt, vals...)
-	} else {
-		result, err = e.db.Exec(stmt, vals...)
-	}
+	result, err := e.exec(stmt, vals...)
 	if err != nil {
 		return 0, err
 	}
@@ -167,13 +279,7 @@ func (e SqliteEngine) UpdateRows(
 		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
 		vals = append(vals, pVals...)
 	}
-	var result sql.Result
-	var err error
-	if e.tx != nil {
-		result, err = e.tx.Exec(stmt, vals...)
-	} else {
-		result, err = e.db.Exec(stmt, vals...)
-	}
+	result, err := e.exec(stmt, vals...)
 	if err != nil {
 		return 0, err
 	}
@@ -192,13 +298,7 @@ func (e SqliteEngine) DeleteRows(model *Model, c Conditioner) (int64, error) {
 		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
 		values = vals
 	}
-	var result sql.Result
-	var err error
-	if e.tx != nil {
-		result, err = e.tx.Exec(stmt, values...)
-	} else {
-		result, err = e.db.Exec(stmt, values...)
-	}
+	result, err := e.exec(stmt, values...)
 	if err != nil {
 		return 0, err
 	}
@@ -217,17 +317,13 @@ func (e SqliteEngine) CountRows(model *Model, c Conditioner) (int64, error) {
 		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
 		values = vals
 	}
-	var rows int64
-	var err error
-	if e.tx != nil {
-		err = e.tx.QueryRow(stmt, values...).Scan(&rows)
-	} else {
-		err = e.db.QueryRow(stmt, values...).Scan(&rows)
-	}
+	var count int64
+	row := e.queryRow(stmt, values...)
+	err := row.Scan(&count)
 	if err != nil {
 		return 0, err
 	}
-	return rows, nil
+	return count, nil
 }
 
 func (e SqliteEngine) Exists(model *Model, c Conditioner) (bool, error) {
@@ -241,12 +337,8 @@ func (e SqliteEngine) Exists(model *Model, c Conditioner) (bool, error) {
 		values = vals
 	}
 	var exists bool
-	var err error
-	if e.tx != nil {
-		err = e.tx.QueryRow(stmt, values...).Scan(&exists)
-	} else {
-		err = e.db.QueryRow(stmt, values...).Scan(&exists)
-	}
+	row := e.queryRow(stmt, values...)
+	err := row.Scan(&exists)
 	if err != nil {
 		return false, err
 	}

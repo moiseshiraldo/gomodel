@@ -176,7 +176,10 @@ func loadApp(app *gomodels.Application) error {
 func loadPreviousState(node Node) map[string]*AppState {
 	prevState := map[string]*AppState{}
 	for name := range history {
-		prevState[name] = &AppState{models: map[string]*gomodels.Model{}}
+		prevState[name] = &AppState{
+			app:    gomodels.Registry[node.App],
+			models: map[string]*gomodels.Model{},
+		}
 	}
 	if node.number > 1 {
 		prevNode := history[node.App].migrations[node.number-2]
@@ -189,7 +192,7 @@ func loadAppliedMigrations(db gomodels.Database) error {
 	if err := prepareDatabase(db); err != nil {
 		return err
 	}
-	rows, err := db.Conn.Query("SELECT app, number FROM gomodels_migration")
+	rows, err := db.Conn().Query("SELECT app, number FROM gomodels_migration")
 	if err != nil {
 		return err
 	}

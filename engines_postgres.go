@@ -28,6 +28,14 @@ func (e PostgresEngine) Stop() error {
 	return e.db.Close()
 }
 
+func (e PostgresEngine) DB() *sql.DB {
+	return e.db
+}
+
+func (e PostgresEngine) Tx() *sql.Tx {
+	return e.tx
+}
+
 func (e PostgresEngine) BeginTx() (Engine, error) {
 	tx, err := e.db.Begin()
 	if err != nil {
@@ -35,6 +43,137 @@ func (e PostgresEngine) BeginTx() (Engine, error) {
 	}
 	e.tx = tx
 	return e, nil
+}
+
+func (e PostgresEngine) CommitTx() error {
+	if e.tx == nil {
+		return fmt.Errorf("no transaction to commit")
+	}
+	return e.tx.Commit()
+}
+
+func (e PostgresEngine) RollbackTx() error {
+	if e.tx == nil {
+		return fmt.Errorf("no transaction to roll back")
+	}
+	return e.tx.Rollback()
+}
+
+func (e PostgresEngine) exec(
+	stmt string, values ...interface{},
+) (sql.Result, error) {
+	if e.tx != nil {
+		return e.tx.Exec(stmt, values...)
+	} else {
+		return e.db.Exec(stmt, values...)
+	}
+}
+
+func (e PostgresEngine) query(
+	stmt string, values ...interface{},
+) (*sql.Rows, error) {
+	if e.tx != nil {
+		return e.tx.Query(stmt, values...)
+	} else {
+		return e.db.Query(stmt, values...)
+	}
+}
+
+func (e PostgresEngine) queryRow(stmt string, values ...interface{}) *sql.Row {
+	if e.tx != nil {
+		return e.tx.QueryRow(stmt, values...)
+	} else {
+		return e.db.QueryRow(stmt, values...)
+	}
+}
+
+func (e PostgresEngine) CreateTable(tbl string, fields Fields) error {
+	columns := make([]string, 0, len(fields))
+	for name, field := range fields {
+		sqlColumn := fmt.Sprintf(
+			"\"%s\" %s", field.DBColumn(name), field.SqlDatatype("postgres"),
+		)
+		columns = append(columns, sqlColumn)
+	}
+	stmt := fmt.Sprintf(
+		"CREATE TABLE \"%s\" (%s)", tbl, strings.Join(columns, ", "),
+	)
+	_, err := e.exec(stmt)
+	return err
+}
+
+func (e PostgresEngine) RenameTable(tbl string, name string) error {
+	stmt := fmt.Sprintf("ALTER TABLE \"%s\" RENAME TO \"%s\"", tbl, name)
+	_, err := e.exec(stmt)
+	return err
+}
+
+func (e PostgresEngine) CopyTable(
+	tbl string, name string, cols ...string,
+) error {
+	columns := make([]string, 0, len(cols))
+	for _, col := range cols {
+		columns = append(columns, fmt.Sprintf("\"%s\"", col))
+	}
+	stmt := fmt.Sprintf(
+		"CREATE TABLE \"%s\" AS SELECT %s FROM \"%s\"",
+		name, strings.Join(columns, ", "), tbl,
+	)
+	_, err := e.exec(stmt)
+	return err
+}
+
+func (e PostgresEngine) DropTable(tbl string) error {
+	stmt := fmt.Sprintf("DROP TABLE \"%s\"", tbl)
+	_, err := e.exec(stmt)
+	return err
+}
+
+func (e PostgresEngine) AddIndex(
+	tbl string, name string, cols ...string,
+) error {
+	stmt := fmt.Sprintf(
+		"CREATE INDEX \"%s\" ON \"%s\" (%s)",
+		name, tbl, strings.Join(cols, ", "),
+	)
+	_, err := e.exec(stmt)
+	return err
+}
+
+func (e PostgresEngine) DropIndex(tbl string, name string) error {
+	stmt := fmt.Sprintf("DROP INDEX \"%s\"", name)
+	_, err := e.exec(stmt)
+	return err
+}
+
+func (e PostgresEngine) AddColumns(tbl string, fields Fields) error {
+	addColumns := make([]string, 0, len(fields))
+	for name, field := range fields {
+		addColumn := fmt.Sprintf(
+			"ADD COLUMN \"%s\" %s",
+			field.DBColumn(name), field.SqlDatatype("postgres"),
+		)
+		addColumns = append(addColumns, addColumn)
+	}
+	stmt := fmt.Sprintf(
+		"ALTER TABLE \"%s\" %s", tbl, strings.Join(addColumns, ", "),
+	)
+	_, err := e.exec(stmt)
+	return err
+}
+
+func (e PostgresEngine) DropColumns(tbl string, columns ...string) error {
+	dropColumns := make([]string, 0, len(columns))
+	for _, name := range columns {
+		dropColumns = append(
+			dropColumns, fmt.Sprintf("DROP COLUMN \"%s\"", name),
+		)
+	}
+	stmt := fmt.Sprintf(
+		"ALTER TABLE %s %s", tbl, strings.Join(dropColumns, ", "),
+	)
+	_, err := e.exec(stmt)
+	return err
 }
 
 func (e PostgresEngine) SelectStmt(
@@ -85,11 +224,7 @@ func (e PostgresEngine) GetRows(
 	if start > 0 {
 		stmt = fmt.Sprintf("%s OFFSET %d", stmt, start)
 	}
-	if e.tx != nil {
-		return e.tx.Query(stmt, values...)
-	} else {
-		return e.db.Query(stmt, values...)
-	}
+	return e.query(stmt, values...)
 }
 
 func (e PostgresEngine) InsertRow(
@@ -126,12 +261,8 @@ func (e PostgresEngine) InsertRow(
 		model.pk,
 	)
 	var pk int64
-	var err error
-	if e.tx != nil {
-		err = e.tx.QueryRow(stmt, vals...).Scan(&pk)
-	} else {
-		err = e.db.QueryRow(stmt, vals...).Scan(&pk)
-	}
+	row := e.queryRow(stmt, vals...)
+	err := row.Scan(&pk)
 	if err != nil {
 		return pk, err
 	}
@@ -173,13 +304,7 @@ func (e PostgresEngine) UpdateRows(
 		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
 		vals = append(vals, pVals...)
 	}
-	var result sql.Result
-	var err error
-	if e.tx != nil {
-		result, err = e.tx.Exec(stmt, vals...)
-	} else {
-		result, err = e.db.Exec(stmt, vals...)
-	}
+	result, err := e.exec(stmt, vals...)
 	if err != nil {
 		return 0, err
 	}
@@ -198,13 +323,7 @@ func (e PostgresEngine) DeleteRows(model *Model, c Conditioner) (int64, error) {
 		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
 		values = vals
 	}
-	var result sql.Result
-	var err error
-	if e.tx != nil {
-		result, err = e.tx.Exec(stmt, values...)
-	} else {
-		result, err = e.db.Exec(stmt, values...)
-	}
+	result, err := e.exec(stmt, values...)
 	if err != nil {
 		return 0, err
 	}
@@ -223,17 +342,13 @@ func (e PostgresEngine) CountRows(model *Model, c Conditioner) (int64, error) {
 		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
 		values = vals
 	}
-	var rows int64
-	var err error
-	if e.tx != nil {
-		err = e.tx.QueryRow(stmt, values...).Scan(&rows)
-	} else {
-		err = e.db.QueryRow(stmt, values...).Scan(&rows)
-	}
+	var count int64
+	row := e.queryRow(stmt, values...)
+	err := row.Scan(&count)
 	if err != nil {
 		return 0, err
 	}
-	return rows, nil
+	return count, nil
 }
 
 func (e PostgresEngine) Exists(model *Model, c Conditioner) (bool, error) {
@@ -247,12 +362,8 @@ func (e PostgresEngine) Exists(model *Model, c Conditioner) (bool, error) {
 		values = vals
 	}
 	var exists bool
-	var err error
-	if e.tx != nil {
-		err = e.tx.QueryRow(stmt, values...).Scan(&exists)
-	} else {
-		err = e.db.QueryRow(stmt, values...).Scan(&exists)
-	}
+	row := e.queryRow(stmt, values...)
+	err := row.Scan(&exists)
 	if err != nil {
 		return false, err
 	}

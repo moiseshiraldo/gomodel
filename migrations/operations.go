@@ -1,16 +1,16 @@
 package migrations
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/moiseshiraldo/gomodels"
 )
 
 type Operation interface {
 	OpName() string
 	SetState(state *AppState) error
-	Run(tx *sql.Tx, app string, driver string) error
-	Backwards(tx *sql.Tx, app string, driver string, prevState *AppState) error
+	Run(tx *gomodels.Transaction, state *AppState) error
+	Backwards(tx *gomodels.Transaction, prevState *AppState) error
 }
 
 type OperationList []Operation
