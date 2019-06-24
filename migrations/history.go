@@ -111,7 +111,7 @@ func (state AppState) Migrate(database string, nodeName string) error {
 }
 
 func loadHistory() error {
-	for _, app := range gomodels.Registry {
+	for _, app := range gomodels.Registry() {
 		if err := loadApp(app); err != nil {
 			return err
 		}
@@ -175,9 +175,10 @@ func loadApp(app *gomodels.Application) error {
 
 func loadPreviousState(node Node) map[string]*AppState {
 	prevState := map[string]*AppState{}
+	registry := gomodels.Registry()
 	for name := range history {
 		prevState[name] = &AppState{
-			app:    gomodels.Registry[node.App],
+			app:    registry[node.App],
 			models: map[string]*gomodels.Model{},
 		}
 	}

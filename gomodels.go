@@ -100,12 +100,20 @@ func New(name string, fields Fields, options Options) *Dispatcher {
 	return &Dispatcher{model, &Manager{model}}
 }
 
-var Registry = map[string]*Application{}
+var registry = map[string]*Application{}
+
+func Registry() map[string]*Application {
+	regCopy := map[string]*Application{}
+	for name, app := range registry {
+		regCopy[name] = app
+	}
+	return regCopy
+}
 
 func Register(apps ...AppSettings) error {
 	for _, settings := range apps {
 		appName := settings.Name
-		if _, found := Registry[appName]; found || appName == "gomodels" {
+		if _, found := registry[appName]; found || appName == "gomodels" {
 			panic(fmt.Sprintf("gomodels: duplicate app: %s", settings.Name))
 		}
 		app := &Application{
@@ -113,10 +121,10 @@ func Register(apps ...AppSettings) error {
 			path:   settings.Path,
 			models: make(map[string]*Model),
 		}
-		Registry[app.name] = app
+		registry[app.name] = app
 		for _, model := range settings.Models {
 			registerModel(app, model)
-			Registry[app.name].models[model.name] = model
+			registry[app.name].models[model.name] = model
 		}
 	}
 	return nil

@@ -15,7 +15,7 @@ type MakeOptions struct {
 func Make(appName string, options MakeOptions) (*AppState, error) {
 	var err error
 	migrations := []*Node{}
-	_, ok := gomodels.Registry[appName]
+	_, ok := gomodels.Registry()[appName]
 	if !ok {
 		return nil, &AppNotFoundError{appName, ErrorTrace{}}
 	}
@@ -93,7 +93,7 @@ func Run(options RunOptions) error {
 }
 
 func MakeAndRun() error {
-	for _, app := range gomodels.Registry {
+	for _, app := range gomodels.Registry() {
 		history[app.Name()] = &AppState{
 			app:        app,
 			models:     map[string]*gomodels.Model{},
