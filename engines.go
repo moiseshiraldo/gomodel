@@ -24,9 +24,7 @@ type Engine interface {
 	BeginTx() (Engine, error)
 	CommitTx() error
 	RollbackTx() error
-	SelectStmt(
-		m *Model, cond Conditioner, fields ...string,
-	) (string, []interface{}, error)
+	SelectQuery(m *Model, cond Conditioner, fields ...string) (Query, error)
 	GetRows(
 		m *Model, cond Conditioner, start int64, end int64, fields ...string,
 	) (*sql.Rows, error)

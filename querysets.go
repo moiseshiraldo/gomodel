@@ -5,12 +5,17 @@ import (
 	"reflect"
 )
 
+type Query struct {
+	Stmt string
+	Args []interface{}
+}
+
 type QuerySet interface {
 	Model() *Model
 	Container() Container
 	SetContainer(c Container) QuerySet
 	Filter(c Conditioner) QuerySet
-	Statement() (stmt string, values []interface{})
+	Query() (Query, error)
 	Load() ([]*Instance, error)
 	Get(c Conditioner) (*Instance, error)
 	Slice(start int64, end int64) ([]*Instance, error)
@@ -53,13 +58,12 @@ func (qs GenericQuerySet) addConditioner(c Conditioner) GenericQuerySet {
 	return qs
 }
 
-func (qs GenericQuerySet) Statement() (string, []interface{}) {
+func (qs GenericQuerySet) Query() (Query, error) {
 	db, ok := databases[qs.database]
 	if !ok {
-		return "", nil
+		return Query{}, qs.dbError(fmt.Errorf("db not found"))
 	}
-	stmt, vals, _ := db.SelectStmt(qs.model, qs.cond, qs.columns...)
-	return stmt, vals
+	return db.SelectQuery(qs.model, qs.cond, qs.columns...)
 }
 
 func (qs GenericQuerySet) Model() *Model {

@@ -59,31 +59,27 @@ func (e PostgresEngine) RollbackTx() error {
 	return e.tx.Rollback()
 }
 
-func (e PostgresEngine) exec(
-	stmt string, values ...interface{},
-) (sql.Result, error) {
+func (e PostgresEngine) exec(q Query) (sql.Result, error) {
 	if e.tx != nil {
-		return e.tx.Exec(stmt, values...)
+		return e.tx.Exec(q.Stmt, q.Args...)
 	} else {
-		return e.db.Exec(stmt, values...)
+		return e.db.Exec(q.Stmt, q.Args...)
 	}
 }
 
-func (e PostgresEngine) query(
-	stmt string, values ...interface{},
-) (*sql.Rows, error) {
+func (e PostgresEngine) query(q Query) (*sql.Rows, error) {
 	if e.tx != nil {
-		return e.tx.Query(stmt, values...)
+		return e.tx.Query(q.Stmt, q.Args...)
 	} else {
-		return e.db.Query(stmt, values...)
+		return e.db.Query(q.Stmt, q.Args...)
 	}
 }
 
-func (e PostgresEngine) queryRow(stmt string, values ...interface{}) *sql.Row {
+func (e PostgresEngine) queryRow(q Query) *sql.Row {
 	if e.tx != nil {
-		return e.tx.QueryRow(stmt, values...)
+		return e.tx.QueryRow(q.Stmt, q.Args...)
 	} else {
-		return e.db.QueryRow(stmt, values...)
+		return e.db.QueryRow(q.Stmt, q.Args...)
 	}
 }
 
@@ -98,13 +94,13 @@ func (e PostgresEngine) CreateTable(tbl string, fields Fields) error {
 	stmt := fmt.Sprintf(
 		"CREATE TABLE \"%s\" (%s)", tbl, strings.Join(columns, ", "),
 	)
-	_, err := e.exec(stmt)
+	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
 func (e PostgresEngine) RenameTable(tbl string, name string) error {
 	stmt := fmt.Sprintf("ALTER TABLE \"%s\" RENAME TO \"%s\"", tbl, name)
-	_, err := e.exec(stmt)
+	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
@@ -119,13 +115,13 @@ func (e PostgresEngine) CopyTable(
 		"CREATE TABLE \"%s\" AS SELECT %s FROM \"%s\"",
 		name, strings.Join(columns, ", "), tbl,
 	)
-	_, err := e.exec(stmt)
+	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
 func (e PostgresEngine) DropTable(tbl string) error {
 	stmt := fmt.Sprintf("DROP TABLE \"%s\"", tbl)
-	_, err := e.exec(stmt)
+	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
@@ -136,13 +132,13 @@ func (e PostgresEngine) AddIndex(
 		"CREATE INDEX \"%s\" ON \"%s\" (%s)",
 		name, tbl, strings.Join(cols, ", "),
 	)
-	_, err := e.exec(stmt)
+	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
 func (e PostgresEngine) DropIndex(tbl string, name string) error {
 	stmt := fmt.Sprintf("DROP INDEX \"%s\"", name)
-	_, err := e.exec(stmt)
+	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
@@ -158,7 +154,7 @@ func (e PostgresEngine) AddColumns(tbl string, fields Fields) error {
 	stmt := fmt.Sprintf(
 		"ALTER TABLE \"%s\" %s", tbl, strings.Join(addColumns, ", "),
 	)
-	_, err := e.exec(stmt)
+	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
@@ -172,13 +168,13 @@ func (e PostgresEngine) DropColumns(tbl string, columns ...string) error {
 	stmt := fmt.Sprintf(
 		"ALTER TABLE %s %s", tbl, strings.Join(dropColumns, ", "),
 	)
-	_, err := e.exec(stmt)
+	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
 func (e PostgresEngine) predicate(
 	model *Model, cond Conditioner, pIndex int,
-) (string, []interface{}, error) {
+) (Query, error) {
 	conditions := make([]string, 0)
 	values := make([]interface{}, 0)
 	for condition, value := range cond.Predicate() {
@@ -189,7 +185,7 @@ func (e PostgresEngine) predicate(
 			operator = args[1]
 		}
 		if _, ok := model.fields[name]; !ok {
-			return "", nil, fmt.Errorf("unkown field %s", name)
+			return Query{}, fmt.Errorf("unknown field %s", name)
 		}
 		column := model.fields[name].DBColumn(name)
 		conditions = append(
@@ -208,19 +204,20 @@ func (e PostgresEngine) predicate(
 		if isNot {
 			operator += " NOT"
 		}
-		nextPred, nextValues, err := e.predicate(model, next, pIndex)
+		nextPred, err := e.predicate(model, next, pIndex)
 		if err != nil {
-			return "", nil, err
+			return Query{}, err
 		}
-		pred = fmt.Sprintf("(%s) %s (%s)", pred, operator, nextPred)
-		values = append(values, nextValues...)
+		pred = fmt.Sprintf("(%s) %s (%s)", pred, operator, nextPred.Stmt)
+		values = append(values, nextPred.Args...)
 	}
-	return pred, values, nil
+	return Query{pred, values}, nil
 }
 
-func (e PostgresEngine) SelectStmt(
+func (e PostgresEngine) SelectQuery(
 	m *Model, c Conditioner, fields ...string,
-) (string, []interface{}, error) {
+) (Query, error) {
+	query := Query{}
 	columns := make([]string, 0, len(m.fields))
 	if len(fields) == 0 {
 		for name, field := range m.fields {
@@ -242,37 +239,36 @@ func (e PostgresEngine) SelectStmt(
 			columns = append(columns, fmt.Sprintf("\"%s\"", col))
 		}
 	}
-	stmt := fmt.Sprintf(
+	query.Stmt = fmt.Sprintf(
 		"SELECT %s FROM %s", strings.Join(columns, ", "), m.Table(),
 	)
 	if c != nil {
-		pred, values, err := e.predicate(m, c, 1)
+		pred, err := e.predicate(m, c, 1)
 		if err != nil {
-			return pred, values, err
+			return query, err
 		}
-		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
-		return stmt, values, nil
-	} else {
-		return stmt, nil, nil
+		query.Stmt = fmt.Sprintf("%s WHERE %s", query.Stmt, pred)
+		query.Args = pred.Args
 	}
+	return query, nil
 }
 
 func (e PostgresEngine) GetRows(
 	m *Model, c Conditioner, start int64, end int64, fields ...string,
 ) (*sql.Rows, error) {
-	stmt, values, err := e.SelectStmt(m, c, fields...)
+	query, err := e.SelectQuery(m, c, fields...)
 	if err != nil {
 		return nil, err
 	}
 	if end > 0 {
-		stmt = fmt.Sprintf("%s LIMIT %d", stmt, end-start)
+		query.Stmt = fmt.Sprintf("%s LIMIT %d", query.Stmt, end-start)
 	} else if start > 0 {
-		stmt += " LIMIT ALL"
+		query.Stmt += " LIMIT ALL"
 	}
 	if start > 0 {
-		stmt = fmt.Sprintf("%s OFFSET %d", stmt, start)
+		query.Stmt = fmt.Sprintf("%s OFFSET %d", query.Stmt, start)
 	}
-	return e.query(stmt, values...)
+	return e.query(query)
 }
 
 func (e PostgresEngine) InsertRow(
@@ -309,7 +305,7 @@ func (e PostgresEngine) InsertRow(
 		model.pk,
 	)
 	var pk int64
-	row := e.queryRow(stmt, vals...)
+	row := e.queryRow(Query{stmt, vals})
 	err := row.Scan(&pk)
 	if err != nil {
 		return pk, err
@@ -348,14 +344,14 @@ func (e PostgresEngine) UpdateRows(
 		"UPDATE \"%s\" SET %s", model.Table(), strings.Join(cols, ", "),
 	)
 	if conditioner != nil {
-		pred, pVals, err := e.predicate(model, conditioner, index)
+		pred, err := e.predicate(model, conditioner, index)
 		if err != nil {
 			return 0, err
 		}
-		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
-		vals = append(vals, pVals...)
+		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred.Stmt)
+		vals = append(vals, pred.Args...)
 	}
-	result, err := e.exec(stmt, vals...)
+	result, err := e.exec(Query{stmt, vals})
 	if err != nil {
 		return 0, err
 	}
@@ -367,17 +363,17 @@ func (e PostgresEngine) UpdateRows(
 }
 
 func (e PostgresEngine) DeleteRows(model *Model, c Conditioner) (int64, error) {
-	var values []interface{}
-	stmt := fmt.Sprintf("DELETE FROM %s", model.Table())
+	query := Query{}
+	query.Stmt = fmt.Sprintf("DELETE FROM %s", model.Table())
 	if c != nil {
-		pred, vals, err := e.predicate(model, c, 1)
+		pred, err := e.predicate(model, c, 1)
 		if err != nil {
 			return 0, err
 		}
-		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
-		values = vals
+		query.Stmt = fmt.Sprintf("%s WHERE %s", query.Stmt, pred.Stmt)
+		query.Args = pred.Args
 	}
-	result, err := e.exec(stmt, values...)
+	result, err := e.exec(query)
 	if err != nil {
 		return 0, err
 	}
@@ -389,18 +385,18 @@ func (e PostgresEngine) DeleteRows(model *Model, c Conditioner) (int64, error) {
 }
 
 func (e PostgresEngine) CountRows(model *Model, c Conditioner) (int64, error) {
-	var values []interface{}
-	stmt := fmt.Sprintf("SELECT COUNT(*) FROM %s", model.Table())
+	query := Query{}
+	query.Stmt = fmt.Sprintf("SELECT COUNT(*) FROM %s", model.Table())
 	if c != nil {
-		pred, vals, err := e.predicate(model, c, 1)
+		pred, err := e.predicate(model, c, 1)
 		if err != nil {
 			return 0, err
 		}
-		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
-		values = vals
+		query.Stmt = fmt.Sprintf("%s WHERE %s", query.Stmt, pred.Stmt)
+		query.Args = pred.Args
 	}
 	var count int64
-	row := e.queryRow(stmt, values...)
+	row := e.queryRow(query)
 	err := row.Scan(&count)
 	if err != nil {
 		return 0, err
@@ -409,20 +405,20 @@ func (e PostgresEngine) CountRows(model *Model, c Conditioner) (int64, error) {
 }
 
 func (e PostgresEngine) Exists(model *Model, c Conditioner) (bool, error) {
-	var values []interface{}
-	stmt := fmt.Sprintf(
+	query := Query{}
+	query.Stmt = fmt.Sprintf(
 		"SELECT EXISTS (SELECT %s FROM %s)", model.pk, model.Table(),
 	)
 	if c != nil {
-		pred, vals, err := e.predicate(model, c, 1)
+		pred, err := e.predicate(model, c, 1)
 		if err != nil {
 			return false, err
 		}
-		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
-		values = vals
+		query.Stmt = fmt.Sprintf("%s WHERE %s", query.Stmt, pred.Stmt)
+		query.Args = pred.Args
 	}
 	var exists bool
-	row := e.queryRow(stmt, values...)
+	row := e.queryRow(query)
 	err := row.Scan(&exists)
 	if err != nil {
 		return false, err
