@@ -155,9 +155,50 @@ func (e SqliteEngine) DropColumns(tbl string, columns ...string) error {
 	return fmt.Errorf("sqlite engine: drop columns not supported")
 }
 
+func (e SqliteEngine) predicate(
+	model *Model, cond Conditioner,
+) (string, []interface{}, error) {
+	conditions := make([]string, 0)
+	values := make([]interface{}, 0)
+	for condition, value := range cond.Predicate() {
+		args := strings.Split(condition, " ")
+		name := args[0]
+		operator := "="
+		if len(args) > 1 {
+			operator = args[1]
+		}
+		if _, ok := model.fields[name]; !ok {
+			return "", nil, fmt.Errorf("unkown field %s", name)
+		}
+		column := model.fields[name].DBColumn(name)
+		conditions = append(
+			conditions, fmt.Sprintf("\"%s\" %s ?", column, operator),
+		)
+		values = append(values, value)
+	}
+	pred := strings.Join(conditions, " AND ")
+	next, isOr, isNot := cond.Next()
+	if next != nil {
+		operator := "AND"
+		if isOr {
+			operator = "OR"
+		}
+		if isNot {
+			operator += " NOT"
+		}
+		nextPred, nextValues, err := e.predicate(model, next)
+		if err != nil {
+			return "", nil, err
+		}
+		pred = fmt.Sprintf("(%s) %s (%s)", pred, operator, nextPred)
+		values = append(values, nextValues...)
+	}
+	return pred, values, nil
+}
+
 func (e SqliteEngine) SelectStmt(
 	m *Model, c Conditioner, fields ...string,
-) (string, []interface{}) {
+) (string, []interface{}, error) {
 	columns := make([]string, 0, len(m.fields))
 	if len(fields) == 0 {
 		for name, field := range m.fields {
@@ -183,18 +224,24 @@ func (e SqliteEngine) SelectStmt(
 		"SELECT %s FROM %s", strings.Join(columns, ", "), m.Table(),
 	)
 	if c != nil {
-		pred, values := c.Predicate("sqlite3", 1)
+		pred, values, err := e.predicate(m, c)
+		if err != nil {
+			return pred, values, err
+		}
 		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
-		return stmt, values
+		return stmt, values, nil
 	} else {
-		return stmt, nil
+		return stmt, nil, nil
 	}
 }
 
 func (e SqliteEngine) GetRows(
 	m *Model, c Conditioner, start int64, end int64, fields ...string,
 ) (*sql.Rows, error) {
-	stmt, values := e.SelectStmt(m, c, fields...)
+	stmt, values, err := e.SelectStmt(m, c, fields...)
+	if err != nil {
+		return nil, err
+	}
 	if end > 0 {
 		stmt = fmt.Sprintf("%s LIMIT %d", stmt, end-start)
 	} else if start > 0 {
@@ -275,7 +322,10 @@ func (e SqliteEngine) UpdateRows(
 		"UPDATE \"%s\" SET %s", model.Table(), strings.Join(cols, ", "),
 	)
 	if conditioner != nil {
-		pred, pVals := conditioner.Predicate("sqlite3", 0)
+		pred, pVals, err := e.predicate(model, conditioner)
+		if err != nil {
+			return 0, err
+		}
 		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
 		vals = append(vals, pVals...)
 	}
@@ -294,7 +344,10 @@ func (e SqliteEngine) DeleteRows(model *Model, c Conditioner) (int64, error) {
 	var values []interface{}
 	stmt := fmt.Sprintf("DELETE FROM %s", model.Table())
 	if c != nil {
-		pred, vals := c.Predicate("sqlite3", 1)
+		pred, vals, err := e.predicate(model, c)
+		if err != nil {
+			return 0, err
+		}
 		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
 		values = vals
 	}
@@ -313,7 +366,10 @@ func (e SqliteEngine) CountRows(model *Model, c Conditioner) (int64, error) {
 	var values []interface{}
 	stmt := fmt.Sprintf("SELECT COUNT(*) FROM %s", model.Table())
 	if c != nil {
-		pred, vals := c.Predicate("sqlite3", 1)
+		pred, vals, err := e.predicate(model, c)
+		if err != nil {
+			return 0, err
+		}
 		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
 		values = vals
 	}
@@ -332,7 +388,10 @@ func (e SqliteEngine) Exists(model *Model, c Conditioner) (bool, error) {
 		"SELECT EXISTS (SELECT %s FROM %s)", model.pk, model.Table(),
 	)
 	if c != nil {
-		pred, vals := c.Predicate("sqlite3", 1)
+		pred, vals, err := e.predicate(model, c)
+		if err != nil {
+			return false, err
+		}
 		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred)
 		values = vals
 	}

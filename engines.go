@@ -26,7 +26,7 @@ type Engine interface {
 	RollbackTx() error
 	SelectStmt(
 		m *Model, cond Conditioner, fields ...string,
-	) (string, []interface{})
+	) (string, []interface{}, error)
 	GetRows(
 		m *Model, cond Conditioner, start int64, end int64, fields ...string,
 	) (*sql.Rows, error)

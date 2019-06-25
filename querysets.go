@@ -43,7 +43,7 @@ func (qs GenericQuerySet) containerError(err error) error {
 func (qs GenericQuerySet) addConditioner(c Conditioner) GenericQuerySet {
 	if qs.cond == nil {
 		if cond, ok := c.(Q); ok {
-			qs.cond = Filter{root: cond}
+			qs.cond = Chain{root: cond}
 		} else {
 			qs.cond = c
 		}
@@ -58,7 +58,8 @@ func (qs GenericQuerySet) Statement() (string, []interface{}) {
 	if !ok {
 		return "", nil
 	}
-	return db.SelectStmt(qs.model, qs.cond, qs.columns...)
+	stmt, vals, _ := db.SelectStmt(qs.model, qs.cond, qs.columns...)
+	return stmt, vals
 }
 
 func (qs GenericQuerySet) Model() *Model {
