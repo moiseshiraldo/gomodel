@@ -48,7 +48,7 @@ func (qs GenericQuerySet) containerError(err error) error {
 func (qs GenericQuerySet) addConditioner(c Conditioner) GenericQuerySet {
 	if qs.cond == nil {
 		if cond, ok := c.(Q); ok {
-			qs.cond = Chain{root: cond}
+			qs.cond = condChain{root: cond}
 		} else {
 			qs.cond = c
 		}

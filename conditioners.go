@@ -9,39 +9,39 @@ type Conditioner interface {
 	OrNot(q Conditioner) Conditioner
 }
 
-type Chain struct {
+type condChain struct {
 	root Q
 	next Conditioner
 	or   bool
 	not  bool
 }
 
-func (c Chain) Predicate() map[string]Value {
+func (c condChain) Predicate() map[string]Value {
 	return c.root.Predicate()
 }
 
-func (c Chain) Next() (Conditioner, bool, bool) {
+func (c condChain) Next() (Conditioner, bool, bool) {
 	return c.next, c.or, c.not
 }
 
-func (c Chain) And(next Conditioner) Conditioner {
+func (c condChain) And(next Conditioner) Conditioner {
 	c.next = next
 	return c
 }
 
-func (c Chain) AndNot(next Conditioner) Conditioner {
+func (c condChain) AndNot(next Conditioner) Conditioner {
 	c.next = next
 	c.not = true
 	return c
 }
 
-func (c Chain) Or(next Conditioner) Conditioner {
+func (c condChain) Or(next Conditioner) Conditioner {
 	c.next = next
 	c.or = true
 	return c
 }
 
-func (c Chain) OrNot(next Conditioner) Conditioner {
+func (c condChain) OrNot(next Conditioner) Conditioner {
 	c.next = next
 	c.or = true
 	c.not = true
@@ -59,17 +59,17 @@ func (q Q) Next() (Conditioner, bool, bool) {
 }
 
 func (q Q) And(next Conditioner) Conditioner {
-	return Chain{root: q, next: next}
+	return condChain{root: q, next: next}
 }
 
 func (q Q) AndNot(next Conditioner) Conditioner {
-	return Chain{root: q, next: next, not: true}
+	return condChain{root: q, next: next, not: true}
 }
 
 func (q Q) Or(next Conditioner) Conditioner {
-	return Chain{root: q, next: next, or: true}
+	return condChain{root: q, next: next, or: true}
 }
 
 func (q Q) OrNot(next Conditioner) Conditioner {
-	return Chain{root: q, next: next, or: true, not: true}
+	return condChain{root: q, next: next, or: true, not: true}
 }
