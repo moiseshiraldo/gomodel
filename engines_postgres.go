@@ -105,7 +105,9 @@ func (e PostgresEngine) RenameTable(tbl string, name string) error {
 }
 
 func (e PostgresEngine) CopyTable(
-	tbl string, name string, cols ...string,
+	tbl string,
+	name string,
+	cols ...string,
 ) error {
 	columns := make([]string, 0, len(cols))
 	for _, col := range cols {
@@ -126,7 +128,9 @@ func (e PostgresEngine) DropTable(tbl string) error {
 }
 
 func (e PostgresEngine) AddIndex(
-	tbl string, name string, cols ...string,
+	tbl string,
+	name string,
+	cols ...string,
 ) error {
 	stmt := fmt.Sprintf(
 		"CREATE INDEX \"%s\" ON \"%s\" (%s)",
@@ -173,7 +177,9 @@ func (e PostgresEngine) DropColumns(tbl string, columns ...string) error {
 }
 
 func (e PostgresEngine) predicate(
-	model *Model, cond Conditioner, pIndex int,
+	model *Model,
+	cond Conditioner,
+	pIndex int,
 ) (Query, error) {
 	conditions := make([]string, 0)
 	values := make([]interface{}, 0)
@@ -215,7 +221,9 @@ func (e PostgresEngine) predicate(
 }
 
 func (e PostgresEngine) SelectQuery(
-	m *Model, c Conditioner, fields ...string,
+	m *Model,
+	c Conditioner,
+	fields ...string,
 ) (Query, error) {
 	query := Query{}
 	columns := make([]string, 0, len(m.fields))
@@ -254,7 +262,11 @@ func (e PostgresEngine) SelectQuery(
 }
 
 func (e PostgresEngine) GetRows(
-	m *Model, c Conditioner, start int64, end int64, fields ...string,
+	m *Model,
+	c Conditioner,
+	start int64,
+	end int64,
+	fields ...string,
 ) (*sql.Rows, error) {
 	query, err := e.SelectQuery(m, c, fields...)
 	if err != nil {
@@ -272,7 +284,9 @@ func (e PostgresEngine) GetRows(
 }
 
 func (e PostgresEngine) InsertRow(
-	model *Model, container Container, fields ...string,
+	model *Model,
+	container Container,
+	fields ...string,
 ) (int64, error) {
 	cols := make([]string, 0, len(model.fields))
 	vals := make([]interface{}, 0, len(model.fields))
@@ -314,7 +328,10 @@ func (e PostgresEngine) InsertRow(
 }
 
 func (e PostgresEngine) UpdateRows(
-	model *Model, cont Container, conditioner Conditioner, fields ...string,
+	model *Model,
+	cont Container,
+	conditioner Conditioner,
+	fields ...string,
 ) (int64, error) {
 	vals := make([]interface{}, 0, len(model.fields))
 	cols := make([]string, 0, len(model.fields))

@@ -191,7 +191,9 @@ func (e SqliteEngine) predicate(model *Model, cond Conditioner) (Query, error) {
 }
 
 func (e SqliteEngine) SelectQuery(
-	m *Model, c Conditioner, fields ...string,
+	m *Model,
+	c Conditioner,
+	fields ...string,
 ) (Query, error) {
 	query := Query{}
 	columns := make([]string, 0, len(m.fields))
@@ -230,7 +232,11 @@ func (e SqliteEngine) SelectQuery(
 }
 
 func (e SqliteEngine) GetRows(
-	m *Model, c Conditioner, start int64, end int64, fields ...string,
+	m *Model,
+	c Conditioner,
+	start int64,
+	end int64,
+	fields ...string,
 ) (*sql.Rows, error) {
 	query, err := e.SelectQuery(m, c, fields...)
 	if err != nil {
@@ -248,7 +254,9 @@ func (e SqliteEngine) GetRows(
 }
 
 func (e SqliteEngine) InsertRow(
-	model *Model, container Container, fields ...string,
+	model *Model,
+	container Container,
+	fields ...string,
 ) (int64, error) {
 	cols := make([]string, 0, len(model.fields))
 	vals := make([]interface{}, 0, len(model.fields))
@@ -289,7 +297,10 @@ func (e SqliteEngine) InsertRow(
 }
 
 func (e SqliteEngine) UpdateRows(
-	model *Model, cont Container, conditioner Conditioner, fields ...string,
+	model *Model,
+	cont Container,
+	conditioner Conditioner,
+	fields ...string,
 ) (int64, error) {
 	vals := make([]interface{}, 0, len(model.fields))
 	cols := make([]string, 0, len(model.fields))

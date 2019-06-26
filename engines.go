@@ -25,13 +25,9 @@ type Engine interface {
 	CommitTx() error
 	RollbackTx() error
 	SelectQuery(m *Model, cond Conditioner, fields ...string) (Query, error)
-	GetRows(
-		m *Model, cond Conditioner, start int64, end int64, fields ...string,
-	) (*sql.Rows, error)
+	GetRows(m *Model, c Conditioner, start int64, end int64, fields ...string) (*sql.Rows, error)
 	InsertRow(m *Model, c Container, fields ...string) (int64, error)
-	UpdateRows(
-		m *Model, c Container, cond Conditioner, fields ...string,
-	) (int64, error)
+	UpdateRows(m *Model, c Container, cond Conditioner, fields ...string) (int64, error)
 	DeleteRows(m *Model, cond Conditioner) (int64, error)
 	CountRows(m *Model, cond Conditioner) (int64, error)
 	Exists(m *Model, cond Conditioner) (bool, error)
