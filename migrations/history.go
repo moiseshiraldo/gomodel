@@ -163,7 +163,7 @@ func loadApp(app *gomodels.Application) error {
 			Path:   dir,
 		}
 		if err := node.Load(); err != nil {
-			return &LoadError{ErrorTrace{Node: node}}
+			return &LoadError{ErrorTrace{Node: node, Err: err}}
 		}
 		if dup := state.migrations[number-1]; dup != nil {
 			return &DuplicateNumberError{ErrorTrace{Node: node}}

@@ -60,12 +60,12 @@ func (f CharField) Recipient() interface{} {
 }
 
 func (f CharField) SqlDatatype(driver string) string {
-	query := fmt.Sprintf("VARCHAR(%d)", f.MaxLength)
-	query += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
+	dt := fmt.Sprintf("VARCHAR(%d)", f.MaxLength)
+	dt += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
 	if f.Default != "" || f.DefaultEmpty {
-		query += fmt.Sprintf(" DEFAULT '%s'", f.Default)
+		dt += fmt.Sprintf(" DEFAULT '%s'", f.Default)
 	}
-	return query
+	return dt
 }
 
 type BooleanField struct {
@@ -116,18 +116,18 @@ func (f BooleanField) Recipient() interface{} {
 }
 
 func (f BooleanField) SqlDatatype(driver string) string {
-	query := "BOOLEAN"
+	dt := "BOOLEAN"
 	if f.Null {
-		query += " NULL"
+		dt += " NULL"
 	} else {
-		query += " NOT NULL"
+		dt += " NOT NULL"
 	}
 	if f.Default {
-		query += " DEFAULT true"
+		dt += " DEFAULT true"
 	} else if f.DefaultFalse {
-		query += " DEFAULT false"
+		dt += " DEFAULT false"
 	}
-	return query
+	return dt
 }
 
 type IntChoice struct {
@@ -184,12 +184,12 @@ func (f IntegerField) Recipient() interface{} {
 }
 
 func (f IntegerField) SqlDatatype(driver string) string {
-	query := "INTEGER"
-	query += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
+	dt := "INTEGER"
+	dt += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
 	if f.Default != 0 || f.DefaultZero {
-		query += fmt.Sprintf(" DEFAULT %d", f.Default)
+		dt += fmt.Sprintf(" DEFAULT %d", f.Default)
 	}
-	return query
+	return dt
 }
 
 type AutoField IntegerField
@@ -223,11 +223,11 @@ func (f AutoField) Recipient() interface{} {
 }
 
 func (f AutoField) SqlDatatype(driver string) string {
-	query := "INTEGER"
-	query += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
-	query += " AUTOINCREMENT"
+	dt := "INTEGER"
+	dt += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
+	dt += " AUTOINCREMENT"
 	if driver == "postgres" {
-		query = "SERIAL"
+		dt = "SERIAL"
 	}
-	return query
+	return dt
 }

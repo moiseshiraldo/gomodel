@@ -59,6 +59,7 @@ func AvailableFields() Fields {
 		"AutoField":    &AutoField{},
 		"BooleanField": &BooleanField{},
 		"CharField":    &CharField{},
+		"DateField":    &DateField{},
 	}
 }
 

@@ -1,6 +1,7 @@
 package gomodels
 
 import (
+	"database/sql/driver"
 	"fmt"
 	"reflect"
 	"strings"
@@ -38,6 +39,11 @@ func (i Instance) Get(key string) Value {
 
 func (i Instance) Set(key string, val Value) error {
 	field, _ := i.model.fields[key]
+	if vlr, isVlr := val.(driver.Valuer); isVlr {
+		if v, err := vlr.Value(); err == nil {
+			val = v
+		}
+	}
 	if c, ok := i.container.(Setter); ok {
 		if err := c.Set(key, val, field); err != nil {
 			return &ContainerError{i.trace(err)}
