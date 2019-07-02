@@ -2,6 +2,7 @@ package gomodels
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 )
 
@@ -68,6 +69,22 @@ func (f CharField) SqlDatatype(driver string) string {
 	return dt
 }
 
+func (f CharField) Value(rec interface{}) Value {
+	if vlr, ok := rec.(driver.Valuer); ok {
+		if val, err := vlr.Value(); err == nil {
+			return val
+		}
+	}
+	return rec
+}
+
+func (f CharField) DriverValue(val Value, dvr string) (interface{}, error) {
+	if vlr, ok := val.(driver.Valuer); ok {
+		return vlr.Value()
+	}
+	return val, nil
+}
+
 type BooleanField struct {
 	Null         bool   `json:",omitempty"`
 	Blank        bool   `json:",omitempty"`
@@ -115,7 +132,7 @@ func (f BooleanField) Recipient() interface{} {
 	return &val
 }
 
-func (f BooleanField) SqlDatatype(driver string) string {
+func (f BooleanField) SqlDatatype(dvr string) string {
 	dt := "BOOLEAN"
 	if f.Null {
 		dt += " NULL"
@@ -128,6 +145,22 @@ func (f BooleanField) SqlDatatype(driver string) string {
 		dt += " DEFAULT false"
 	}
 	return dt
+}
+
+func (f BooleanField) Value(rec interface{}) Value {
+	if vlr, ok := rec.(driver.Valuer); ok {
+		if val, err := vlr.Value(); err == nil {
+			return val
+		}
+	}
+	return rec
+}
+
+func (f BooleanField) DriverValue(v Value, dvr string) (interface{}, error) {
+	if vlr, ok := v.(driver.Valuer); ok {
+		return vlr.Value()
+	}
+	return v, nil
 }
 
 type IntChoice struct {
@@ -183,13 +216,29 @@ func (f IntegerField) Recipient() interface{} {
 	return &val
 }
 
-func (f IntegerField) SqlDatatype(driver string) string {
+func (f IntegerField) SqlDatatype(dvr string) string {
 	dt := "INTEGER"
 	dt += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
 	if f.Default != 0 || f.DefaultZero {
 		dt += fmt.Sprintf(" DEFAULT %d", f.Default)
 	}
 	return dt
+}
+
+func (f IntegerField) Value(rec interface{}) Value {
+	if vlr, ok := rec.(driver.Valuer); ok {
+		if val, err := vlr.Value(); err == nil {
+			return val
+		}
+	}
+	return rec
+}
+
+func (f IntegerField) DriverValue(v Value, dvr string) (interface{}, error) {
+	if vlr, ok := v.(driver.Valuer); ok {
+		return vlr.Value()
+	}
+	return v, nil
 }
 
 type AutoField IntegerField
@@ -222,12 +271,28 @@ func (f AutoField) Recipient() interface{} {
 	return &val
 }
 
-func (f AutoField) SqlDatatype(driver string) string {
+func (f AutoField) SqlDatatype(dvr string) string {
 	dt := "INTEGER"
 	dt += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
 	dt += " AUTOINCREMENT"
-	if driver == "postgres" {
+	if dvr == "postgres" {
 		dt = "SERIAL"
 	}
 	return dt
+}
+
+func (f AutoField) Value(rec interface{}) Value {
+	if vlr, ok := rec.(driver.Valuer); ok {
+		if val, err := vlr.Value(); err == nil {
+			return val
+		}
+	}
+	return rec
+}
+
+func (f AutoField) DriverValue(v Value, dvr string) (interface{}, error) {
+	if vlr, ok := v.(driver.Valuer); ok {
+		return vlr.Value()
+	}
+	return v, nil
 }

@@ -168,7 +168,11 @@ func (e SqliteEngine) predicate(model *Model, cond Conditioner) (Query, error) {
 		conditions = append(
 			conditions, fmt.Sprintf("\"%s\" %s ?", column, operator),
 		)
-		values = append(values, value)
+		val, err := model.fields[name].DriverValue(value, "sqlite3")
+		if err != nil {
+			return Query{}, err
+		}
+		values = append(values, val)
 	}
 	pred := strings.Join(conditions, " AND ")
 	next, isOr, isNot := cond.Next()

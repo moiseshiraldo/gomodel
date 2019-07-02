@@ -1,7 +1,6 @@
 package gomodels
 
 import (
-	"database/sql/driver"
 	"reflect"
 	"strings"
 )
@@ -33,11 +32,6 @@ type Values map[string]Value
 
 func (vals Values) Get(key string) (Value, bool) {
 	val, ok := vals[key]
-	if vlr, isVlr := val.(driver.Valuer); ok && isVlr {
-		if val, err := vlr.Value(); err == nil {
-			return val, true
-		}
-	}
 	return val, ok
 }
 
@@ -93,11 +87,6 @@ func getStructField(container Container, field string) (Value, bool) {
 	f := cv.FieldByName(strings.Title(field))
 	if f.IsValid() && f.CanInterface() {
 		val := f.Interface()
-		if vlr, isVlr := val.(driver.Valuer); isVlr {
-			if val, err := vlr.Value(); err == nil {
-				return val, true
-			}
-		}
 		return val, true
 	} else {
 		return nil, false

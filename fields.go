@@ -15,6 +15,8 @@ type Field interface {
 	SqlDatatype(driver string) string
 	DefaultVal() (val Value, hasDefault bool)
 	Recipient() interface{}
+	Value(recipient interface{}) Value
+	DriverValue(val Value, driver string) (interface{}, error)
 }
 
 type Fields map[string]Field

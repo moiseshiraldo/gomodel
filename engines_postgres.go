@@ -197,7 +197,11 @@ func (e PostgresEngine) predicate(
 		conditions = append(
 			conditions, fmt.Sprintf("\"%s\" %s $%d", column, operator, pIndex),
 		)
-		values = append(values, value)
+		val, err := model.fields[name].DriverValue(value, "postgres")
+		if err != nil {
+			return Query{}, err
+		}
+		values = append(values, val)
 		pIndex += 1
 	}
 	pred := strings.Join(conditions, " AND ")

@@ -80,7 +80,7 @@ func (f DateField) Recipient() interface{} {
 	return &val
 }
 
-func (f DateField) SqlDatatype(driver string) string {
+func (f DateField) SqlDatatype(dvr string) string {
 	dt := fmt.Sprintf(
 		"DATE %s", sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique),
 	)
@@ -88,4 +88,29 @@ func (f DateField) SqlDatatype(driver string) string {
 		dt += fmt.Sprintf(" DEFAULT '%s'", f.Default.Format("2006-01-02"))
 	}
 	return dt
+}
+
+func (f DateField) Value(rec interface{}) Value {
+	if vlr, ok := rec.(driver.Valuer); ok {
+		if val, err := vlr.Value(); err == nil {
+			if t, ok := val.(time.Time); ok {
+				return t
+			}
+		}
+	}
+	return rec
+}
+
+func (f DateField) DriverValue(v Value, dvr string) (interface{}, error) {
+	if vlr, ok := v.(driver.Valuer); ok {
+		if val, err := vlr.Value(); err == nil {
+			v = val
+		}
+	}
+	if t, ok := v.(time.Time); ok {
+		return t.Format("2006-01-02"), nil
+	} else if s, ok := v.(string); ok {
+		return s, nil
+	}
+	return v, fmt.Errorf("invalid value")
 }

@@ -25,11 +25,17 @@ func (i Instance) Model() *Model {
 }
 
 func (i Instance) GetIf(key string) (Value, bool) {
+	var val Value
+	var exists bool
 	if c, ok := i.container.(Getter); ok {
-		return c.Get(key)
+		val, exists = c.Get(key)
 	} else {
-		return getStructField(i.container, key)
+		val, exists = getStructField(i.container, key)
 	}
+	if field, ok := i.model.fields[key]; ok && exists {
+		return field.Value(val), true
+	}
+	return nil, false
 }
 
 func (i Instance) Get(key string) Value {
