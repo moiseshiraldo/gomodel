@@ -194,15 +194,17 @@ func (e PostgresEngine) predicate(
 			return Query{}, fmt.Errorf("unknown field %s", name)
 		}
 		column := model.fields[name].DBColumn(name)
-		conditions = append(
-			conditions, fmt.Sprintf("\"%s\" %s $%d", column, operator, pIndex),
-		)
 		val, err := model.fields[name].DriverValue(value, "postgres")
 		if err != nil {
 			return Query{}, err
 		}
-		values = append(values, val)
-		pIndex += 1
+		if operator == "=" && val == nil {
+			condition = fmt.Sprintf("\"%s\" IS NULL", column)
+		} else {
+			condition = fmt.Sprintf("\"%s\" %s ?", column, operator)
+			values = append(values, val)
+			pIndex += 1
+		}
 	}
 	pred := strings.Join(conditions, " AND ")
 	next, isOr, isNot := cond.Next()

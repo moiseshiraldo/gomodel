@@ -165,14 +165,17 @@ func (e SqliteEngine) predicate(model *Model, cond Conditioner) (Query, error) {
 			return Query{}, fmt.Errorf("unknown field %s", name)
 		}
 		column := model.fields[name].DBColumn(name)
-		conditions = append(
-			conditions, fmt.Sprintf("\"%s\" %s ?", column, operator),
-		)
 		val, err := model.fields[name].DriverValue(value, "sqlite3")
 		if err != nil {
 			return Query{}, err
 		}
-		values = append(values, val)
+		if operator == "=" && val == nil {
+			condition = fmt.Sprintf("\"%s\" IS NULL", column)
+		} else {
+			condition = fmt.Sprintf("\"%s\" %s ?", column, operator)
+			values = append(values, val)
+		}
+		conditions = append(conditions, condition)
 	}
 	pred := strings.Join(conditions, " AND ")
 	next, isOr, isNot := cond.Next()
