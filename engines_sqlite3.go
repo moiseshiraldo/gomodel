@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 )
 
 type SqliteEngine struct {
@@ -165,15 +166,15 @@ func (e SqliteEngine) predicate(model *Model, cond Conditioner) (Query, error) {
 			return Query{}, fmt.Errorf("unknown field %s", name)
 		}
 		column := model.fields[name].DBColumn(name)
-		val, err := model.fields[name].DriverValue(value, "sqlite3")
+		driverVal, err := model.fields[name].DriverValue(value, "sqlite3")
 		if err != nil {
 			return Query{}, err
 		}
-		if operator == "=" && val == nil {
+		if operator == "=" && driverVal == nil {
 			condition = fmt.Sprintf("\"%s\" IS NULL", column)
 		} else {
 			condition = fmt.Sprintf("\"%s\" %s ?", column, operator)
-			values = append(values, val)
+			values = append(values, driverVal)
 		}
 		conditions = append(conditions, condition)
 	}
@@ -278,10 +279,16 @@ func (e SqliteEngine) InsertRow(
 				}
 			} else if val, ok := getStructField(container, name); ok {
 				value = val
+			} else if field.IsAutoNowAdd() {
+				value = time.Now()
 			}
-			if value != nil {
+			driverVal, err := field.DriverValue(value, "sqlite3")
+			if err != nil {
+				return 0, err
+			}
+			if driverVal != nil {
 				cols = append(cols, fmt.Sprintf("\"%s\"", field.DBColumn(name)))
-				vals = append(vals, value)
+				vals = append(vals, driverVal)
 				placeholders = append(placeholders, "?")
 			}
 		}
@@ -321,12 +328,18 @@ func (e SqliteEngine) UpdateRows(
 				}
 			} else if val, ok := getStructField(cont, name); ok {
 				value = val
+			} else if field.IsAutoNow() {
+				value = time.Now()
 			}
-			if value != nil {
+			driverVal, err := field.DriverValue(value, "sqlite3")
+			if err != nil {
+				return 0, err
+			}
+			if driverVal != nil {
 				cols = append(
 					cols, fmt.Sprintf("\"%s\" = ?", field.DBColumn(name)),
 				)
-				vals = append(vals, value)
+				vals = append(vals, driverVal)
 			}
 		}
 	}

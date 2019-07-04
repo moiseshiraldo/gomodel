@@ -114,3 +114,11 @@ func (f DateField) DriverValue(v Value, dvr string) (interface{}, error) {
 	}
 	return v, fmt.Errorf("invalid value")
 }
+
+func (f DateField) IsAutoNow() bool {
+	return f.AutoNow
+}
+
+func (f DateField) IsAutoNowAdd() bool {
+	return f.AutoNowAdd
+}

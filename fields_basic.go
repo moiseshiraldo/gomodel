@@ -39,6 +39,14 @@ func (f CharField) IsAuto() bool {
 	return false
 }
 
+func (f CharField) IsAutoNow() bool {
+	return false
+}
+
+func (f CharField) IsAutoNowAdd() bool {
+	return false
+}
+
 func (f CharField) HasIndex() bool {
 	return f.Index && !(f.PrimaryKey || f.Unique)
 }
@@ -106,6 +114,14 @@ func (f BooleanField) IsPk() bool {
 }
 
 func (f BooleanField) IsAuto() bool {
+	return false
+}
+
+func (f BooleanField) IsAutoNow() bool {
+	return false
+}
+
+func (f BooleanField) IsAutoNowAdd() bool {
 	return false
 }
 
@@ -195,6 +211,14 @@ func (f IntegerField) IsAuto() bool {
 	return false
 }
 
+func (f IntegerField) IsAutoNow() bool {
+	return false
+}
+
+func (f IntegerField) IsAutoNowAdd() bool {
+	return false
+}
+
 func (f IntegerField) HasIndex() bool {
 	return f.Index && !(f.PrimaryKey || f.Unique)
 }
@@ -256,6 +280,14 @@ func (f AutoField) IsPk() bool {
 
 func (f AutoField) IsAuto() bool {
 	return true
+}
+
+func (f AutoField) IsAutoNow() bool {
+	return false
+}
+
+func (f AutoField) IsAutoNowAdd() bool {
+	return false
 }
 
 func (f AutoField) HasIndex() bool {

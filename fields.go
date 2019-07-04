@@ -10,6 +10,8 @@ import (
 type Field interface {
 	IsPk() bool
 	IsAuto() bool
+	IsAutoNow() bool
+	IsAutoNowAdd() bool
 	DBColumn(fieldName string) string
 	HasIndex() bool
 	SqlDatatype(driver string) string

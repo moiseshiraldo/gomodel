@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 )
 
 type PostgresEngine struct {
@@ -194,15 +195,15 @@ func (e PostgresEngine) predicate(
 			return Query{}, fmt.Errorf("unknown field %s", name)
 		}
 		column := model.fields[name].DBColumn(name)
-		val, err := model.fields[name].DriverValue(value, "postgres")
+		driverVal, err := model.fields[name].DriverValue(value, "postgres")
 		if err != nil {
 			return Query{}, err
 		}
-		if operator == "=" && val == nil {
+		if operator == "=" && driverVal == nil {
 			condition = fmt.Sprintf("\"%s\" IS NULL", column)
 		} else {
 			condition = fmt.Sprintf("\"%s\" %s ?", column, operator)
-			values = append(values, val)
+			values = append(values, driverVal)
 			pIndex += 1
 		}
 	}
@@ -308,10 +309,16 @@ func (e PostgresEngine) InsertRow(
 				}
 			} else if val, ok := getStructField(container, name); ok {
 				value = val
+			} else if field.IsAutoNowAdd() {
+				value = time.Now()
 			}
-			if value != nil {
+			driverVal, err := field.DriverValue(value, "postgres")
+			if err != nil {
+				return 0, err
+			}
+			if driverVal != nil {
 				cols = append(cols, fmt.Sprintf("\"%s\"", field.DBColumn(name)))
-				vals = append(vals, value)
+				vals = append(vals, driverVal)
 				placeholders = append(placeholders, fmt.Sprintf("$%d", index))
 				index += 1
 			}
@@ -352,13 +359,19 @@ func (e PostgresEngine) UpdateRows(
 				}
 			} else if val, ok := getStructField(cont, name); ok {
 				value = val
+			} else if field.IsAutoNowAdd() {
+				value = time.Now()
 			}
-			if value != nil {
+			driverVal, err := field.DriverValue(value, "postgres")
+			if err != nil {
+				return 0, err
+			}
+			if driverVal != nil {
 				col := fmt.Sprintf(
 					"\"%s\" = $%d", field.DBColumn(name), index,
 				)
 				cols = append(cols, col)
-				vals = append(vals, value)
+				vals = append(vals, driverVal)
 				index += 1
 			}
 		}
