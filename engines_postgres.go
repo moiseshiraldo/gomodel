@@ -84,6 +84,42 @@ func (e PostgresEngine) queryRow(q Query) *sql.Row {
 	}
 }
 
+func (e PostgresEngine) PrepareMigrations() error {
+	stmt := `
+		CREATE TABLE IF NOT EXISTS gomodels_migration (
+		  "id" SERIAL,
+		  "app" VARCHAR(50) NOT NULL,
+		  "name" VARCHAR(100) NOT NULL,
+		  "number" VARCHAR NOT NULL
+	)`
+	_, err := e.exec(Query{Stmt: stmt})
+	return err
+}
+
+func (e PostgresEngine) GetMigrations() (*sql.Rows, error) {
+	return e.query(Query{Stmt: "SELECT app, number FROM gomodels_migration"})
+}
+
+func (e PostgresEngine) SaveMigration(
+	app string,
+	number int,
+	name string,
+) error {
+	stmt := `
+		INSERT INTO gomodels_migration(app, number, name) VALUES($1, $2, $3)
+	`
+	args := []interface{}{app, number, name}
+	_, err := e.exec(Query{Stmt: stmt, Args: args})
+	return err
+}
+
+func (e PostgresEngine) DeleteMigration(app string, number int) error {
+	stmt := "DELETE FROM gomodels_migration WHERE app = $1 and number = $2"
+	args := []interface{}{app, number}
+	_, err := e.exec(Query{Stmt: stmt, Args: args})
+	return err
+}
+
 func (e PostgresEngine) CreateTable(tbl string, fields Fields) error {
 	columns := make([]string, 0, len(fields))
 	for name, field := range fields {

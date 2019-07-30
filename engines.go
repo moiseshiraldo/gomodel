@@ -5,6 +5,10 @@ import (
 )
 
 type Migrator interface {
+	PrepareMigrations() error
+	GetMigrations() (*sql.Rows, error)
+	SaveMigration(app string, number int, name string) error
+	DeleteMigration(app string, number int) error
 	CreateTable(table string, fields Fields) error
 	RenameTable(table string, name string) error
 	CopyTable(table string, name string, columns ...string) error

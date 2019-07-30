@@ -103,9 +103,7 @@ func (n Node) runOperations(db gomodels.Database) error {
 			}
 		}
 	}
-	query := `INSERT INTO gomodels_migration(app, name, number)
-		VALUES($1, $2, $3)`
-	if _, err := tx.Conn().Exec(query, n.App, n.Name, n.number); err != nil {
+	if err := tx.SaveMigration(n.App, n.number, n.Name); err != nil {
 		txErr := tx.Rollback()
 		if txErr != nil {
 			err = txErr
@@ -167,8 +165,7 @@ func (n Node) backwardOperations(db gomodels.Database) error {
 			}
 		}
 	}
-	query := "DELETE FROM gomodels_migration WHERE app = $1 and number = $2"
-	if _, err := tx.Conn().Exec(query, n.App, n.number); err != nil {
+	if err := tx.DeleteMigration(n.App, n.number); err != nil {
 		if txErr := tx.Rollback(); txErr != nil {
 			err = txErr
 		}

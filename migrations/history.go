@@ -190,13 +190,10 @@ func loadPreviousState(node Node) map[string]*AppState {
 }
 
 func loadAppliedMigrations(db gomodels.Database) error {
-	if err := prepareDatabase(db); err != nil {
+	if err := db.PrepareMigrations(); err != nil {
 		return err
 	}
-	rows, err := db.Conn().Query("SELECT app, number FROM gomodels_migration")
-	if err != nil {
-		return err
-	}
+	rows, err := db.GetMigrations()
 	defer rows.Close()
 	for rows.Next() {
 		var appName string

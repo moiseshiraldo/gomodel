@@ -80,6 +80,36 @@ func (e SqliteEngine) queryRow(q Query) *sql.Row {
 	}
 }
 
+func (e SqliteEngine) PrepareMigrations() error {
+	stmt := `
+		CREATE TABLE IF NOT EXISTS gomodels_migration (
+		  "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+		  "app" VARCHAR(50) NOT NULL,
+		  "name" VARCHAR(100) NOT NULL,
+		  "number" VARCHAR NOT NULL
+	)`
+	_, err := e.exec(Query{Stmt: stmt})
+	return err
+}
+
+func (e SqliteEngine) GetMigrations() (*sql.Rows, error) {
+	return e.query(Query{Stmt: "SELECT app, number FROM gomodels_migration"})
+}
+
+func (e SqliteEngine) SaveMigration(app string, number int, name string) error {
+	stmt := "INSERT INTO gomodels_migration(app, number, name) VALUES(?, ?, ?)"
+	args := []interface{}{app, number, name}
+	_, err := e.exec(Query{Stmt: stmt, Args: args})
+	return err
+}
+
+func (e SqliteEngine) DeleteMigration(app string, number int) error {
+	stmt := "DELETE FROM gomodels_migration WHERE app = ? and number = ?"
+	args := []interface{}{app, number}
+	_, err := e.exec(Query{Stmt: stmt, Args: args})
+	return err
+}
+
 func (e SqliteEngine) CreateTable(tbl string, fields Fields) error {
 	columns := make([]string, 0, len(fields))
 	for name, field := range fields {
