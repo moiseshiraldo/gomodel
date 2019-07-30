@@ -222,7 +222,15 @@ func (e SqliteEngine) predicate(model *Model, cond Conditioner) (Query, error) {
 		if err != nil {
 			return Query{}, err
 		}
-		pred = fmt.Sprintf("(%s) %s (%s)", pred, operator, nextPred.Stmt)
+		if pred == "" {
+			if isNot {
+				pred = fmt.Sprintf("NOT (%s)", nextPred.Stmt)
+			} else {
+				pred = nextPred.Stmt
+			}
+		} else {
+			pred = fmt.Sprintf("(%s) %s (%s)", pred, operator, nextPred.Stmt)
+		}
 		values = append(values, nextPred.Args...)
 	}
 	return Query{pred, values}, nil

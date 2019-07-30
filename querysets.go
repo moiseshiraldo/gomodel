@@ -15,6 +15,7 @@ type QuerySet interface {
 	Container() Container
 	SetContainer(c Container) QuerySet
 	Filter(c Conditioner) QuerySet
+	Exclude(c Conditioner) QuerySet
 	Query() (Query, error)
 	Load() ([]*Instance, error)
 	Get(c Conditioner) (*Instance, error)
@@ -93,6 +94,14 @@ func (qs GenericQuerySet) SetContainer(container Container) QuerySet {
 
 func (qs GenericQuerySet) Filter(c Conditioner) QuerySet {
 	return qs.addConditioner(c)
+}
+
+func (qs GenericQuerySet) Exclude(c Conditioner) QuerySet {
+	if qs.cond == nil {
+		qs.cond = Q{}
+	}
+	qs.cond = qs.cond.AndNot(c)
+	return qs
 }
 
 func (qs GenericQuerySet) load(start int64, end int64) ([]*Instance, error) {

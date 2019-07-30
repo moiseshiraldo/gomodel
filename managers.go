@@ -65,6 +65,10 @@ func (m Manager) Filter(c Conditioner) QuerySet {
 	return m.GetQuerySet().Filter(c)
 }
 
+func (m Manager) Exclude(c Conditioner) QuerySet {
+	return m.GetQuerySet().Exclude(c)
+}
+
 func (m Manager) Get(c Conditioner) (*Instance, error) {
 	return m.GetQuerySet().Get(c)
 }
