@@ -86,7 +86,7 @@ func (state AppState) Migrate(database string, nodeName string) error {
 		node = state.migrations[len(state.migrations)-1]
 	} else {
 		number, err := strconv.Atoi(nodeName[:4])
-		if err != nil {
+		if err != nil || number > len(state.migrations) {
 			return &NameError{nodeName, ErrorTrace{}}
 		}
 		if number > 0 {
