@@ -34,7 +34,7 @@ func (op *OperationList) UnmarshalJSON(data []byte) error {
 	}
 	for _, rawMap := range rawList {
 		for name, rawOp := range rawMap {
-			operation, ok := AvailableOperations()[name]
+			operation, ok := operationsRegistry[name]
 			if !ok {
 				return fmt.Errorf("invalid operation: %s", name)
 			}
@@ -48,13 +48,19 @@ func (op *OperationList) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func AvailableOperations() map[string]Operation {
-	return map[string]Operation{
-		"CreateModel":  &CreateModel{},
-		"DeleteModel":  &DeleteModel{},
-		"AddFields":    &AddFields{},
-		"RemoveFields": &RemoveFields{},
-		"AddIndex":     &AddIndex{},
-		"RemoveIndex":  &RemoveIndex{},
+var operationsRegistry = map[string]Operation{
+	"CreateModel":  &CreateModel{},
+	"DeleteModel":  &DeleteModel{},
+	"AddFields":    &AddFields{},
+	"RemoveFields": &RemoveFields{},
+	"AddIndex":     &AddIndex{},
+	"RemoveIndex":  &RemoveIndex{},
+}
+
+func RegisterOperation(name string, op Operation) error {
+	if _, found := operationsRegistry[name]; found {
+		return fmt.Errorf("migrations: duplicate operation: %s", name)
 	}
+	operationsRegistry[name] = op
+	return nil
 }
