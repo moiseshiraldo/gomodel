@@ -30,7 +30,7 @@ func (state AppState) nextNode() *Node {
 		Operations:   OperationList{},
 	}
 	if state.app.Path() != "" {
-		node.Path = filepath.Join(state.app.FullPath(), MigrationsDir)
+		node.Path = state.app.FullPath()
 	}
 	node.number = len(state.migrations) + 1
 	if node.number == 1 {
@@ -144,7 +144,7 @@ func loadApp(app *gomodels.Application) error {
 	if app.Path() == "" {
 		return nil
 	}
-	dir := filepath.Join(app.FullPath(), MigrationsDir)
+	dir := app.FullPath()
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return &PathError{ErrorTrace{Err: err}}

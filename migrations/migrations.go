@@ -5,8 +5,6 @@ import (
 	"github.com/moiseshiraldo/gomodels"
 )
 
-const MigrationsDir = "migrations"
-
 type MakeOptions struct {
 	Empty     bool
 	OmitWrite bool
