@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/moiseshiraldo/gomodels"
+	"go/build"
 	"io/ioutil"
 	"path/filepath"
 	"strconv"
@@ -37,6 +38,9 @@ func (n Node) Save() error {
 		return err
 	}
 	fp := filepath.Join(n.Path, n.filename())
+	if !filepath.IsAbs(fp) {
+		fp = filepath.Join(build.Default.GOPATH, "src", fp)
+	}
 	if err := ioutil.WriteFile(fp, data, 0644); err != nil {
 		return err
 	}
@@ -48,6 +52,9 @@ func (n *Node) Load() error {
 		return fmt.Errorf("no path")
 	}
 	fp := filepath.Join(n.Path, n.filename())
+	if !filepath.IsAbs(fp) {
+		fp = filepath.Join(build.Default.GOPATH, "src", fp)
+	}
 	data, err := ioutil.ReadFile(fp)
 	if err != nil {
 		return err

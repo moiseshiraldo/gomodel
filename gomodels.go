@@ -130,6 +130,10 @@ func Register(apps ...AppSettings) error {
 	return nil
 }
 
+func ClearRegistry() {
+	registry = map[string]*Application{}
+}
+
 func registerModel(app *Application, model *Model) {
 	if _, found := app.models[model.name]; found {
 		panic(fmt.Sprintf(

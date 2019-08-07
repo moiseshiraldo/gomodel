@@ -91,18 +91,19 @@ func testAppSatateMigrateBackwardsAll(t *testing.T, appState *AppState) {
 
 func TestAppState(t *testing.T) {
 	if err := gomodels.Register(gomodels.NewApp("test", "")); err != nil {
-		t.Errorf("Setup error: %s", err)
+		panic(err)
 	}
 	err := gomodels.Start(gomodels.DBSettings{
 		"default": {Driver: "sqlite3", Name: ":memory:"},
 	})
 	if err != nil {
-		t.Errorf("Setup error: %s", err)
+		panic(err)
 	}
 	if err := gomodels.Databases()["default"].PrepareMigrations(); err != nil {
-		t.Errorf("Setup error: %s", err)
+		panic(err)
 	}
 	defer gomodels.Stop()
+	defer gomodels.ClearRegistry()
 	firstNode := &Node{App: "test", Name: "initial", number: 1}
 	secondNode := &Node{
 		App:          "test",
