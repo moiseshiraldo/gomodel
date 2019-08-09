@@ -96,13 +96,13 @@ func (n Node) runDependencies(db gomodels.Database) error {
 func (n Node) runOperations(db gomodels.Database) error {
 	tx, err := db.BeginTx()
 	if err != nil {
-		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
+		return &gomodels.DatabaseError{db.Id(), gomodels.ErrorTrace{Err: err}}
 	}
 	for _, op := range n.Operations {
 		if err := op.Run(tx, history[n.App]); err != nil {
 			if txErr := tx.Rollback(); txErr != nil {
 				return &gomodels.DatabaseError{
-					"", gomodels.ErrorTrace{Err: txErr},
+					db.Id(), gomodels.ErrorTrace{Err: txErr},
 				}
 			}
 			return &OperationRunError{
@@ -115,10 +115,10 @@ func (n Node) runOperations(db gomodels.Database) error {
 		if txErr != nil {
 			err = txErr
 		}
-		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
+		return &gomodels.DatabaseError{db.Id(), gomodels.ErrorTrace{Err: err}}
 	}
 	if err = tx.Commit(); err != nil {
-		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
+		return &gomodels.DatabaseError{db.Id(), gomodels.ErrorTrace{Err: err}}
 	}
 	return nil
 }
@@ -155,7 +155,7 @@ func (n Node) backwardDependencies(db gomodels.Database) error {
 func (n Node) backwardOperations(db gomodels.Database) error {
 	tx, err := db.BeginTx()
 	if err != nil {
-		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
+		return &gomodels.DatabaseError{db.Id(), gomodels.ErrorTrace{Err: err}}
 	}
 	prevState := loadPreviousState(n)
 	for k := range n.Operations {
@@ -164,7 +164,7 @@ func (n Node) backwardOperations(db gomodels.Database) error {
 		if err != nil {
 			if txErr := tx.Rollback(); txErr != nil {
 				return &gomodels.DatabaseError{
-					"", gomodels.ErrorTrace{Err: txErr},
+					db.Id(), gomodels.ErrorTrace{Err: txErr},
 				}
 			}
 			return &OperationRunError{
@@ -176,10 +176,10 @@ func (n Node) backwardOperations(db gomodels.Database) error {
 		if txErr := tx.Rollback(); txErr != nil {
 			err = txErr
 		}
-		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
+		return &gomodels.DatabaseError{db.Id(), gomodels.ErrorTrace{Err: err}}
 	}
 	if err = tx.Commit(); err != nil {
-		return &gomodels.DatabaseError{"", gomodels.ErrorTrace{Err: err}}
+		return &gomodels.DatabaseError{db.Id(), gomodels.ErrorTrace{Err: err}}
 	}
 	return nil
 }

@@ -93,21 +93,13 @@ func (state AppState) Migrate(database string, nodeName string) error {
 			node = state.migrations[number-1]
 		}
 	}
-	var err error
 	if node == nil {
-		err = state.migrations[0].Backwards(db)
+		return state.migrations[0].Backwards(db)
 	} else if node.number < state.lastApplied {
-		err = state.migrations[node.number].Backwards(db)
+		return state.migrations[node.number].Backwards(db)
 	} else {
-		err = node.Run(db)
+		return node.Run(db)
 	}
-	if dbErr, ok := err.(*gomodels.DatabaseError); ok {
-		dbErr.Name = database
-		return dbErr
-	} else if err != nil {
-		return err
-	}
-	return nil
 }
 
 func loadHistory() error {

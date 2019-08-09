@@ -26,6 +26,10 @@ func (db Database) BeginTx() (*Transaction, error) {
 	return &Transaction{engine, db}, nil
 }
 
+func (db Database) Id() string {
+	return db.name
+}
+
 type Transaction struct {
 	Engine
 	DB Database
