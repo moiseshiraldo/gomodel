@@ -12,7 +12,7 @@ type PostgresEngine struct {
 	tx *sql.Tx
 }
 
-func (e PostgresEngine) Start(db *Database) (Engine, error) {
+func (e PostgresEngine) Start(db Database) (Engine, error) {
 	credentials := fmt.Sprintf(
 		"dbname=%s user=%s password=%s sslmode=disable",
 		db.Name, db.User, db.Password,

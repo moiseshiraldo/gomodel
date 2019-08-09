@@ -12,7 +12,7 @@ type SqliteEngine struct {
 	tx *sql.Tx
 }
 
-func (e SqliteEngine) Start(db *Database) (Engine, error) {
+func (e SqliteEngine) Start(db Database) (Engine, error) {
 	conn, err := sql.Open(db.Driver, db.Name)
 	if err != nil {
 		return nil, err

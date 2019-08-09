@@ -66,7 +66,7 @@ func Start(options DBSettings) error {
 			err := fmt.Errorf("unsupported driver: %s", db.Driver)
 			return &DatabaseError{name, ErrorTrace{Err: err}}
 		}
-		eng, err := engine.Start(&db)
+		eng, err := engine.Start(db)
 		if err != nil {
 			return &DatabaseError{name, ErrorTrace{Err: err}}
 		}

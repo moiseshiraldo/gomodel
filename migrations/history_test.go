@@ -94,7 +94,7 @@ func TestAppState(t *testing.T) {
 		panic(err)
 	}
 	err := gomodels.Start(gomodels.DBSettings{
-		"default": {Driver: "sqlite3", Name: ":memory:"},
+		"default": {Driver: "mocker", Name: "test"},
 	})
 	if err != nil {
 		panic(err)

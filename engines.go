@@ -21,7 +21,7 @@ type Migrator interface {
 
 type Engine interface {
 	Migrator
-	Start(*Database) (Engine, error)
+	Start(Database) (Engine, error)
 	Stop() error
 	DB() *sql.DB
 	Tx() *sql.Tx
@@ -40,4 +40,5 @@ type Engine interface {
 var engines = map[string]Engine{
 	"sqlite3":  SqliteEngine{},
 	"postgres": PostgresEngine{},
+	"mocker":   MockedEngine{},
 }
