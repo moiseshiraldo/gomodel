@@ -9,14 +9,13 @@ type Migrator interface {
 	GetMigrations() (*sql.Rows, error)
 	SaveMigration(app string, number int, name string) error
 	DeleteMigration(app string, number int) error
-	CreateTable(table string, fields Fields) error
-	RenameTable(table string, name string) error
-	CopyTable(table string, name string, columns ...string) error
-	DropTable(table string) error
-	AddIndex(table string, name string, columns ...string) error
-	DropIndex(table string, name string) error
-	AddColumns(table string, fields Fields) error
-	DropColumns(table string, columns ...string) error
+	CreateTable(model *Model) error
+	RenameTable(old *Model, new *Model) error
+	DropTable(model *Model) error
+	AddIndex(model *Model, name string, fields ...string) error
+	DropIndex(model *Model, name string) error
+	AddColumns(model *Model, fields Fields) error
+	DropColumns(old *Model, new *Model, fields ...string) error
 }
 
 type Engine interface {

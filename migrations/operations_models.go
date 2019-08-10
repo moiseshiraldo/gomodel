@@ -22,7 +22,6 @@ func (op *CreateModel) SetState(state *AppState) error {
 	table := op.Table
 	if table == "" {
 		table = fmt.Sprintf("%s_%s", state.app.Name(), op.Name)
-		fmt.Printf(table)
 	}
 	state.models[op.Name] = gomodels.New(
 		op.Name, op.Fields, gomodels.Options{Table: table},
@@ -30,23 +29,24 @@ func (op *CreateModel) SetState(state *AppState) error {
 	return nil
 }
 
-func (op CreateModel) Run(tx *gomodels.Transaction, state *AppState) error {
-	if op.Table == "" {
-		op.Table = fmt.Sprintf("%s_%s", state.app.Name(), op.Name)
-	}
-	return tx.CreateTable(op.Table, op.Fields)
+func (op CreateModel) Run(
+	tx *gomodels.Transaction,
+	state *AppState,
+	prevState *AppState,
+) error {
+	return tx.CreateTable(state.models[op.Name])
 }
 
-func (op CreateModel) Backwards(tx *gomodels.Transaction, pS *AppState) error {
-	if op.Table == "" {
-		op.Table = fmt.Sprintf("%s_%s", pS.app.Name(), op.Name)
-	}
-	return tx.DropTable(op.Table)
+func (op CreateModel) Backwards(
+	tx *gomodels.Transaction,
+	state *AppState,
+	prevState *AppState,
+) error {
+	return tx.DropTable(state.models[op.Name])
 }
 
 type DeleteModel struct {
-	Name  string
-	table string `json:"-"`
+	Name string
 }
 
 func (op DeleteModel) OpName() string {
@@ -57,23 +57,28 @@ func (op *DeleteModel) SetState(state *AppState) error {
 	if _, ok := state.models[op.Name]; !ok {
 		return fmt.Errorf("model not found: %s", op.Name)
 	}
-	op.table = state.models[op.Name].Table()
 	delete(state.models, op.Name)
 	return nil
 }
 
-func (op DeleteModel) Run(tx *gomodels.Transaction, state *AppState) error {
-	return tx.DropTable(op.table)
+func (op DeleteModel) Run(
+	tx *gomodels.Transaction,
+	state *AppState,
+	prevState *AppState,
+) error {
+	return tx.DropTable(prevState.models[op.Name])
 }
 
-func (op DeleteModel) Backwards(tx *gomodels.Transaction, pS *AppState) error {
-	model := pS.models[op.Name]
-	return tx.CreateTable(model.Table(), model.Fields())
+func (op DeleteModel) Backwards(
+	tx *gomodels.Transaction,
+	state *AppState,
+	prevState *AppState,
+) error {
+	return tx.CreateTable(prevState.models[op.Name])
 }
 
 type AddIndex struct {
 	Model  string
-	table  string `json:"-"`
 	Name   string
 	Fields []string
 }
@@ -87,36 +92,36 @@ func (op *AddIndex) SetState(state *AppState) error {
 	if !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}
-	op.table = model.Table()
 	indexes := model.Indexes()
 	if _, found := model.Indexes()[op.Name]; found {
 		return fmt.Errorf("duplicate index name: %s", op.Name)
 	}
 	indexes[op.Name] = op.Fields
-	options := gomodels.Options{Table: op.table, Indexes: indexes}
+	options := gomodels.Options{Table: model.Table(), Indexes: indexes}
 	state.models[op.Model] = gomodels.New(
 		model.Name(), model.Fields(), options,
 	).Model
 	return nil
 }
 
-func (op AddIndex) Run(tx *gomodels.Transaction, state *AppState) error {
-	fields := state.models[op.Model].Fields()
-	columns := make([]string, 0, len(op.Fields))
-	for _, name := range op.Fields {
-		column := fields[name].DBColumn(name)
-		columns = append(columns, fmt.Sprintf("\"%s\"", column))
-	}
-	return tx.AddIndex(op.table, op.Name, columns...)
+func (op AddIndex) Run(
+	tx *gomodels.Transaction,
+	state *AppState,
+	prevState *AppState,
+) error {
+	return tx.AddIndex(state.models[op.Model], op.Name, op.Fields...)
 }
 
-func (op AddIndex) Backwards(tx *gomodels.Transaction, pS *AppState) error {
-	return tx.DropIndex(op.table, op.Name)
+func (op AddIndex) Backwards(
+	tx *gomodels.Transaction,
+	state *AppState,
+	prevState *AppState,
+) error {
+	return tx.DropIndex(state.models[op.Model], op.Name)
 }
 
 type RemoveIndex struct {
 	Model string
-	table string `json:"-"`
 	Name  string
 }
 
@@ -129,30 +134,31 @@ func (op *RemoveIndex) SetState(state *AppState) error {
 	if !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}
-	op.table = model.Table()
 	indexes := model.Indexes()
 	if _, ok := model.Indexes()[op.Name]; !ok {
 		return fmt.Errorf("index not found: %s", op.Name)
 	}
 	delete(indexes, op.Name)
-	options := gomodels.Options{Table: op.table, Indexes: indexes}
+	options := gomodels.Options{Table: model.Table(), Indexes: indexes}
 	state.models[op.Model] = gomodels.New(
 		model.Name(), model.Fields(), options,
 	).Model
 	return nil
 }
 
-func (op RemoveIndex) Run(tx *gomodels.Transaction, state *AppState) error {
-	return tx.DropIndex(op.table, op.Name)
+func (op RemoveIndex) Run(
+	tx *gomodels.Transaction,
+	state *AppState,
+	prevState *AppState,
+) error {
+	return tx.DropIndex(state.models[op.Model], op.Name)
 }
 
-func (op RemoveIndex) Backwards(tx *gomodels.Transaction, pS *AppState) error {
-	indexes := pS.models[op.Model].Indexes()
-	fields := pS.models[op.Model].Fields()
-	columns := make([]string, 0, len(indexes[op.Name]))
-	for _, fieldName := range indexes[op.Name] {
-		column := fields[fieldName].DBColumn(fieldName)
-		columns = append(columns, fmt.Sprintf("\"%s\"", column))
-	}
-	return tx.AddIndex(op.table, op.Name, columns...)
+func (op RemoveIndex) Backwards(
+	tx *gomodels.Transaction,
+	state *AppState,
+	prevState *AppState,
+) error {
+	model := prevState.models[op.Model]
+	return tx.AddIndex(model, op.Name, model.Indexes()[op.Name]...)
 }

@@ -64,36 +64,29 @@ type MockedEngineArgs struct {
 		App    string
 		Number int
 	}
-	CreateTable struct {
-		Table  string
-		Fields Fields
-	}
+	CreateTable *Model
 	RenameTable struct {
-		Table string
-		Name  string
+		Old *Model
+		New *Model
 	}
-	CopyTable struct {
-		Table   string
-		Name    string
-		Columns []string
-	}
-	DropTable string
+	DropTable *Model
 	AddIndex  struct {
-		Table   string
-		Name    string
-		Columns []string
+		Model  *Model
+		Name   string
+		Fields []string
 	}
 	DropIndex struct {
-		Table string
+		Model *Model
 		Name  string
 	}
 	AddColumns struct {
-		Table  string
+		Model  *Model
 		Fields Fields
 	}
 	DropColumns struct {
-		Table   string
-		Columns []string
+		Old   *Model
+		New   *Model
+		Field []string
 	}
 	SelectQuery struct {
 		Model       *Model
@@ -202,42 +195,41 @@ func (e MockedEngine) DeleteMigration(app string, number int) error {
 	return e.Results.DeleteMigration
 }
 
-func (e MockedEngine) CreateTable(tbl string, fields Fields) error {
+func (e MockedEngine) CreateTable(model *Model) error {
 	e.calls["CreateTable"] += 1
 	return e.Results.CreateTable
 }
 
-func (e MockedEngine) RenameTable(tbl string, name string) error {
+func (e MockedEngine) RenameTable(old *Model, new *Model) error {
 	e.calls["RenameTable"] += 1
 	return e.Results.RenameTable
 }
 
-func (e MockedEngine) CopyTable(tbl string, name string, cols ...string) error {
-	e.calls["CopyTable"] += 1
-	return e.Results.CopyTable
-}
-
-func (e MockedEngine) DropTable(tbl string) error {
+func (e MockedEngine) DropTable(model *Model) error {
 	e.calls["DropTable"] += 1
 	return e.Results.DropTable
 }
 
-func (e MockedEngine) AddIndex(tbl string, name string, cols ...string) error {
+func (e MockedEngine) AddIndex(m *Model, name string, fields ...string) error {
 	e.calls["AddIndex"] += 1
 	return e.Results.AddIndex
 }
 
-func (e MockedEngine) DropIndex(tbl string, name string) error {
+func (e MockedEngine) DropIndex(odel *Model, name string) error {
 	e.calls["DropIndex"] += 1
 	return e.Results.DropIndex
 }
 
-func (e MockedEngine) AddColumns(tbl string, fields Fields) error {
+func (e MockedEngine) AddColumns(model *Model, fields Fields) error {
 	e.calls["AddColumns"] += 1
 	return e.Results.AddColumns
 }
 
-func (e MockedEngine) DropColumns(tbl string, columns ...string) error {
+func (e MockedEngine) DropColumns(
+	old *Model,
+	new *Model,
+	fields ...string,
+) error {
 	e.calls["DropColumns"] += 1
 	return e.Results.DropColumns
 }

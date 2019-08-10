@@ -31,6 +31,7 @@ func (op *mockedOperation) SetState(state *AppState) error {
 func (op *mockedOperation) Run(
 	tx *gomodels.Transaction,
 	state *AppState,
+	prevState *AppState,
 ) error {
 	op.run = true
 	return nil
@@ -38,7 +39,8 @@ func (op *mockedOperation) Run(
 
 func (op *mockedOperation) Backwards(
 	tx *gomodels.Transaction,
-	pS *AppState,
+	state *AppState,
+	prevState *AppState,
 ) error {
 	op.back = true
 	return nil

@@ -120,7 +120,8 @@ func (e PostgresEngine) DeleteMigration(app string, number int) error {
 	return err
 }
 
-func (e PostgresEngine) CreateTable(tbl string, fields Fields) error {
+func (e PostgresEngine) CreateTable(model *Model) error {
+	fields := model.Fields()
 	columns := make([]string, 0, len(fields))
 	for name, field := range fields {
 		sqlColumn := fmt.Sprintf(
@@ -129,61 +130,52 @@ func (e PostgresEngine) CreateTable(tbl string, fields Fields) error {
 		columns = append(columns, sqlColumn)
 	}
 	stmt := fmt.Sprintf(
-		"CREATE TABLE \"%s\" (%s)", tbl, strings.Join(columns, ", "),
+		"CREATE TABLE \"%s\" (%s)", model.Table(), strings.Join(columns, ", "),
 	)
 	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
-func (e PostgresEngine) RenameTable(tbl string, name string) error {
-	stmt := fmt.Sprintf("ALTER TABLE \"%s\" RENAME TO \"%s\"", tbl, name)
-	_, err := e.exec(Query{Stmt: stmt})
-	return err
-}
-
-func (e PostgresEngine) CopyTable(
-	tbl string,
-	name string,
-	cols ...string,
-) error {
-	columns := make([]string, 0, len(cols))
-	for _, col := range cols {
-		columns = append(columns, fmt.Sprintf("\"%s\"", col))
-	}
+func (e PostgresEngine) RenameTable(old *Model, new *Model) error {
 	stmt := fmt.Sprintf(
-		"CREATE TABLE \"%s\" AS SELECT %s FROM \"%s\"",
-		name, strings.Join(columns, ", "), tbl,
+		"ALTER TABLE \"%s\" RENAME TO \"%s\"", old.Table(), new.Table(),
 	)
 	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
-func (e PostgresEngine) DropTable(tbl string) error {
-	stmt := fmt.Sprintf("DROP TABLE \"%s\"", tbl)
+func (e PostgresEngine) DropTable(model *Model) error {
+	stmt := fmt.Sprintf("DROP TABLE \"%s\"", model.Table())
 	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
 func (e PostgresEngine) AddIndex(
-	tbl string,
+	model *Model,
 	name string,
-	cols ...string,
+	fields ...string,
 ) error {
+	modelFields := model.Fields()
+	columns := make([]string, 0, len(fields))
+	for _, fieldName := range fields {
+		column := modelFields[fieldName].DBColumn(fieldName)
+		columns = append(columns, fmt.Sprintf("\"%s\"", column))
+	}
 	stmt := fmt.Sprintf(
 		"CREATE INDEX \"%s\" ON \"%s\" (%s)",
-		name, tbl, strings.Join(cols, ", "),
+		name, model.Table(), strings.Join(columns, ", "),
 	)
 	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
-func (e PostgresEngine) DropIndex(tbl string, name string) error {
+func (e PostgresEngine) DropIndex(model *Model, name string) error {
 	stmt := fmt.Sprintf("DROP INDEX \"%s\"", name)
 	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
-func (e PostgresEngine) AddColumns(tbl string, fields Fields) error {
+func (e PostgresEngine) AddColumns(model *Model, fields Fields) error {
 	addColumns := make([]string, 0, len(fields))
 	for name, field := range fields {
 		addColumn := fmt.Sprintf(
@@ -193,21 +185,27 @@ func (e PostgresEngine) AddColumns(tbl string, fields Fields) error {
 		addColumns = append(addColumns, addColumn)
 	}
 	stmt := fmt.Sprintf(
-		"ALTER TABLE \"%s\" %s", tbl, strings.Join(addColumns, ", "),
+		"ALTER TABLE \"%s\" %s", model.Table(), strings.Join(addColumns, ", "),
 	)
 	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
-func (e PostgresEngine) DropColumns(tbl string, columns ...string) error {
+func (e PostgresEngine) DropColumns(
+	old *Model,
+	new *Model,
+	columns ...string,
+) error {
+	fields := old.Fields()
 	dropColumns := make([]string, 0, len(columns))
 	for _, name := range columns {
 		dropColumns = append(
-			dropColumns, fmt.Sprintf("DROP COLUMN \"%s\"", name),
+			dropColumns,
+			fmt.Sprintf("DROP COLUMN \"%s\"", fields[name].DBColumn(name)),
 		)
 	}
 	stmt := fmt.Sprintf(
-		"ALTER TABLE %s %s", tbl, strings.Join(dropColumns, ", "),
+		"ALTER TABLE %s %s", old.Table(), strings.Join(dropColumns, ", "),
 	)
 	_, err := e.exec(Query{Stmt: stmt})
 	return err

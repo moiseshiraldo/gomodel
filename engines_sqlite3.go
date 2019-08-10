@@ -110,7 +110,8 @@ func (e SqliteEngine) DeleteMigration(app string, number int) error {
 	return err
 }
 
-func (e SqliteEngine) CreateTable(tbl string, fields Fields) error {
+func (e SqliteEngine) CreateTable(model *Model) error {
+	fields := model.Fields()
 	columns := make([]string, 0, len(fields))
 	for name, field := range fields {
 		sqlColumn := fmt.Sprintf(
@@ -119,57 +120,65 @@ func (e SqliteEngine) CreateTable(tbl string, fields Fields) error {
 		columns = append(columns, sqlColumn)
 	}
 	stmt := fmt.Sprintf(
-		"CREATE TABLE \"%s\" (%s)", tbl, strings.Join(columns, ", "),
+		"CREATE TABLE \"%s\" (%s)", model.Table(), strings.Join(columns, ", "),
 	)
 	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
-func (e SqliteEngine) DropTable(tbl string) error {
-	stmt := fmt.Sprintf("DROP TABLE \"%s\"", tbl)
+func (e SqliteEngine) DropTable(model *Model) error {
+	stmt := fmt.Sprintf("DROP TABLE \"%s\"", model.Table())
 	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
-func (e SqliteEngine) RenameTable(tbl string, name string) error {
-	stmt := fmt.Sprintf("ALTER TABLE \"%s\" RENAME TO \"%s\"", tbl, name)
+func (e SqliteEngine) RenameTable(old *Model, new *Model) error {
+	stmt := fmt.Sprintf(
+		"ALTER TABLE \"%s\" RENAME TO \"%s\"", old.Table(), new.Table(),
+	)
 	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
-func (e SqliteEngine) CopyTable(tbl string, name string, cols ...string) error {
+func (e SqliteEngine) copyTable(m *Model, name string, cols ...string) error {
 	columns := make([]string, 0, len(cols))
 	for _, col := range cols {
 		columns = append(columns, fmt.Sprintf("\"%s\"", col))
 	}
 	stmt := fmt.Sprintf(
 		"CREATE TABLE \"%s\" AS SELECT %s FROM \"%s\"",
-		name, strings.Join(columns, ", "), tbl,
+		name, strings.Join(columns, ", "), m.Table(),
 	)
 	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
-func (e SqliteEngine) AddIndex(tbl string, name string, cols ...string) error {
+func (e SqliteEngine) AddIndex(m *Model, name string, fields ...string) error {
+	modelFields := m.Fields()
+	columns := make([]string, 0, len(fields))
+	for _, fieldName := range fields {
+		column := modelFields[fieldName].DBColumn(fieldName)
+		columns = append(columns, fmt.Sprintf("\"%s\"", column))
+	}
 	stmt := fmt.Sprintf(
 		"CREATE INDEX \"%s\" ON \"%s\" (%s)",
-		name, tbl, strings.Join(cols, ", "),
+		name, m.Table(), strings.Join(columns, ", "),
 	)
 	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
-func (e SqliteEngine) DropIndex(tbl string, name string) error {
+func (e SqliteEngine) DropIndex(model *Model, name string) error {
 	stmt := fmt.Sprintf("DROP INDEX \"%s\"", name)
 	_, err := e.exec(Query{Stmt: stmt})
 	return err
 }
 
-func (e SqliteEngine) AddColumns(tbl string, fields Fields) error {
+func (e SqliteEngine) AddColumns(model *Model, fields Fields) error {
 	for name, field := range fields {
 		stmt := fmt.Sprintf(
 			"ALTER TABLE \"%s\" ADD COLUMN \"%s\" %s",
-			tbl, field.DBColumn(name), field.SqlDatatype("sqlite3"),
+			model.Table(), field.DBColumn(name), field.SqlDatatype("sqlite3"),
 		)
 		if _, err := e.exec(Query{Stmt: stmt}); err != nil {
 			return err
@@ -178,8 +187,34 @@ func (e SqliteEngine) AddColumns(tbl string, fields Fields) error {
 	return nil
 }
 
-func (e SqliteEngine) DropColumns(tbl string, columns ...string) error {
-	return fmt.Errorf("sqlite engine: drop columns not supported")
+func (e SqliteEngine) DropColumns(
+	old *Model,
+	new *Model,
+	fields ...string,
+) error {
+	newFields := new.Fields()
+	oldFields := old.Fields()
+	keepCols := make([]string, 0, len(oldFields)-len(fields))
+	for name, field := range newFields {
+		keepCols = append(keepCols, field.DBColumn(name))
+	}
+	name := old.Table() + "__new"
+	if err := e.copyTable(old, name, keepCols...); err != nil {
+		return err
+	}
+	if err := e.DropTable(old); err != nil {
+		return err
+	}
+	old.meta.Table = name
+	if err := e.RenameTable(old, new); err != nil {
+		return err
+	}
+	for idxName, fields := range new.Indexes() {
+		if err := e.AddIndex(new, idxName, fields...); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (e SqliteEngine) predicate(model *Model, cond Conditioner) (Query, error) {

@@ -98,8 +98,11 @@ func (n Node) runOperations(db gomodels.Database) error {
 	if err != nil {
 		return &gomodels.DatabaseError{db.Id(), gomodels.ErrorTrace{Err: err}}
 	}
+	prevState := loadPreviousState(n)[n.App]
+	state := loadPreviousState(n)[n.App]
 	for _, op := range n.Operations {
-		if err := op.Run(tx, history[n.App]); err != nil {
+		op.SetState(state)
+		if err := op.Run(tx, state, prevState); err != nil {
 			if txErr := tx.Rollback(); txErr != nil {
 				return &gomodels.DatabaseError{
 					db.Id(), gomodels.ErrorTrace{Err: txErr},
@@ -109,6 +112,7 @@ func (n Node) runOperations(db gomodels.Database) error {
 				ErrorTrace{Node: &n, Operation: &op, Err: err},
 			}
 		}
+		op.SetState(prevState)
 	}
 	if err := tx.SaveMigration(n.App, n.number, n.Name); err != nil {
 		txErr := tx.Rollback()
@@ -157,10 +161,16 @@ func (n Node) backwardOperations(db gomodels.Database) error {
 	if err != nil {
 		return &gomodels.DatabaseError{db.Id(), gomodels.ErrorTrace{Err: err}}
 	}
-	prevState := loadPreviousState(n)
+	states := make([]*AppState, len(n.Operations)+1)
+	states[0] = loadPreviousState(n)[n.App]
+	for i, op := range n.Operations {
+		states[i+1] = loadPreviousState(n)[n.App]
+		op.SetState(states[i+1])
+	}
 	for k := range n.Operations {
-		op := n.Operations[len(n.Operations)-1-k]
-		err := op.Backwards(tx, prevState[n.App])
+		i := len(n.Operations) - 1 - k
+		op := n.Operations[i]
+		err := op.Backwards(tx, states[i+1], states[i])
 		if err != nil {
 			if txErr := tx.Rollback(); txErr != nil {
 				return &gomodels.DatabaseError{
