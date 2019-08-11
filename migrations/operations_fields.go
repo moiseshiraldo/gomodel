@@ -60,7 +60,6 @@ func (op AddFields) Backwards(
 
 type RemoveFields struct {
 	Model  string
-	table  string `json:"-"`
 	Fields []string
 }
 
@@ -72,8 +71,8 @@ func (op *RemoveFields) SetState(state *AppState) error {
 	if _, ok := state.models[op.Model]; !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}
-	op.table = state.models[op.Model].Table()
-	fields := state.models[op.Model].Fields()
+	model := state.models[op.Model]
+	fields := model.Fields()
 	for _, name := range op.Fields {
 		if _, ok := fields[name]; !ok {
 			return fmt.Errorf("%s: field not found: %s", op.Model, name)
@@ -81,7 +80,7 @@ func (op *RemoveFields) SetState(state *AppState) error {
 		delete(fields, name)
 	}
 	options := gomodels.Options{
-		Table: op.table, Indexes: state.models[op.Model].Indexes(),
+		Table: model.Table(), Indexes: state.models[op.Model].Indexes(),
 	}
 	delete(state.models, op.Model)
 	state.models[op.Model] = gomodels.New(
