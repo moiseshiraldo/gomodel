@@ -54,6 +54,9 @@ func (op *mockedOperation) Backwards(
 	state *AppState,
 	prevState *AppState,
 ) error {
+	if op.runErr {
+		return fmt.Errorf("run error")
+	}
 	op.back = true
 	return nil
 }
@@ -173,7 +176,6 @@ func testNodeRun(t *testing.T, db gomodels.Database) {
 	})
 	t.Run("TxCommitError", func(t *testing.T) {
 		node := setup()
-		node.applied = false
 		mockedEngine.Results.CommitTx = fmt.Errorf("db error")
 		err := node.Run(db)
 		if _, ok := err.(*gomodels.DatabaseError); !ok {
@@ -259,6 +261,39 @@ func testNodeBackwards(t *testing.T, db gomodels.Database) {
 			applied:    true,
 		}
 	}
+	t.Run("OperationError", func(t *testing.T) {
+		node := setup()
+		op.runErr = true
+		err := node.Backwards(db)
+		if _, ok := err.(*OperationRunError); !ok {
+			t.Errorf("Expected OperationRunError, got %T", err)
+		}
+	})
+	t.Run("MigrationDbError", func(t *testing.T) {
+		node := setup()
+		mockedEngine.Results.DeleteMigration = fmt.Errorf("db error")
+		err := node.Backwards(db)
+		if _, ok := err.(*gomodels.DatabaseError); !ok {
+			t.Errorf("Expected gomodels.DatabaseError, got %T", err)
+		}
+	})
+	t.Run("TxCommitError", func(t *testing.T) {
+		node := setup()
+		mockedEngine.Results.CommitTx = fmt.Errorf("db error")
+		err := node.Backwards(db)
+		if _, ok := err.(*gomodels.DatabaseError); !ok {
+			t.Errorf("Expected gomodels.DatabaseError, got %T", err)
+		}
+	})
+	t.Run("TxRollbackError", func(t *testing.T) {
+		node := setup()
+		op.runErr = true
+		mockedEngine.Results.RollbackTx = fmt.Errorf("db error")
+		err := node.Backwards(db)
+		if _, ok := err.(*gomodels.DatabaseError); !ok {
+			t.Errorf("Expected gomodels.DatabaseError, got %T", err)
+		}
+	})
 	t.Run("Success", func(t *testing.T) {
 		node := setup()
 		if err := node.Backwards(db); err != nil {
