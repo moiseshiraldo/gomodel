@@ -21,6 +21,13 @@ type mockedOperation struct {
 	runErr bool
 }
 
+func (op *mockedOperation) reset() {
+	op.run = false
+	op.back = false
+	op.state = false
+	op.runErr = false
+}
+
 func (op mockedOperation) OpName() string {
 	return "MockedOperation"
 }
@@ -57,262 +64,6 @@ var mockedNodeFile = []byte(`{
   "Operations": [{"MockedOperation": {}}]
 }`)
 
-func testNodeLoadNoPath(t *testing.T) {
-	node := &Node{App: "test", Name: "initial", number: 1}
-	if err := node.Load(); err == nil {
-		t.Errorf("Expected error")
-	}
-}
-
-func testNodeSaveNoPath(t *testing.T) {
-	node := &Node{App: "test", Name: "initial", number: 1}
-	if err := node.Save(); err == nil {
-		t.Errorf("Expected error")
-	}
-}
-
-func testNodeLoad(t *testing.T) {
-	node := &Node{Name: "initial", number: 1, Path: tmpDir}
-	if err := node.Load(); err != nil {
-		t.Errorf("%s", err)
-	}
-	if node.App != "test" || len(node.Operations) != 1 {
-		t.Errorf("node missing information")
-	}
-}
-
-func testNodeSave(t *testing.T) {
-	node := &Node{
-		App:        "test",
-		Name:       "test_migration",
-		number:     2,
-		Path:       tmpDir,
-		Operations: OperationList{&mockedOperation{}},
-	}
-	if err := node.Save(); err != nil {
-		t.Errorf("%s", err)
-	}
-	fp := filepath.Join(
-		build.Default.GOPATH, "src", tmpDir, "0002_test_migration.json",
-	)
-	data, err := ioutil.ReadFile(fp)
-	if err != nil {
-		t.Errorf("%s", err)
-	}
-	n := &Node{}
-	if err := json.Unmarshal(data, n); err != nil {
-		t.Errorf("%s", err)
-	}
-	if n.App != "test" || len(n.Operations) != 1 {
-		t.Errorf("file missing information")
-	}
-}
-
-func testNodeRunOpError(t *testing.T, db gomodels.Database) {
-	op := &mockedOperation{runErr: true}
-	node := &Node{
-		App:        "test",
-		Name:       "initial",
-		number:     1,
-		Operations: OperationList{op},
-	}
-	err := node.Run(db)
-	if _, ok := err.(*OperationRunError); !ok {
-		t.Errorf("Expected OperationRunError, got %T", err)
-	}
-}
-
-func testNodeRunMigrationDbError(t *testing.T, db gomodels.Database) {
-	op := &mockedOperation{}
-	node := &Node{
-		App:        "test",
-		Name:       "initial",
-		number:     1,
-		Operations: OperationList{op},
-	}
-	mockedEngine := db.Engine.(gomodels.MockedEngine)
-	mockedEngine.Results.SaveMigration = fmt.Errorf("db error")
-	err := node.Run(db)
-	if _, ok := err.(*gomodels.DatabaseError); !ok {
-		t.Errorf("Expected gomodels.DatabaseError, got %T", err)
-	}
-}
-
-func testNodeTxCommitError(t *testing.T, db gomodels.Database) {
-	op := &mockedOperation{}
-	node := &Node{
-		App:        "test",
-		Name:       "initial",
-		number:     1,
-		Operations: OperationList{op},
-	}
-	mockedEngine := db.Engine.(gomodels.MockedEngine)
-	mockedEngine.Results.CommitTx = fmt.Errorf("db error")
-	err := node.Run(db)
-	if _, ok := err.(*gomodels.DatabaseError); !ok {
-		t.Errorf("Expected gomodels.DatabaseError, got %T", err)
-	}
-}
-
-func testNodeTxRollbackError(t *testing.T, db gomodels.Database) {
-	op := &mockedOperation{runErr: true}
-	node := &Node{
-		App:        "test",
-		Name:       "initial",
-		number:     1,
-		Operations: OperationList{op},
-	}
-	mockedEngine := db.Engine.(gomodels.MockedEngine)
-	mockedEngine.Results.RollbackTx = fmt.Errorf("db error")
-	err := node.Run(db)
-	if _, ok := err.(*gomodels.DatabaseError); !ok {
-		t.Errorf("Expected gomodels.DatabaseError, got %T", err)
-	}
-}
-
-func testNodeRun(t *testing.T, db gomodels.Database) {
-	mockedEngine := db.Engine.(gomodels.MockedEngine)
-	op := &mockedOperation{}
-	node := &Node{
-		App:        "test",
-		Name:       "initial",
-		number:     1,
-		Operations: OperationList{op},
-	}
-	if err := node.Run(db); err != nil {
-		t.Errorf("%s", err)
-	}
-	if !op.run {
-		t.Errorf("node did not run operation")
-	}
-	if !node.applied {
-		t.Errorf("node was not applied")
-	}
-	if mockedEngine.Calls("SaveMigration") != 1 {
-		t.Errorf("migration was not saved on db")
-	}
-	args := mockedEngine.Args.SaveMigration
-	if args.App != "test" || args.Number != 1 || args.Name != "initial" {
-		t.Errorf("SaveMigration called with wrong arguments")
-	}
-}
-
-func testNodeRunDependencies(t *testing.T, db gomodels.Database) {
-	mockedEngine := db.Engine.(gomodels.MockedEngine)
-	op := &mockedOperation{}
-	firstNode := &Node{
-		App:        "test",
-		Name:       "initial",
-		number:     1,
-		Operations: OperationList{op},
-	}
-	secondNode := &Node{
-		App:          "test",
-		Name:         "test_migration",
-		number:       2,
-		Dependencies: [][]string{{"test", "0001_initial"}},
-	}
-	if err := gomodels.Register(gomodels.NewApp("test", "")); err != nil {
-		panic(err)
-	}
-	appState := &AppState{
-		app:        gomodels.Registry()["test"],
-		migrations: []*Node{firstNode, secondNode},
-	}
-	history["test"] = appState
-	defer clearHistory()
-	defer gomodels.ClearRegistry()
-	if err := secondNode.Run(db); err != nil {
-		t.Errorf("%s", err)
-	}
-	if !op.run {
-		t.Errorf("node did not run operation")
-	}
-	if !firstNode.applied {
-		t.Errorf("node was not applied")
-	}
-	if mockedEngine.Calls("SaveMigration") != 2 {
-		t.Errorf("migrations were not saved on db")
-	}
-	args := mockedEngine.Args.SaveMigration
-	if args.App != "test" || args.Number != 2 || args.Name != "test_migration" {
-		t.Errorf("SaveMigration called with wrong arguments")
-	}
-}
-
-func testNodeBackward(t *testing.T, db gomodels.Database) {
-	mockedEngine := db.Engine.(gomodels.MockedEngine)
-	op := &mockedOperation{}
-	node := &Node{
-		App:        "test",
-		Name:       "initial",
-		number:     1,
-		Operations: OperationList{op},
-		applied:    true,
-	}
-	if err := node.Backwards(db); err != nil {
-		t.Errorf("%s", err)
-	}
-	if !op.back {
-		t.Errorf("node did not run backward operation")
-	}
-	if node.applied {
-		t.Errorf("node is still applied")
-	}
-	if mockedEngine.Calls("DeleteMigration") != 1 {
-		t.Errorf("migration was not deleted from db")
-	}
-	args := mockedEngine.Args.DeleteMigration
-	if args.App != "test" || args.Number != 1 {
-		t.Errorf("DeleteMigration called with wrong arguments")
-	}
-}
-
-func testNodeBackwardDependencies(t *testing.T, db gomodels.Database) {
-	mockedEngine := db.Engine.(gomodels.MockedEngine)
-	op := &mockedOperation{}
-	firstNode := &Node{
-		App:     "test",
-		Name:    "initial",
-		number:  1,
-		applied: true,
-	}
-	secondNode := &Node{
-		App:          "test",
-		Name:         "test_migrations",
-		number:       2,
-		Dependencies: [][]string{{"test", "0001_initial"}},
-		Operations:   OperationList{op},
-		applied:      true,
-	}
-	if err := gomodels.Register(gomodels.NewApp("test", "")); err != nil {
-		panic(err)
-	}
-	appState := &AppState{
-		app:        gomodels.Registry()["test"],
-		migrations: []*Node{firstNode, secondNode},
-	}
-	history["test"] = appState
-	defer clearHistory()
-	defer gomodels.ClearRegistry()
-	if err := firstNode.Backwards(db); err != nil {
-		t.Errorf("%s", err)
-	}
-	if !op.back {
-		t.Errorf("node did not run backward operation")
-	}
-	if secondNode.applied {
-		t.Errorf("node is still applied")
-	}
-	if mockedEngine.Calls("DeleteMigration") != 2 {
-		t.Errorf("migrations were not deleted from db")
-	}
-	args := mockedEngine.Args.DeleteMigration
-	if args.App != "test" || args.Number != 1 {
-		t.Errorf("DeleteMigration called with wrong arguments")
-	}
-}
-
 func clearTmp() {
 	dir := filepath.Join(build.Default.GOPATH, "src", tmpDir)
 	os.RemoveAll(dir)
@@ -324,28 +75,61 @@ func TestNodeStorage(t *testing.T) {
 		panic(err)
 	}
 	defer clearTmp()
-	filepath := filepath.Join(dir, "0001_initial.json")
-	if err := ioutil.WriteFile(filepath, mockedNodeFile, 0644); err != nil {
+	fp := filepath.Join(dir, "0001_initial.json")
+	if err := ioutil.WriteFile(fp, mockedNodeFile, 0644); err != nil {
 		panic(err)
 	}
 	RegisterOperation("MockedOperation", &mockedOperation{})
-	t.Run("LoadNoPath", testNodeLoadNoPath)
-	t.Run("Load", testNodeLoad)
-	t.Run("SaveNoPath", testNodeSaveNoPath)
-	t.Run("Save", testNodeSave)
+	t.Run("LoadNoPath", func(t *testing.T) {
+		node := &Node{App: "test", Name: "initial", number: 1}
+		if err := node.Load(); err == nil {
+			t.Errorf("Expected error")
+		}
+	})
+	t.Run("LoadSuccess", func(t *testing.T) {
+		node := &Node{Name: "initial", number: 1, Path: tmpDir}
+		if err := node.Load(); err != nil {
+			t.Errorf("%s", err)
+		}
+		if node.App != "test" || len(node.Operations) != 1 {
+			t.Errorf("node missing information")
+		}
+	})
+	t.Run("SaveNoPath", func(t *testing.T) {
+		node := &Node{App: "test", Name: "initial", number: 1}
+		if err := node.Save(); err == nil {
+			t.Errorf("Expected error")
+		}
+	})
+	t.Run("SaveSuccess", func(t *testing.T) {
+		node := &Node{
+			App:        "test",
+			Name:       "test_migration",
+			number:     2,
+			Path:       tmpDir,
+			Operations: OperationList{&mockedOperation{}},
+		}
+		if err := node.Save(); err != nil {
+			t.Errorf("%s", err)
+		}
+		fp := filepath.Join(
+			build.Default.GOPATH, "src", tmpDir, "0002_test_migration.json",
+		)
+		data, err := ioutil.ReadFile(fp)
+		if err != nil {
+			t.Errorf("%s", err)
+		}
+		n := &Node{}
+		if err := json.Unmarshal(data, n); err != nil {
+			t.Errorf("%s", err)
+		}
+		if n.App != "test" || len(n.Operations) != 1 {
+			t.Errorf("file missing information")
+		}
+	})
 }
 
 func TestNode(t *testing.T) {
-	matrix := map[string]func(t *testing.T, db gomodels.Database){
-		"RunOpError":           testNodeRunOpError,
-		"RunMigrationDbError":  testNodeRunMigrationDbError,
-		"RunTxCommitError":     testNodeTxCommitError,
-		"RunTxRollbackError":   testNodeTxRollbackError,
-		"Run":                  testNodeRun,
-		"RunDependencies":      testNodeRunDependencies,
-		"Backward":             testNodeBackward,
-		"BackwardDependencies": testNodeBackwardDependencies,
-	}
 	err := gomodels.Start(gomodels.DBSettings{
 		"default": {Driver: "mocker", Name: "test"},
 	})
@@ -353,10 +137,184 @@ func TestNode(t *testing.T) {
 		panic(err)
 	}
 	db := gomodels.Databases()["default"]
-	mockedEngine := db.Engine.(gomodels.MockedEngine)
 	defer gomodels.Stop()
-	for name, f := range matrix {
-		t.Run(name, func(t *testing.T) { f(t, db) })
+	t.Run("Run", func(t *testing.T) { testNodeRun(t, db) })
+	t.Run("Backwards", func(t *testing.T) { testNodeBackwards(t, db) })
+}
+
+func testNodeRun(t *testing.T, db gomodels.Database) {
+	mockedEngine := db.Engine.(gomodels.MockedEngine)
+	op := &mockedOperation{}
+	setup := func() *Node {
+		op.reset()
 		mockedEngine.Reset()
+		return &Node{
+			App:        "test",
+			Name:       "initial",
+			number:     1,
+			Operations: OperationList{op},
+		}
 	}
+	t.Run("OperationError", func(t *testing.T) {
+		node := setup()
+		op.runErr = true
+		err := node.Run(db)
+		if _, ok := err.(*OperationRunError); !ok {
+			t.Errorf("Expected OperationRunError, got %T", err)
+		}
+	})
+	t.Run("MigrationDbError", func(t *testing.T) {
+		node := setup()
+		mockedEngine.Results.SaveMigration = fmt.Errorf("db error")
+		err := node.Run(db)
+		if _, ok := err.(*gomodels.DatabaseError); !ok {
+			t.Errorf("Expected gomodels.DatabaseError, got %T", err)
+		}
+	})
+	t.Run("TxCommitError", func(t *testing.T) {
+		node := setup()
+		node.applied = false
+		mockedEngine.Results.CommitTx = fmt.Errorf("db error")
+		err := node.Run(db)
+		if _, ok := err.(*gomodels.DatabaseError); !ok {
+			t.Errorf("Expected gomodels.DatabaseError, got %T", err)
+		}
+	})
+	t.Run("TxRollbackError", func(t *testing.T) {
+		node := setup()
+		op.runErr = true
+		mockedEngine.Results.RollbackTx = fmt.Errorf("db error")
+		err := node.Run(db)
+		if _, ok := err.(*gomodels.DatabaseError); !ok {
+			t.Errorf("Expected gomodels.DatabaseError, got %T", err)
+		}
+	})
+	t.Run("Success", func(t *testing.T) {
+		node := setup()
+		if err := node.Run(db); err != nil {
+			t.Errorf("%s", err)
+		}
+		if !op.run {
+			t.Errorf("node did not run operation")
+		}
+		if !node.applied {
+			t.Errorf("node was not applied")
+		}
+		if mockedEngine.Calls("SaveMigration") != 1 {
+			t.Errorf("migration was not saved on db")
+		}
+		args := mockedEngine.Args.SaveMigration
+		if args.App != "test" || args.Number != 1 || args.Name != "initial" {
+			t.Errorf("SaveMigration called with wrong arguments")
+		}
+	})
+	t.Run("Dependencies", func(t *testing.T) {
+		node := setup()
+		secondNode := &Node{
+			App:          "test",
+			Name:         "test_migration",
+			number:       2,
+			Dependencies: [][]string{{"test", "0001_initial"}},
+		}
+		if err := gomodels.Register(gomodels.NewApp("test", "")); err != nil {
+			panic(err)
+		}
+		appState := &AppState{
+			app:        gomodels.Registry()["test"],
+			migrations: []*Node{node, secondNode},
+		}
+		history["test"] = appState
+		defer clearHistory()
+		defer gomodels.ClearRegistry()
+		if err := secondNode.Run(db); err != nil {
+			t.Errorf("%s", err)
+		}
+		if !op.run {
+			t.Errorf("node did not run operation")
+		}
+		if !node.applied {
+			t.Errorf("node was not applied")
+		}
+		if mockedEngine.Calls("SaveMigration") != 2 {
+			t.Errorf("migrations were not saved on db")
+		}
+		args := mockedEngine.Args.SaveMigration
+		if args.App != "test" || args.Number != 2 {
+			t.Errorf("SaveMigration called with wrong arguments")
+		}
+	})
+}
+
+func testNodeBackwards(t *testing.T, db gomodels.Database) {
+	mockedEngine := db.Engine.(gomodels.MockedEngine)
+	op := &mockedOperation{}
+	setup := func() *Node {
+		op.reset()
+		mockedEngine.Reset()
+		return &Node{
+			App:        "test",
+			Name:       "initial",
+			number:     1,
+			Operations: OperationList{op},
+			applied:    true,
+		}
+	}
+	t.Run("Success", func(t *testing.T) {
+		node := setup()
+		if err := node.Backwards(db); err != nil {
+			t.Errorf("%s", err)
+		}
+		if !op.back {
+			t.Errorf("node did not run backward operation")
+		}
+		if node.applied {
+			t.Errorf("node is still applied")
+		}
+		if mockedEngine.Calls("DeleteMigration") != 1 {
+			t.Errorf("migration was not deleted from db")
+		}
+		args := mockedEngine.Args.DeleteMigration
+		if args.App != "test" || args.Number != 1 {
+			t.Errorf("DeleteMigration called with wrong arguments")
+		}
+		op.reset()
+		mockedEngine.Reset()
+	})
+	t.Run("Dependencies", func(t *testing.T) {
+		node := setup()
+		secondNode := &Node{
+			App:          "test",
+			Name:         "test_migrations",
+			number:       2,
+			Dependencies: [][]string{{"test", "0001_initial"}},
+			Operations:   OperationList{op},
+			applied:      true,
+		}
+		if err := gomodels.Register(gomodels.NewApp("test", "")); err != nil {
+			panic(err)
+		}
+		appState := &AppState{
+			app:        gomodels.Registry()["test"],
+			migrations: []*Node{node, secondNode},
+		}
+		history["test"] = appState
+		defer clearHistory()
+		defer gomodels.ClearRegistry()
+		if err := node.Backwards(db); err != nil {
+			t.Errorf("%s", err)
+		}
+		if !op.back {
+			t.Errorf("node did not run backward operation")
+		}
+		if secondNode.applied {
+			t.Errorf("node is still applied")
+		}
+		if mockedEngine.Calls("DeleteMigration") != 2 {
+			t.Errorf("migrations were not deleted from db")
+		}
+		args := mockedEngine.Args.DeleteMigration
+		if args.App != "test" || args.Number != 1 {
+			t.Errorf("DeleteMigration called with wrong arguments")
+		}
+	})
 }
