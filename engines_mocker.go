@@ -88,9 +88,9 @@ type MockedEngineArgs struct {
 		Fields Fields
 	}
 	DropColumns struct {
-		Old   *Model
-		New   *Model
-		Field []string
+		Old    *Model
+		New    *Model
+		Fields []string
 	}
 	SelectQuery struct {
 		Model       *Model
@@ -138,6 +138,10 @@ type MockedEngine struct {
 	Args    *MockedEngineArgs
 	Results *MockedEngineResults
 	tx      bool
+}
+
+func (e MockedEngine) Calls(method string) int {
+	return e.calls[method]
 }
 
 func (e MockedEngine) Start(db Database) (Engine, error) {
@@ -204,41 +208,57 @@ func (e MockedEngine) GetMigrations() (*sql.Rows, error) {
 
 func (e MockedEngine) SaveMigration(app string, number int, name string) error {
 	e.calls["SaveMigration"] += 1
+	e.Args.SaveMigration.App = app
+	e.Args.SaveMigration.Number = number
+	e.Args.SaveMigration.Name = name
 	return e.Results.SaveMigration
 }
 
 func (e MockedEngine) DeleteMigration(app string, number int) error {
 	e.calls["DeleteMigration"] += 1
+	e.Args.DeleteMigration.App = app
+	e.Args.DeleteMigration.Number = number
 	return e.Results.DeleteMigration
 }
 
 func (e MockedEngine) CreateTable(model *Model) error {
 	e.calls["CreateTable"] += 1
+	e.Args.CreateTable = model
 	return e.Results.CreateTable
 }
 
 func (e MockedEngine) RenameTable(old *Model, new *Model) error {
 	e.calls["RenameTable"] += 1
+	e.Args.RenameTable.Old = old
+	e.Args.RenameTable.New = new
 	return e.Results.RenameTable
 }
 
 func (e MockedEngine) DropTable(model *Model) error {
 	e.calls["DropTable"] += 1
+	e.Args.DropTable = model
 	return e.Results.DropTable
 }
 
 func (e MockedEngine) AddIndex(m *Model, name string, fields ...string) error {
 	e.calls["AddIndex"] += 1
+	e.Args.AddIndex.Model = m
+	e.Args.AddIndex.Name = name
+	e.Args.AddIndex.Fields = fields
 	return e.Results.AddIndex
 }
 
-func (e MockedEngine) DropIndex(odel *Model, name string) error {
+func (e MockedEngine) DropIndex(model *Model, name string) error {
 	e.calls["DropIndex"] += 1
+	e.Args.DropIndex.Model = model
+	e.Args.DropIndex.Name = name
 	return e.Results.DropIndex
 }
 
 func (e MockedEngine) AddColumns(model *Model, fields Fields) error {
 	e.calls["AddColumns"] += 1
+	e.Args.AddColumns.Model = model
+	e.Args.AddColumns.Fields = fields
 	return e.Results.AddColumns
 }
 
@@ -248,26 +268,37 @@ func (e MockedEngine) DropColumns(
 	fields ...string,
 ) error {
 	e.calls["DropColumns"] += 1
+	e.Args.DropColumns.Old = old
+	e.Args.DropColumns.New = new
+	e.Args.DropColumns.Fields = fields
 	return e.Results.DropColumns
 }
 
 func (e MockedEngine) SelectQuery(
-	m *Model,
-	c Conditioner,
+	model *Model,
+	conditioner Conditioner,
 	fields ...string,
 ) (Query, error) {
 	e.calls["SelectQuery"] += 1
+	e.Args.SelectQuery.Model = model
+	e.Args.SelectQuery.Conditioner = conditioner
+	e.Args.SelectQuery.Fields = fields
 	return e.Results.SelectQuery.Query, e.Results.SelectQuery.Err
 }
 
 func (e MockedEngine) GetRows(
-	m *Model,
-	c Conditioner,
+	model *Model,
+	conditioner Conditioner,
 	start int64,
 	end int64,
 	fields ...string,
 ) (*sql.Rows, error) {
 	e.calls["GetRows"] += 1
+	e.Args.GetRows.Model = model
+	e.Args.GetRows.Conditioner = conditioner
+	e.Args.GetRows.Start = start
+	e.Args.GetRows.End = end
+	e.Args.GetRows.Fields = fields
 	return e.Results.GetRows.Rows, e.Results.GetRows.Err
 }
 
@@ -277,30 +308,43 @@ func (e MockedEngine) InsertRow(
 	fields ...string,
 ) (int64, error) {
 	e.calls["InsertRow"] += 1
+	e.Args.InsertRow.Model = model
+	e.Args.InsertRow.Container = container
+	e.Args.InsertRow.Fields = fields
 	return e.Results.InsertRow.Id, e.Results.InsertRow.Err
 }
 
 func (e MockedEngine) UpdateRows(
 	model *Model,
-	cont Container,
+	container Container,
 	conditioner Conditioner,
 	fields ...string,
 ) (int64, error) {
 	e.calls["UpdateRows"] += 1
+	e.Args.UpdateRows.Model = model
+	e.Args.UpdateRows.Container = container
+	e.Args.UpdateRows.Conditioner = conditioner
+	e.Args.GetRows.Fields = fields
 	return e.Results.UpdateRows.Number, e.Results.UpdateRows.Err
 }
 
 func (e MockedEngine) DeleteRows(model *Model, c Conditioner) (int64, error) {
 	e.calls["DeleteRows"] += 1
+	e.Args.DeleteRows.Model = model
+	e.Args.DeleteRows.Conditioner = c
 	return e.Results.DeleteRows.Number, e.Results.DeleteRows.Err
 }
 
 func (e MockedEngine) CountRows(model *Model, c Conditioner) (int64, error) {
 	e.calls["CountRows"] += 1
+	e.Args.CountRows.Model = model
+	e.Args.CountRows.Conditioner = c
 	return e.Results.CountRows.Number, e.Results.CountRows.Err
 }
 
 func (e MockedEngine) Exists(model *Model, c Conditioner) (bool, error) {
 	e.calls["Exists"] += 1
+	e.Args.Exists.Model = model
+	e.Args.Exists.Conditioner = c
 	return e.Results.Exists.Result, e.Results.Exists.Err
 }
