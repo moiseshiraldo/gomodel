@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"encoding/json"
+	"fmt"
 	_ "github.com/gwenn/gosqlite"
 	"github.com/moiseshiraldo/gomodels"
 	"go/build"
@@ -14,9 +15,10 @@ import (
 const tmpDir = "github.com/moiseshiraldo/gomodels/tmp/"
 
 type mockedOperation struct {
-	run   bool
-	back  bool
-	state bool
+	run    bool
+	back   bool
+	state  bool
+	runErr bool
 }
 
 func (op mockedOperation) OpName() string {
@@ -33,6 +35,9 @@ func (op *mockedOperation) Run(
 	state *AppState,
 	prevState *AppState,
 ) error {
+	if op.runErr {
+		return fmt.Errorf("run error")
+	}
 	op.run = true
 	return nil
 }
@@ -101,6 +106,71 @@ func testNodeSave(t *testing.T) {
 	if n.App != "test" || len(n.Operations) != 1 {
 		t.Errorf("file missing information")
 	}
+}
+
+func testNodeRunOpError(t *testing.T, db gomodels.Database) {
+	op := &mockedOperation{runErr: true}
+	node := &Node{
+		App:        "test",
+		Name:       "initial",
+		number:     1,
+		Operations: OperationList{op},
+	}
+	err := node.Run(db)
+	if _, ok := err.(*OperationRunError); !ok {
+		t.Errorf("Expected OperationRunError, got %T", err)
+	}
+}
+
+func testNodeRunMigrationDbError(t *testing.T, db gomodels.Database) {
+	op := &mockedOperation{}
+	node := &Node{
+		App:        "test",
+		Name:       "initial",
+		number:     1,
+		Operations: OperationList{op},
+	}
+	mockedEngine := db.Engine.(gomodels.MockedEngine)
+	mockedEngine.Results.SaveMigration = fmt.Errorf("db error")
+	err := node.Run(db)
+	if _, ok := err.(*gomodels.DatabaseError); !ok {
+		t.Errorf("Expected gomodels.DatabaseError, got %T", err)
+	}
+	mockedEngine.Reset()
+}
+
+func testNodeTxCommitError(t *testing.T, db gomodels.Database) {
+	op := &mockedOperation{}
+	node := &Node{
+		App:        "test",
+		Name:       "initial",
+		number:     1,
+		Operations: OperationList{op},
+	}
+	mockedEngine := db.Engine.(gomodels.MockedEngine)
+	mockedEngine.Results.CommitTx = fmt.Errorf("db error")
+	err := node.Run(db)
+	if _, ok := err.(*gomodels.DatabaseError); !ok {
+		t.Errorf("Expected gomodels.DatabaseError, got %T", err)
+	}
+	mockedEngine.Reset()
+}
+
+func testNodeTxRollbackError(t *testing.T, db gomodels.Database) {
+	op := &mockedOperation{runErr: true}
+	node := &Node{
+		App:        "test",
+		Name:       "initial",
+		number:     1,
+		Operations: OperationList{op},
+	}
+	mockedEngine := db.Engine.(gomodels.MockedEngine)
+	mockedEngine.Results.RollbackTx = fmt.Errorf("db error")
+	err := node.Run(db)
+	if _, ok := err.(*gomodels.DatabaseError); !ok {
+		t.Errorf("Expected gomodels.DatabaseError, got %T", err)
+	}
+	mockedEngine.Reset()
 }
 
 func testNodeRun(t *testing.T, db gomodels.Database) {
@@ -243,10 +313,19 @@ func TestNode(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	if err := gomodels.Databases()["default"].PrepareMigrations(); err != nil {
-		panic(err)
-	}
 	defer gomodels.Stop()
+	t.Run("RunOpError", func(t *testing.T) {
+		testNodeRunOpError(t, gomodels.Databases()["default"])
+	})
+	t.Run("RunMigrationDbError", func(t *testing.T) {
+		testNodeRunMigrationDbError(t, gomodels.Databases()["default"])
+	})
+	t.Run("RunTxCommitError", func(t *testing.T) {
+		testNodeTxCommitError(t, gomodels.Databases()["default"])
+	})
+	t.Run("RunTxRollbackError", func(t *testing.T) {
+		testNodeTxRollbackError(t, gomodels.Databases()["default"])
+	})
 	t.Run("Run", func(t *testing.T) {
 		testNodeRun(t, gomodels.Databases()["default"])
 	})

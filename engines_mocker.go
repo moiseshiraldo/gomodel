@@ -54,6 +54,10 @@ type MockedEngineResults struct {
 	}
 }
 
+func (r *MockedEngineResults) Reset() {
+	*r = MockedEngineResults{}
+}
+
 type MockedEngineArgs struct {
 	SaveMigration struct {
 		App    string
@@ -125,6 +129,10 @@ type MockedEngineArgs struct {
 	}
 }
 
+func (a *MockedEngineArgs) Reset() {
+	*a = MockedEngineArgs{}
+}
+
 type MockedEngine struct {
 	calls   map[string]int
 	Args    *MockedEngineArgs
@@ -134,6 +142,7 @@ type MockedEngine struct {
 
 func (e MockedEngine) Start(db Database) (Engine, error) {
 	e.calls = make(map[string]int)
+	e.Args = &MockedEngineArgs{}
 	e.Results = &MockedEngineResults{}
 	return e, nil
 }
@@ -141,6 +150,14 @@ func (e MockedEngine) Start(db Database) (Engine, error) {
 func (e MockedEngine) Stop() error {
 	e.calls["Stop"] += 1
 	return nil
+}
+
+func (e MockedEngine) Reset() {
+	for key := range e.calls {
+		delete(e.calls, key)
+	}
+	e.Args.Reset()
+	e.Results.Reset()
 }
 
 func (e MockedEngine) DB() *sql.DB {

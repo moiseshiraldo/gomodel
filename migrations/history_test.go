@@ -99,9 +99,6 @@ func TestAppState(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	if err := gomodels.Databases()["default"].PrepareMigrations(); err != nil {
-		panic(err)
-	}
 	defer gomodels.Stop()
 	defer gomodels.ClearRegistry()
 	firstNode := &Node{App: "test", Name: "initial", number: 1}
