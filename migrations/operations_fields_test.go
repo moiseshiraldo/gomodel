@@ -10,9 +10,7 @@ func TestFieldOperationsState(t *testing.T) {
 	user := gomodels.New(
 		"User",
 		gomodels.Fields{
-			"email": gomodels.CharField{
-				MaxLength: 100, Index: true, DefaultEmpty: true,
-			},
+			"email": gomodels.CharField{MaxLength: 100, Index: true},
 		},
 		gomodels.Options{},
 	)
@@ -107,9 +105,7 @@ func TestFieldOperations(t *testing.T) {
 	user := gomodels.New(
 		"User",
 		gomodels.Fields{
-			"email": gomodels.CharField{
-				MaxLength: 100, Index: true, DefaultEmpty: true,
-			},
+			"email": gomodels.CharField{MaxLength: 100, Index: true},
 		},
 		gomodels.Options{},
 	)
@@ -194,7 +190,6 @@ func testAddFieldOperation(
 	})
 	t.Run("BackwardsSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
-		mockedEngine.Results.AddColumns = fmt.Errorf("db error")
 		if err := op.Backwards(tx, prevState, state); err != nil {
 			t.Errorf("%s", err)
 		}

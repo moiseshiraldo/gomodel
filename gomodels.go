@@ -41,7 +41,7 @@ type Model struct {
 	name   string
 	pk     string
 	fields Fields
-	meta   *Options
+	meta   Options
 }
 
 func (m Model) Name() string {
@@ -96,7 +96,7 @@ func New(name string, fields Fields, options Options) *Dispatcher {
 	if options.Indexes == nil {
 		options.Indexes = Indexes{}
 	}
-	model := &Model{name: name, fields: fields, meta: &options}
+	model := &Model{name: name, fields: fields, meta: options}
 	return &Dispatcher{model, &Manager{model}}
 }
 
@@ -153,7 +153,7 @@ func registerModel(app *Application, model *Model) {
 		}
 		if field.HasIndex() {
 			idxName := fmt.Sprintf(
-				"%s_%s_%s_idx",
+				"%s_%s_%s_auto_idx",
 				strings.ToLower(app.name),
 				strings.ToLower(model.name),
 				strings.ToLower(field.DBColumn(name)),

@@ -93,8 +93,14 @@ func (op *AddIndex) SetState(state *AppState) error {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}
 	indexes := model.Indexes()
+	fields := model.Fields()
 	if _, found := model.Indexes()[op.Name]; found {
 		return fmt.Errorf("duplicate index name: %s", op.Name)
+	}
+	for _, name := range op.Fields {
+		if _, ok := fields[name]; !ok {
+			return fmt.Errorf("unknown field: %s", name)
+		}
 	}
 	indexes[op.Name] = op.Fields
 	options := gomodels.Options{Table: model.Table(), Indexes: indexes}
