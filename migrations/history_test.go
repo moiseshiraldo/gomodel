@@ -1,7 +1,6 @@
 package migrations
 
 import (
-	_ "github.com/gwenn/gosqlite"
 	"github.com/moiseshiraldo/gomodels"
 	"testing"
 )

@@ -3,7 +3,6 @@ package migrations
 import (
 	"encoding/json"
 	"fmt"
-	_ "github.com/gwenn/gosqlite"
 	"github.com/moiseshiraldo/gomodels"
 	"go/build"
 	"io/ioutil"
