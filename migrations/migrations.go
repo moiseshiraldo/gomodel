@@ -27,7 +27,7 @@ func Make(appName string, options MakeOptions) (*AppState, error) {
 		migrations = append(migrations, node)
 		return state, nil
 	}
-	migrations, err = state.makeMigrations()
+	migrations, err = state.MakeMigrations()
 	if err != nil {
 		return state, err
 	}
@@ -100,7 +100,7 @@ func MakeAndRun() error {
 	}
 	defer clearHistory()
 	for _, state := range history {
-		if _, err := state.makeMigrations(); err != nil {
+		if _, err := state.MakeMigrations(); err != nil {
 			return err
 		}
 	}

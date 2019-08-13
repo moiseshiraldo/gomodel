@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestAppState(t *testing.T) {
+func TestAppMigrate(t *testing.T) {
 	if err := gomodels.Register(gomodels.NewApp("test", "")); err != nil {
 		panic(err)
 	}
@@ -57,7 +57,7 @@ func TestAppState(t *testing.T) {
 	})
 	t.Run("MigrateFirstNode", func(t *testing.T) {
 		if err := appState.Migrate("default", "0001"); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if !appState.migrations[0].applied {
 			t.Errorf("First migration was not applied")
@@ -70,7 +70,7 @@ func TestAppState(t *testing.T) {
 		firstNode.applied = false
 		secondNode.applied = false
 		if err := appState.Migrate("default", ""); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if !appState.migrations[0].applied {
 			t.Errorf("First migration was not applied")
@@ -84,7 +84,7 @@ func TestAppState(t *testing.T) {
 		secondNode.applied = true
 		appState.lastApplied = 2
 		if err := appState.Migrate("default", "0001"); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if !appState.migrations[0].applied {
 			t.Errorf("First migration is not applied")
@@ -98,7 +98,7 @@ func TestAppState(t *testing.T) {
 		secondNode.applied = true
 		appState.lastApplied = 2
 		if err := appState.Migrate("default", "0000"); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if appState.migrations[0].applied {
 			t.Errorf("First migration is still applied")
@@ -106,5 +106,248 @@ func TestAppState(t *testing.T) {
 		if appState.migrations[1].applied {
 			t.Errorf("Second migration is still applied")
 		}
+	})
+}
+
+func TestAppMakeMigrations(t *testing.T) {
+	user := gomodels.New(
+		"User",
+		gomodels.Fields{
+			"email": gomodels.CharField{MaxLength: 100, Index: true},
+		},
+		gomodels.Options{Table: "users"},
+	)
+	customer := gomodels.New(
+		"Customer",
+		gomodels.Fields{
+			"name": gomodels.CharField{MaxLength: 100},
+		},
+		gomodels.Options{},
+	)
+	usersApp := gomodels.NewApp("users", "", user.Model)
+	customersApp := gomodels.NewApp("customers", "", customer.Model)
+	if err := gomodels.Register(usersApp, customersApp); err != nil {
+		panic(err)
+	}
+	defer gomodels.ClearRegistry()
+	operation := &CreateModel{Name: "Customer", Fields: customer.Model.Fields()}
+	node := &Node{
+		App:        "customers",
+		Name:       "initial",
+		number:     1,
+		Operations: OperationList{operation},
+		processed:  true,
+	}
+	history["users"] = &AppState{
+		app:    gomodels.Registry()["users"],
+		models: make(map[string]*gomodels.Model),
+	}
+	history["customers"] = &AppState{
+		app:        gomodels.Registry()["customers"],
+		models:     map[string]*gomodels.Model{"Customer": customer.Model},
+		migrations: []*Node{node},
+	}
+	defer clearHistory()
+	t.Run("NoChanges", func(t *testing.T) {
+		migrations, err := history["customers"].MakeMigrations()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(migrations) > 0 {
+			t.Fatal("expected no migrations")
+		}
+	})
+	t.Run("Initial", func(t *testing.T) {
+		migrations, err := history["users"].MakeMigrations()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(migrations) != 1 {
+			t.Fatal("expected one created node")
+		}
+		if migrations[0].number != 1 {
+			t.Errorf("expected node number 1, got %d", migrations[0].number)
+		}
+		if len(migrations[0].Operations) != 2 {
+			t.Fatal("expected migration to contain two operations")
+		}
+		if migrations[0].Operations[0].OpName() != "CreateModel" {
+			name := migrations[0].Operations[0]
+			t.Fatalf("expected CreateModel, got %s", name)
+		}
+		createOp := migrations[0].Operations[0].(*CreateModel)
+		if createOp.Name != "User" || createOp.Table != "users" {
+			t.Errorf("operation CreateModel has wrong details")
+		}
+		if _, ok := createOp.Fields["email"]; !ok {
+			t.Errorf("operation CreateModel missing name field")
+		}
+		if _, ok := history["users"].models["User"]; !ok {
+			t.Fatal("operation CreateModel was not applied to state")
+		}
+		if migrations[0].Operations[1].OpName() != "AddIndex" {
+			name := migrations[0].Operations[1].OpName()
+			t.Fatalf("expected AddIndex, got %s", name)
+		}
+		idxOp := migrations[0].Operations[1].(*AddIndex)
+		if idxOp.Model != "User" || idxOp.Name != "users_user_email_auto_idx" {
+			t.Errorf("operation AddIndex has wrong details")
+		}
+		if len(idxOp.Fields) != 1 && idxOp.Fields[0] != "email" {
+			t.Errorf("operation AddIndex missing email field")
+		}
+		if len(history["users"].models["User"].Indexes()) == 0 {
+			t.Errorf("operation AddIndex was not applied to state")
+		}
+	})
+	t.Run("AddField", func(t *testing.T) {
+		customerState := gomodels.New(
+			"Customer",
+			gomodels.Fields{},
+			gomodels.Options{Table: customer.Model.Table()},
+		)
+		history["customers"].models["Customer"] = customerState.Model
+		migrations, err := history["customers"].MakeMigrations()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(migrations) != 1 {
+			t.Fatal("expected one created node")
+		}
+		if migrations[0].number != 2 {
+			t.Errorf("expected node number 2, got %d", migrations[0].number)
+		}
+		if len(migrations[0].Operations) != 1 {
+			t.Fatal("expected migration to contain one operation")
+		}
+		if migrations[0].Operations[0].OpName() != "AddFields" {
+			name := migrations[0].Operations[0].OpName()
+			t.Fatalf("expected AddFields, got %s", name)
+		}
+		fieldOp := migrations[0].Operations[0].(*AddFields)
+		if fieldOp.Model != "Customer" {
+			t.Errorf("operation AddFields has wrong model")
+		}
+		if _, ok := fieldOp.Fields["name"]; !ok {
+			t.Errorf("operation AddFields missing name field")
+		}
+		modelState := history["customers"].models["Customer"]
+		if _, ok := modelState.Fields()["name"]; !ok {
+			t.Errorf("operation AddFields was not applied to state")
+		}
+		history["customers"].models["Customer"] = customer.Model
+		history["customers"].migrations = []*Node{node}
+	})
+	t.Run("RemoveField", func(t *testing.T) {
+		fields := customer.Model.Fields()
+		fields["active"] = gomodels.BooleanField{}
+		customerState := gomodels.New(
+			"Customer",
+			fields,
+			gomodels.Options{Table: customer.Model.Table()},
+		)
+		history["customers"].models["Customer"] = customerState.Model
+		migrations, err := history["customers"].MakeMigrations()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(migrations) != 1 {
+			t.Fatal("expected one created node")
+		}
+		if migrations[0].number != 2 {
+			t.Errorf("expected node number 2, got %d", migrations[0].number)
+		}
+		if len(migrations[0].Operations) != 1 {
+			t.Fatal("expected migration to contain one operation")
+		}
+		if migrations[0].Operations[0].OpName() != "RemoveFields" {
+			name := migrations[0].Operations[0].OpName()
+			t.Fatalf("expected RemoveFields, got %s", name)
+		}
+		fieldOp := migrations[0].Operations[0].(*RemoveFields)
+		if fieldOp.Model != "Customer" {
+			t.Errorf("operation RemoveFields has wrong model")
+		}
+		if len(fieldOp.Fields) != 1 || fieldOp.Fields[0] != "active" {
+			t.Errorf("operation RemoveFields missing active field")
+		}
+		modelState := history["customers"].models["Customer"]
+		if _, found := modelState.Fields()["active"]; found {
+			t.Errorf("operation RemoveFields was not applied to state")
+		}
+		history["customers"].models["Customer"] = customer.Model
+		history["customers"].migrations = []*Node{node}
+	})
+	t.Run("RemoveIndex", func(t *testing.T) {
+		customerState := gomodels.New(
+			"Customer",
+			customer.Model.Fields(),
+			gomodels.Options{
+				Indexes: gomodels.Indexes{"name_idx": []string{"name"}},
+				Table:   customer.Model.Table(),
+			},
+		)
+		history["customers"].models["Customer"] = customerState.Model
+		migrations, err := history["customers"].MakeMigrations()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(migrations) != 1 {
+			t.Fatal("expected one created node")
+		}
+		if migrations[0].number != 2 {
+			t.Errorf("expected node number 2, got %d", migrations[0].number)
+		}
+		if len(migrations[0].Operations) != 1 {
+			t.Fatal("expected migration to contain one operation")
+		}
+		if migrations[0].Operations[0].OpName() != "RemoveIndex" {
+			name := migrations[0].Operations[0].OpName()
+			t.Fatalf("expected RemoveIndex, got %s", name)
+		}
+		idxOp := migrations[0].Operations[0].(*RemoveIndex)
+		if idxOp.Model != "Customer" || idxOp.Name != "name_idx" {
+			t.Errorf("operation RemoveIndex has wrong details")
+		}
+		modelState := history["customers"].models["Customer"]
+		if _, found := modelState.Indexes()["name_idx"]; found {
+			t.Errorf("operation RemoveIndex was not applied to state")
+		}
+		history["customers"].models["Customer"] = customer.Model
+		history["customers"].migrations = []*Node{node}
+	})
+	t.Run("DeleteModel", func(t *testing.T) {
+		transaction := gomodels.New(
+			"Transaction",
+			gomodels.Fields{},
+			gomodels.Options{},
+		)
+		history["customers"].models["Transaction"] = transaction.Model
+		migrations, err := history["customers"].MakeMigrations()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(migrations) != 1 {
+			t.Fatal("expected one created node")
+		}
+		if migrations[0].number != 2 {
+			t.Errorf("expected node number 2, got %d", migrations[0].number)
+		}
+		if len(migrations[0].Operations) != 1 {
+			t.Fatal("expected migration to contain one operation")
+		}
+		if migrations[0].Operations[0].OpName() != "DeleteModel" {
+			name := migrations[0].Operations[0].OpName()
+			t.Fatalf("expected DeleteModel, got %s", name)
+		}
+		deleteOp := migrations[0].Operations[0].(*DeleteModel)
+		if deleteOp.Name != "Transaction" {
+			t.Errorf("operation DeleteModel has wrong details")
+		}
+		if _, found := history["customers"].models["Transaction"]; found {
+			t.Errorf("operation DeleteModel was not applied to state")
+		}
+		history["customers"].models["Customer"] = customer.Model
+		history["customers"].migrations = []*Node{node}
 	})
 }

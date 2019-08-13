@@ -41,7 +41,7 @@ func TestModelOperationsState(t *testing.T) {
 			},
 		}
 		if err := op.SetState(appState); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		model, ok := appState.models["Customer"]
 		if !ok {
@@ -81,7 +81,7 @@ func TestModelOperationsState(t *testing.T) {
 			Fields: []string{"email"},
 		}
 		if err := op.SetState(appState); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		model := appState.models["User"]
 		if _, ok := model.Indexes()["test_index"]; !ok {
@@ -103,7 +103,7 @@ func TestModelOperationsState(t *testing.T) {
 	t.Run("RemoveIndex", func(t *testing.T) {
 		op := RemoveIndex{Model: "User", Name: "test_user_email_auto_idx"}
 		if err := op.SetState(appState); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		model := appState.models["User"]
 		if _, found := model.Indexes()["test_user_email_auto_idx"]; found {
@@ -119,7 +119,7 @@ func TestModelOperationsState(t *testing.T) {
 	t.Run("RemoveModel", func(t *testing.T) {
 		op := DeleteModel{Name: "User"}
 		if err := op.SetState(appState); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if _, found := appState.models["User"]; found {
 			t.Errorf("model was not removed from state")
@@ -201,7 +201,7 @@ func testAddModelOperation(
 	t.Run("RunSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Run(tx, state, prevState); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if mockedEngine.Calls("CreateTable") != 1 {
 			t.Errorf("expected engine CreateTable to be called")
@@ -217,7 +217,7 @@ func testAddModelOperation(
 	t.Run("BackwardsSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Backwards(tx, prevState, state); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if mockedEngine.Calls("DropTable") != 1 {
 			t.Errorf("expected engine DropTable to be called")
@@ -246,7 +246,7 @@ func testDeleteModelOperation(
 	t.Run("RunSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Run(tx, state, prevState); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if mockedEngine.Calls("DropTable") != 1 {
 			t.Errorf("expected engine DropTable to be called")
@@ -262,7 +262,7 @@ func testDeleteModelOperation(
 	t.Run("BackwardsSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Backwards(tx, prevState, state); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if mockedEngine.Calls("CreateTable") != 1 {
 			t.Errorf("expected engine CreateTable to be called")
@@ -304,7 +304,7 @@ func testAddIndexOperation(
 	t.Run("RunSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Run(tx, state, prevState); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if mockedEngine.Calls("AddIndex") != 1 {
 			t.Errorf("expected engine AddIndex to be called")
@@ -320,7 +320,7 @@ func testAddIndexOperation(
 	t.Run("BackwardsSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Backwards(tx, prevState, state); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if mockedEngine.Calls("DropIndex") != 1 {
 			t.Errorf("expected engine DropIndex to be called")
@@ -361,7 +361,7 @@ func testRemoveIndexOperation(
 	t.Run("RunSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Run(tx, state, prevState); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if mockedEngine.Calls("DropIndex") != 1 {
 			t.Errorf("expected engine DropIndex to be called")
@@ -377,7 +377,7 @@ func testRemoveIndexOperation(
 	t.Run("BackwardsSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Backwards(tx, prevState, state); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if mockedEngine.Calls("AddIndex") != 1 {
 			t.Errorf("expected engine AddIndex to be called")

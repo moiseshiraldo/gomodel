@@ -198,7 +198,7 @@ func (n *Node) setState(stash map[string]map[string]bool) error {
 	if n.processed {
 		return nil
 	}
-	stash[n.App][n.Name] = true
+	stash[n.App][n.fullname()] = true
 	for _, dep := range n.Dependencies {
 		app, depName := dep[0], dep[1]
 		if !mNameRe.MatchString(depName) {
@@ -215,7 +215,7 @@ func (n *Node) setState(stash map[string]map[string]bool) error {
 		if depNode == nil {
 			return &InvalidDependencyError{ErrorTrace{Node: n}}
 		}
-		if _, found := stash[app][depName]; found {
+		if stash[app][depName] {
 			return &CircularDependencyError{ErrorTrace{Node: n}}
 		}
 		if !depNode.processed {

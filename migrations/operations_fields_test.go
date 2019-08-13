@@ -58,7 +58,7 @@ func TestFieldOperationsState(t *testing.T) {
 			},
 		}
 		if err := op.SetState(appState); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		fields := appState.models["User"].Fields()
 		if _, ok := fields["firstName"]; !ok {
@@ -92,7 +92,7 @@ func TestFieldOperationsState(t *testing.T) {
 			Fields: []string{"email"},
 		}
 		if err := op.SetState(appState); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		fields := appState.models["User"].Fields()
 		if _, ok := fields["email"]; ok {
@@ -175,7 +175,7 @@ func testAddFieldOperation(
 	t.Run("RunSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Run(tx, state, prevState); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if mockedEngine.Calls("AddColumns") != 1 {
 			t.Errorf("expected engine AddColumns to be called")
@@ -191,7 +191,7 @@ func testAddFieldOperation(
 	t.Run("BackwardsSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Backwards(tx, prevState, state); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if mockedEngine.Calls("DropColumns") != 1 {
 			t.Errorf("expected engine DropColumns to be called")
@@ -228,7 +228,7 @@ func testRemoveFieldOperation(
 	t.Run("RunSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Run(tx, state, prevState); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if mockedEngine.Calls("DropColumns") != 1 {
 			t.Errorf("expected engine DropColumns to be called")
@@ -244,7 +244,7 @@ func testRemoveFieldOperation(
 	t.Run("BackwardsSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Backwards(tx, state, prevState); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if mockedEngine.Calls("AddColumns") != 1 {
 			t.Errorf("expected engine DropColumns to be called")

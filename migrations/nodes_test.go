@@ -92,7 +92,7 @@ func TestNodeStorage(t *testing.T) {
 	t.Run("LoadSuccess", func(t *testing.T) {
 		node := &Node{Name: "initial", number: 1, Path: tmpDir}
 		if err := node.Load(); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if node.App != "test" || len(node.Operations) != 1 {
 			t.Errorf("node missing information")
@@ -113,18 +113,18 @@ func TestNodeStorage(t *testing.T) {
 			Operations: OperationList{&mockedOperation{}},
 		}
 		if err := node.Save(); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		fp := filepath.Join(
 			build.Default.GOPATH, "src", tmpDir, "0002_test_migration.json",
 		)
 		data, err := ioutil.ReadFile(fp)
 		if err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		n := &Node{}
 		if err := json.Unmarshal(data, n); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if n.App != "test" || len(n.Operations) != 1 {
 			t.Errorf("file missing information")
@@ -194,7 +194,7 @@ func testNodeRun(t *testing.T, db gomodels.Database) {
 	t.Run("Success", func(t *testing.T) {
 		node := setup()
 		if err := node.Run(db); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if !op.run {
 			t.Errorf("node did not run operation")
@@ -229,7 +229,7 @@ func testNodeRun(t *testing.T, db gomodels.Database) {
 		defer clearHistory()
 		defer gomodels.ClearRegistry()
 		if err := secondNode.Run(db); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if !op.run {
 			t.Errorf("node did not run operation")
@@ -297,7 +297,7 @@ func testNodeBackwards(t *testing.T, db gomodels.Database) {
 	t.Run("Success", func(t *testing.T) {
 		node := setup()
 		if err := node.Backwards(db); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if !op.back {
 			t.Errorf("node did not run backward operation")
@@ -336,7 +336,7 @@ func testNodeBackwards(t *testing.T, db gomodels.Database) {
 		defer clearHistory()
 		defer gomodels.ClearRegistry()
 		if err := node.Backwards(db); err != nil {
-			t.Errorf("%s", err)
+			t.Fatal(err)
 		}
 		if !op.back {
 			t.Errorf("node did not run backward operation")

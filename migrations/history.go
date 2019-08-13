@@ -48,16 +48,71 @@ func (state AppState) nextNode() *Node {
 	return node
 }
 
-func (state *AppState) makeMigrations() ([]*Node, error) {
+func (state *AppState) MakeMigrations() ([]*Node, error) {
+	appStash := make(map[string]bool)
+	return state.makeMigrations(appStash)
+}
+
+func (state *AppState) makeMigrations(stash map[string]bool) ([]*Node, error) {
+	app := state.app
+	stash[app.Name()] = true
 	migrations := []*Node{}
 	node := state.nextNode()
 	for name := range state.models {
-		if _, ok := state.app.Models()[name]; !ok {
+		if _, ok := app.Models()[name]; !ok {
 			node.Operations = append(node.Operations, &DeleteModel{Name: name})
 		}
 	}
-	for _, model := range state.app.Models() {
-		node.Operations = append(node.Operations, getModelChanges(model)...)
+	for _, model := range app.Models() {
+		modelState, ok := state.models[model.Name()]
+		if !ok {
+			operation := &CreateModel{
+				Name:   model.Name(),
+				Fields: model.Fields(),
+			}
+			defaultTable := fmt.Sprintf("%s__%s", app.Name(), model.Name())
+			if model.Table() != defaultTable {
+				operation.Table = model.Table()
+			}
+			node.Operations = append(node.Operations, operation)
+			for idxName, fields := range model.Indexes() {
+				operation := &AddIndex{model.Name(), idxName, fields}
+				node.Operations = append(node.Operations, operation)
+			}
+		} else {
+			for idxName := range modelState.Indexes() {
+				if _, ok := model.Indexes()[idxName]; !ok {
+					operation := &RemoveIndex{model.Name(), idxName}
+					node.Operations = append(node.Operations, operation)
+				}
+			}
+			newFields := gomodels.Fields{}
+			removedFields := []string{}
+			for name := range modelState.Fields() {
+				if _, ok := model.Fields()[name]; !ok {
+					removedFields = append(removedFields, name)
+				}
+			}
+			if len(removedFields) > 0 {
+				operation := &RemoveFields{model.Name(), removedFields}
+				node.Operations = append(node.Operations, operation)
+			}
+			for name, field := range model.Fields() {
+				if _, ok := modelState.Fields()[name]; !ok {
+					newFields[name] = field
+				}
+			}
+			if len(newFields) > 0 {
+				operation := &AddFields{Model: model.Name(), Fields: newFields}
+				node.Operations = append(node.Operations, operation)
+			}
+			for idxName, fields := range model.Indexes() {
+				if _, ok := modelState.Indexes()[idxName]; !ok {
+					operation := &AddIndex{model.Name(), idxName, fields}
+					node.Operations = append(node.Operations, operation)
+				}
+			}
+		}
 	}
 	if len(node.Operations) > 0 {
 		stash := map[string]map[string]bool{}
@@ -70,6 +125,7 @@ func (state *AppState) makeMigrations() ([]*Node, error) {
 		migrations = append(migrations, node)
 		state.migrations = append(state.migrations, node)
 	}
+	delete(stash, state.app.Name())
 	return migrations, nil
 }
 
