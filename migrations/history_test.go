@@ -3,17 +3,21 @@ package migrations
 import (
 	"github.com/moiseshiraldo/gomodels"
 	"testing"
+	"os"
+	"path/filepath"
+	"io/ioutil"
+	"go/build"
 )
 
 func TestAppMigrate(t *testing.T) {
 	if err := gomodels.Register(gomodels.NewApp("test", "")); err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	err := gomodels.Start(gomodels.DBSettings{
 		"default": {Driver: "mocker", Name: "test"},
 	})
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	defer gomodels.Stop()
 	defer gomodels.ClearRegistry()
@@ -126,7 +130,7 @@ func TestAppMakeMigrations(t *testing.T) {
 	usersApp := gomodels.NewApp("users", "", user.Model)
 	customersApp := gomodels.NewApp("customers", "", customer.Model)
 	if err := gomodels.Register(usersApp, customersApp); err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	defer gomodels.ClearRegistry()
 	operation := &CreateModel{Name: "Customer", Fields: customer.Model.Fields()}
@@ -348,5 +352,104 @@ func TestAppMakeMigrations(t *testing.T) {
 		}
 		history["customers"].models["Customer"] = customer.Model
 		history["customers"].migrations = []*Node{node}
+	})
+}
+
+func TestLoadHistoryErrors(t *testing.T) {
+	mockedNodeFile := []byte(`{"App": "test", "Dependencies": []}`)
+	dir := filepath.Join(build.Default.GOPATH, "src", tmpDir)
+	if err := os.MkdirAll(dir + "/wrong/name", 0755); err != nil {
+		t.Fatal(err)
+	}
+	defer clearTmp()
+	fp := filepath.Join(dir, "wrong/name", "wrong_name.txt")
+	if err := ioutil.WriteFile(fp, mockedNodeFile, 0644); err != nil {
+		t.Fatal(err)
+	}
+	fp = filepath.Join(dir, "wrong", "0001_initial.json") 
+	if err := ioutil.WriteFile(fp, []byte("-"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	fp = filepath.Join(dir, "0001_initial.json") 
+	if err := ioutil.WriteFile(fp, mockedNodeFile, 0644); err != nil {
+		t.Fatal(err)
+	}
+	fp = filepath.Join(dir, "0001_migration.json") 
+	if err := ioutil.WriteFile(fp, mockedNodeFile, 0644); err != nil {
+		t.Fatal(err)
+	}
+	app := gomodels.NewApp("test", tmpDir)
+	t.Run("WrongPath", func(t *testing.T) {
+		app.Path = tmpDir + "wrong/path"
+		if err := gomodels.Register(app); err != nil {
+			t.Fatal(err)
+		}
+		err := loadHistory()
+		if _, ok := err.(*PathError); !ok {
+			t.Errorf("Expected PathError, got %T", err)
+		}
+		gomodels.ClearRegistry()
+	})
+	t.Run("WrongName", func(t *testing.T) {
+		app.Path = tmpDir + "wrong/name"
+		if err := gomodels.Register(app); err != nil {
+			t.Fatal(err)
+		}
+		err := loadHistory()
+		if _, ok := err.(*NameError); !ok {
+			t.Errorf("Expected NameError, got %T", err)
+		}
+		gomodels.ClearRegistry()
+	})
+	t.Run("WrongFile", func(t *testing.T) {
+		app.Path = tmpDir + "wrong"
+		if err := gomodels.Register(app); err != nil {
+			t.Fatal(err)
+		}
+		err := loadHistory()
+		if _, ok := err.(*LoadError); !ok {
+			t.Errorf("Expected LoadError, got %T", err)
+		}
+		gomodels.ClearRegistry()
+	})
+	t.Run("Duplicate", func(t *testing.T) {
+		app.Path = tmpDir
+		if err := gomodels.Register(app); err != nil {
+			t.Fatal(err)
+		}
+		err := loadHistory()
+		if _, ok := err.(*DuplicateNumberError); !ok {
+			t.Errorf("Expected DuplicateNumberError, got %T", err)
+		}
+		gomodels.ClearRegistry()
+	})
+}
+
+func TestLoadHistory(t *testing.T) {
+	mockedNodeFile := []byte(`{"App": "customers", "Dependencies": []}`)
+	dir := filepath.Join(build.Default.GOPATH, "src", tmpDir)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	defer clearTmp()
+	fp := filepath.Join(dir, "0001_initial.json")
+	if err := ioutil.WriteFile(fp, mockedNodeFile, 0644); err != nil {
+		t.Fatal(err)
+	}
+	app := gomodels.NewApp("customers", tmpDir)
+	if err := gomodels.Register(app); err != nil {
+		t.Fatal(err)
+	}
+	defer gomodels.ClearRegistry()
+	t.Run("Success", func(t *testing.T) {
+		if err := loadHistory(); err != nil {
+			t.Fatal(err)
+		}
+		if len(history["customers"].migrations) != 1 {
+			t.Fatalf("expected one migration to be loaded")
+		}
+		if !history["customers"].migrations[0].processed {
+			t.Fatalf("expected migration state to be processed")
+		}
 	})
 }

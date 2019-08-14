@@ -16,7 +16,7 @@ func TestModelOperationsState(t *testing.T) {
 	)
 	app := gomodels.NewApp("test", "", user.Model)
 	if err := gomodels.Register(app); err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	defer gomodels.ClearRegistry()
 	appState := &AppState{
@@ -137,7 +137,7 @@ func TestModelOperations(t *testing.T) {
 	)
 	app := gomodels.NewApp("test", "", user.Model)
 	if err := gomodels.Register(app); err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	defer gomodels.ClearRegistry()
 	appState := &AppState{
@@ -152,13 +152,13 @@ func TestModelOperations(t *testing.T) {
 		"default": {Driver: "mocker", Name: "test"},
 	})
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	defer gomodels.Stop()
 	db := gomodels.Databases()["default"]
 	tx, err := db.BeginTx()
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	t.Run("AddModel", func(t *testing.T) {
 		testAddModelOperation(t, tx, appState)

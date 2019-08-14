@@ -60,26 +60,25 @@ func (op *mockedOperation) Backwards(
 	return nil
 }
 
-var mockedNodeFile = []byte(`{
-  "App": "test",
-  "Dependencies": [],
-  "Operations": [{"MockedOperation": {}}]
-}`)
-
 func clearTmp() {
 	dir := filepath.Join(build.Default.GOPATH, "src", tmpDir)
 	os.RemoveAll(dir)
 }
 
 func TestNodeStorage(t *testing.T) {
+	mockedNodeFile := []byte(`{
+	  "App": "test",
+	  "Dependencies": [],
+	  "Operations": [{"MockedOperation": {}}]
+	}`)
 	dir := filepath.Join(build.Default.GOPATH, "src", tmpDir)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	defer clearTmp()
 	fp := filepath.Join(dir, "0001_initial.json")
 	if err := ioutil.WriteFile(fp, mockedNodeFile, 0644); err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	RegisterOperation("MockedOperation", &mockedOperation{})
 	t.Run("LoadNoPath", func(t *testing.T) {
@@ -136,7 +135,7 @@ func TestNode(t *testing.T) {
 		"default": {Driver: "mocker", Name: "test"},
 	})
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	db := gomodels.Databases()["default"]
 	defer gomodels.Stop()
@@ -218,7 +217,7 @@ func testNodeRun(t *testing.T, db gomodels.Database) {
 			Dependencies: [][]string{{"test", "0001_initial"}},
 		}
 		if err := gomodels.Register(gomodels.NewApp("test", "")); err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
 		appState := &AppState{
 			app:        gomodels.Registry()["test"],
@@ -325,7 +324,7 @@ func testNodeBackwards(t *testing.T, db gomodels.Database) {
 			applied:      true,
 		}
 		if err := gomodels.Register(gomodels.NewApp("test", "")); err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
 		appState := &AppState{
 			app:        gomodels.Registry()["test"],

@@ -169,7 +169,7 @@ func loadHistory() error {
 		stash[app] = map[string]bool{}
 	}
 	for _, state := range history {
-		for _, node := range state.migrations {
+		for _, node := range state.migrations[0:1] {
 			if err := node.setState(stash); err != nil {
 				return err
 			}
@@ -197,11 +197,18 @@ func loadApp(app *gomodels.Application) error {
 	if err != nil {
 		return &PathError{ErrorTrace{Err: err}}
 	}
-	state.migrations = make([]*Node, len(files))
+	mLen := 0
 	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
 		if !mFileRe.MatchString(file.Name()) {
 			return &NameError{file.Name(), ErrorTrace{}}
 		}
+		mLen += 1
+	}
+	state.migrations = make([]*Node, mLen)
+	for _, file := range files {
 		filename := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
 		number, _ := strconv.Atoi(filename[:4])
 		node := &Node{
