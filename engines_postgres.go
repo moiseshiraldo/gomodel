@@ -68,7 +68,7 @@ func (e PostgresEngine) exec(q Query) (sql.Result, error) {
 	}
 }
 
-func (e PostgresEngine) query(q Query) (*sql.Rows, error) {
+func (e PostgresEngine) query(q Query) (Rows, error) {
 	if e.tx != nil {
 		return e.tx.Query(q.Stmt, q.Args...)
 	} else {
@@ -96,7 +96,7 @@ func (e PostgresEngine) PrepareMigrations() error {
 	return err
 }
 
-func (e PostgresEngine) GetMigrations() (*sql.Rows, error) {
+func (e PostgresEngine) GetMigrations() (Rows, error) {
 	return e.query(Query{Stmt: "SELECT app, number FROM gomodels_migration"})
 }
 
@@ -308,7 +308,7 @@ func (e PostgresEngine) GetRows(
 	start int64,
 	end int64,
 	fields ...string,
-) (*sql.Rows, error) {
+) (Rows, error) {
 	query, err := e.SelectQuery(m, c, fields...)
 	if err != nil {
 		return nil, err

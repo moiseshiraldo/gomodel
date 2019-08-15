@@ -91,3 +91,10 @@ func Stop() error {
 	}
 	return err
 }
+
+type Rows interface {
+	Close() error
+	Err() error
+	Next() bool
+	Scan(dest ...interface{}) error
+}

@@ -2,12 +2,40 @@ package migrations
 
 import (
 	"github.com/moiseshiraldo/gomodels"
-	"testing"
+	"go/build"
+	"io/ioutil"
 	"os"
 	"path/filepath"
-	"io/ioutil"
-	"go/build"
+	"testing"
 )
+
+type rowsMocker struct {
+	finished bool
+}
+
+func (r *rowsMocker) Close() error {
+	return nil
+}
+
+func (r rowsMocker) Err() error {
+	return nil
+}
+
+func (r *rowsMocker) Next() bool {
+	if r.finished {
+		return false
+	}
+	r.finished = true
+	return true
+}
+
+func (r *rowsMocker) Scan(dest ...interface{}) error {
+	appName := dest[0].(*string)
+	number := dest[1].(*int)
+	*appName = "test"
+	*number = 1
+	return nil
+}
 
 func TestAppMigrate(t *testing.T) {
 	if err := gomodels.Register(gomodels.NewApp("test", "")); err != nil {
@@ -358,7 +386,7 @@ func TestAppMakeMigrations(t *testing.T) {
 func TestLoadHistoryErrors(t *testing.T) {
 	mockedNodeFile := []byte(`{"App": "test", "Dependencies": []}`)
 	dir := filepath.Join(build.Default.GOPATH, "src", tmpDir)
-	if err := os.MkdirAll(dir + "/wrong/name", 0755); err != nil {
+	if err := os.MkdirAll(dir+"/wrong/name", 0755); err != nil {
 		t.Fatal(err)
 	}
 	defer clearTmp()
@@ -366,15 +394,15 @@ func TestLoadHistoryErrors(t *testing.T) {
 	if err := ioutil.WriteFile(fp, mockedNodeFile, 0644); err != nil {
 		t.Fatal(err)
 	}
-	fp = filepath.Join(dir, "wrong", "0001_initial.json") 
+	fp = filepath.Join(dir, "wrong", "0001_initial.json")
 	if err := ioutil.WriteFile(fp, []byte("-"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	fp = filepath.Join(dir, "0001_initial.json") 
+	fp = filepath.Join(dir, "0001_initial.json")
 	if err := ioutil.WriteFile(fp, mockedNodeFile, 0644); err != nil {
 		t.Fatal(err)
 	}
-	fp = filepath.Join(dir, "0001_migration.json") 
+	fp = filepath.Join(dir, "0001_migration.json")
 	if err := ioutil.WriteFile(fp, mockedNodeFile, 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -451,5 +479,57 @@ func TestLoadHistory(t *testing.T) {
 		if !history["customers"].migrations[0].processed {
 			t.Fatalf("expected migration state to be processed")
 		}
+	})
+}
+
+func TestLoadAppliedMigrations(t *testing.T) {
+	app := gomodels.NewApp("test", "")
+	if err := gomodels.Register(app); err != nil {
+		t.Fatal(err)
+	}
+	defer gomodels.ClearRegistry()
+	appState := &AppState{
+		app:        gomodels.Registry()["test"],
+		migrations: []*Node{},
+	}
+	history["test"] = appState
+	defer clearHistory()
+	err := gomodels.Start(gomodels.DBSettings{
+		"default": {Driver: "mocker", Name: "test"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	db := gomodels.Databases()["default"]
+	defer gomodels.Stop()
+	mockedEngine := db.Engine.(gomodels.MockedEngine)
+	t.Run("Error", func(t *testing.T) {
+		mockedEngine.Results.GetMigrations.Rows = &rowsMocker{}
+		if err := loadAppliedMigrations(db); err == nil {
+			t.Fatalf("expected missing node error")
+		}
+		if mockedEngine.Calls("PrepareMigrations") != 1 {
+			t.Fatalf("expected engine PrepareMigrations to be called")
+		}
+		if mockedEngine.Calls("GetMigrations") != 1 {
+			t.Fatalf("expected engine GetMigrations to be called")
+		}
+		mockedEngine.Reset()
+	})
+	t.Run("Success", func(t *testing.T) {
+		node := &Node{
+			App:    "test",
+			Name:   "initial",
+			number: 1,
+		}
+		history["test"].migrations = []*Node{node}
+		mockedEngine.Results.GetMigrations.Rows = &rowsMocker{}
+		if err := loadAppliedMigrations(db); err != nil {
+			t.Fatal(err)
+		}
+		if !history["test"].migrations[0].applied {
+			t.Fatalf("expected migration to be applied")
+		}
+		mockedEngine.Reset()
 	})
 }

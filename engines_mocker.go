@@ -11,7 +11,7 @@ type MockedEngineResults struct {
 	RollbackTx        error
 	PrepareMigrations error
 	GetMigrations     struct {
-		Rows *sql.Rows
+		Rows Rows
 		Err  error
 	}
 	SaveMigration   error
@@ -29,7 +29,7 @@ type MockedEngineResults struct {
 		Err   error
 	}
 	GetRows struct {
-		Rows *sql.Rows
+		Rows Rows
 		Err  error
 	}
 	InsertRow struct {
@@ -201,7 +201,7 @@ func (e MockedEngine) PrepareMigrations() error {
 	return e.Results.PrepareMigrations
 }
 
-func (e MockedEngine) GetMigrations() (*sql.Rows, error) {
+func (e MockedEngine) GetMigrations() (Rows, error) {
 	e.calls["GetMigrations"] += 1
 	return e.Results.GetMigrations.Rows, e.Results.GetMigrations.Err
 }
@@ -292,7 +292,7 @@ func (e MockedEngine) GetRows(
 	start int64,
 	end int64,
 	fields ...string,
-) (*sql.Rows, error) {
+) (Rows, error) {
 	e.calls["GetRows"] += 1
 	e.Args.GetRows.Model = model
 	e.Args.GetRows.Conditioner = conditioner

@@ -64,7 +64,7 @@ func (e SqliteEngine) exec(q Query) (sql.Result, error) {
 	}
 }
 
-func (e SqliteEngine) query(q Query) (*sql.Rows, error) {
+func (e SqliteEngine) query(q Query) (Rows, error) {
 	if e.tx != nil {
 		return e.tx.Query(q.Stmt, q.Args...)
 	} else {
@@ -92,7 +92,7 @@ func (e SqliteEngine) PrepareMigrations() error {
 	return err
 }
 
-func (e SqliteEngine) GetMigrations() (*sql.Rows, error) {
+func (e SqliteEngine) GetMigrations() (Rows, error) {
 	return e.query(Query{Stmt: "SELECT app, number FROM gomodels_migration"})
 }
 
@@ -318,7 +318,7 @@ func (e SqliteEngine) GetRows(
 	start int64,
 	end int64,
 	fields ...string,
-) (*sql.Rows, error) {
+) (Rows, error) {
 	query, err := e.SelectQuery(m, c, fields...)
 	if err != nil {
 		return nil, err

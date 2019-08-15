@@ -6,7 +6,7 @@ import (
 
 type Migrator interface {
 	PrepareMigrations() error
-	GetMigrations() (*sql.Rows, error)
+	GetMigrations() (Rows, error)
 	SaveMigration(app string, number int, name string) error
 	DeleteMigration(app string, number int) error
 	CreateTable(model *Model) error
@@ -28,7 +28,7 @@ type Engine interface {
 	CommitTx() error
 	RollbackTx() error
 	SelectQuery(m *Model, cond Conditioner, fields ...string) (Query, error)
-	GetRows(m *Model, c Conditioner, start int64, end int64, fields ...string) (*sql.Rows, error)
+	GetRows(m *Model, c Conditioner, start int64, end int64, fields ...string) (Rows, error)
 	InsertRow(m *Model, c Container, fields ...string) (int64, error)
 	UpdateRows(m *Model, c Container, cond Conditioner, fields ...string) (int64, error)
 	DeleteRows(m *Model, cond Conditioner) (int64, error)

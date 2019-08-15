@@ -258,9 +258,10 @@ func loadAppliedMigrations(db gomodels.Database) error {
 			return err
 		}
 		if app, ok := history[appName]; ok {
-			if number <= len(app.migrations) {
-				app.migrations[number-1].applied = true
+			if number > len(app.migrations) {
+				return fmt.Errorf("missing node for applied migration")
 			}
+			app.migrations[number-1].applied = true
 			if number > app.lastApplied {
 				app.lastApplied = number
 			}
