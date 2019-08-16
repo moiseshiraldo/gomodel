@@ -35,14 +35,14 @@ func (n Node) Save() error {
 	}
 	data, err := json.MarshalIndent(n, "", "  ")
 	if err != nil {
-		return err
+		return &SaveError{ErrorTrace{Node: &n, Err: err}}
 	}
 	fp := filepath.Join(n.Path, n.filename())
 	if !filepath.IsAbs(fp) {
 		fp = filepath.Join(build.Default.GOPATH, "src", fp)
 	}
 	if err := ioutil.WriteFile(fp, data, 0644); err != nil {
-		return err
+		return &SaveError{ErrorTrace{Node: &n, Err: err}}
 	}
 	return nil
 }
@@ -57,10 +57,10 @@ func (n *Node) Load() error {
 	}
 	data, err := ioutil.ReadFile(fp)
 	if err != nil {
-		return err
+		return &LoadError{ErrorTrace{Node: n, Err: err}}
 	}
 	if err := json.Unmarshal(data, n); err != nil {
-		return err
+		return &LoadError{ErrorTrace{Node: n, Err: err}}
 	}
 	return nil
 }

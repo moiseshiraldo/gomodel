@@ -158,7 +158,7 @@ func (state AppState) Migrate(database string, nodeName string) error {
 	}
 }
 
-func loadHistory() error {
+var loadHistory = func() error {
 	for _, app := range gomodels.Registry() {
 		if err := loadApp(app); err != nil {
 			return err
@@ -218,7 +218,7 @@ func loadApp(app *gomodels.Application) error {
 			Path:   dir,
 		}
 		if err := node.Load(); err != nil {
-			return &LoadError{ErrorTrace{Node: node, Err: err}}
+			return err
 		}
 		if dup := state.migrations[number-1]; dup != nil {
 			return &DuplicateNumberError{ErrorTrace{Node: node}}
@@ -244,7 +244,7 @@ func loadPreviousState(node Node) map[string]*AppState {
 	return prevState
 }
 
-func loadAppliedMigrations(db gomodels.Database) error {
+var loadAppliedMigrations = func(db gomodels.Database) error {
 	if err := db.PrepareMigrations(); err != nil {
 		return err
 	}

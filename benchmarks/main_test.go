@@ -16,7 +16,7 @@ func TestMain(m *testing.M) {
 		"default": {Driver: "sqlite3", Name: ":memory:"},
 	})
 	defer gomodels.Stop()
-	err := migrations.MakeAndRun()
+	err := migrations.MakeAndRun("default")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		os.Exit(1)

@@ -11,8 +11,6 @@ type MakeOptions struct {
 }
 
 func Make(appName string, options MakeOptions) (*AppState, error) {
-	var err error
-	migrations := []*Node{}
 	_, ok := gomodels.Registry()[appName]
 	if !ok {
 		return nil, &AppNotFoundError{appName, ErrorTrace{}}
@@ -23,11 +21,10 @@ func Make(appName string, options MakeOptions) (*AppState, error) {
 	defer clearHistory()
 	state := history[appName]
 	if options.Empty {
-		node := state.nextNode()
-		migrations = append(migrations, node)
+		state.migrations = []*Node{state.nextNode()}
 		return state, nil
 	}
-	migrations, err = state.MakeMigrations()
+	migrations, err := state.MakeMigrations()
 	if err != nil {
 		return state, err
 	}
@@ -38,7 +35,6 @@ func Make(appName string, options MakeOptions) (*AppState, error) {
 				return state, &PathError{trace}
 			}
 			if err := node.Save(); err != nil {
-				err = &SaveError{ErrorTrace{Node: node, Err: err}}
 				return state, err
 			}
 		}
@@ -90,7 +86,7 @@ func Run(options RunOptions) error {
 	return nil
 }
 
-func MakeAndRun() error {
+func MakeAndRun(database string) error {
 	for _, app := range gomodels.Registry() {
 		history[app.Name()] = &AppState{
 			app:        app,
@@ -104,16 +100,19 @@ func MakeAndRun() error {
 			return err
 		}
 	}
-	for dbName, db := range gomodels.Databases() {
-		if err := loadAppliedMigrations(db); err != nil {
-			return &gomodels.DatabaseError{
-				dbName, gomodels.ErrorTrace{Err: err},
-			}
+	db, ok := gomodels.Databases()[database]
+	if !ok {
+		err := fmt.Errorf("database not found")
+		return &gomodels.DatabaseError{database, gomodels.ErrorTrace{Err: err}}
+	}
+	if err := loadAppliedMigrations(db); err != nil {
+		return &gomodels.DatabaseError{
+			database, gomodels.ErrorTrace{Err: err},
 		}
-		for _, state := range history {
-			if err := state.Migrate(dbName, ""); err != nil {
-				return err
-			}
+	}
+	for _, state := range history {
+		if err := state.Migrate(database, ""); err != nil {
+			return err
 		}
 	}
 	return nil

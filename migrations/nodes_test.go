@@ -13,6 +13,19 @@ import (
 
 const tmpDir = "github.com/moiseshiraldo/gomodels/tmp/"
 
+func makeTmpDir() (string, error) {
+	dir := filepath.Join(build.Default.GOPATH, "src", tmpDir)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", err
+	}
+	return dir, nil
+}
+
+func clearTmpDir() {
+	dir := filepath.Join(build.Default.GOPATH, "src", tmpDir)
+	os.RemoveAll(dir)
+}
+
 type mockedOperation struct {
 	run    bool
 	back   bool
@@ -60,23 +73,18 @@ func (op *mockedOperation) Backwards(
 	return nil
 }
 
-func clearTmp() {
-	dir := filepath.Join(build.Default.GOPATH, "src", tmpDir)
-	os.RemoveAll(dir)
-}
-
 func TestNodeStorage(t *testing.T) {
 	mockedNodeFile := []byte(`{
 	  "App": "test",
 	  "Dependencies": [],
 	  "Operations": [{"MockedOperation": {}}]
 	}`)
-	dir := filepath.Join(build.Default.GOPATH, "src", tmpDir)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	tmpPath, err := makeTmpDir()
+	if err != nil {
 		t.Fatal(err)
 	}
-	defer clearTmp()
-	fp := filepath.Join(dir, "0001_initial.json")
+	defer clearTmpDir()
+	fp := filepath.Join(tmpPath, "0001_initial.json")
 	if err := ioutil.WriteFile(fp, mockedNodeFile, 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -113,9 +121,7 @@ func TestNodeStorage(t *testing.T) {
 		if err := node.Save(); err != nil {
 			t.Fatal(err)
 		}
-		fp := filepath.Join(
-			build.Default.GOPATH, "src", tmpDir, "0002_test_migration.json",
-		)
+		fp := filepath.Join(tmpPath, "0002_test_migration.json")
 		data, err := ioutil.ReadFile(fp)
 		if err != nil {
 			t.Fatal(err)

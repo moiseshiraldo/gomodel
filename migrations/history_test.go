@@ -2,7 +2,6 @@ package migrations
 
 import (
 	"github.com/moiseshiraldo/gomodels"
-	"go/build"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -384,31 +383,31 @@ func TestAppMakeMigrations(t *testing.T) {
 }
 
 func TestLoadHistoryErrors(t *testing.T) {
-	mockedNodeFile := []byte(`{"App": "test", "Dependencies": []}`)
-	dir := filepath.Join(build.Default.GOPATH, "src", tmpDir)
-	if err := os.MkdirAll(dir+"/wrong/name", 0755); err != nil {
+	tmpPath, err := makeTmpDir()
+	if err != nil {
 		t.Fatal(err)
 	}
-	defer clearTmp()
-	fp := filepath.Join(dir, "wrong/name", "wrong_name.txt")
-	if err := ioutil.WriteFile(fp, mockedNodeFile, 0644); err != nil {
+	dir := filepath.Join(tmpPath, "wrong/name")
+	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	fp = filepath.Join(dir, "wrong", "0001_initial.json")
-	if err := ioutil.WriteFile(fp, []byte("-"), 0644); err != nil {
-		t.Fatal(err)
+	defer clearTmpDir()
+	mockedNodeFile := `{"App": "test", "Dependencies": []}`
+	tmpFiles := map[string]string{
+		"wrong/name/file.txt":     mockedNodeFile,
+		"wrong/0001_initial.json": "-",
+		"0001_initial.json":       mockedNodeFile,
+		"0001_duplicate.json":     mockedNodeFile,
 	}
-	fp = filepath.Join(dir, "0001_initial.json")
-	if err := ioutil.WriteFile(fp, mockedNodeFile, 0644); err != nil {
-		t.Fatal(err)
+	for name, content := range tmpFiles {
+		fp := filepath.Join(tmpPath, name)
+		if err := ioutil.WriteFile(fp, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
 	}
-	fp = filepath.Join(dir, "0001_migration.json")
-	if err := ioutil.WriteFile(fp, mockedNodeFile, 0644); err != nil {
-		t.Fatal(err)
-	}
-	app := gomodels.NewApp("test", tmpDir)
+	app := gomodels.NewApp("test", tmpPath)
 	t.Run("WrongPath", func(t *testing.T) {
-		app.Path = tmpDir + "wrong/path"
+		app.Path = filepath.Join(tmpPath, "wrong/path")
 		if err := gomodels.Register(app); err != nil {
 			t.Fatal(err)
 		}
@@ -419,7 +418,7 @@ func TestLoadHistoryErrors(t *testing.T) {
 		gomodels.ClearRegistry()
 	})
 	t.Run("WrongName", func(t *testing.T) {
-		app.Path = tmpDir + "wrong/name"
+		app.Path = filepath.Join(tmpPath, "wrong/name")
 		if err := gomodels.Register(app); err != nil {
 			t.Fatal(err)
 		}
@@ -430,7 +429,7 @@ func TestLoadHistoryErrors(t *testing.T) {
 		gomodels.ClearRegistry()
 	})
 	t.Run("WrongFile", func(t *testing.T) {
-		app.Path = tmpDir + "wrong"
+		app.Path = filepath.Join(tmpPath, "wrong")
 		if err := gomodels.Register(app); err != nil {
 			t.Fatal(err)
 		}
@@ -441,7 +440,7 @@ func TestLoadHistoryErrors(t *testing.T) {
 		gomodels.ClearRegistry()
 	})
 	t.Run("Duplicate", func(t *testing.T) {
-		app.Path = tmpDir
+		app.Path = tmpPath
 		if err := gomodels.Register(app); err != nil {
 			t.Fatal(err)
 		}
@@ -455,16 +454,16 @@ func TestLoadHistoryErrors(t *testing.T) {
 
 func TestLoadHistory(t *testing.T) {
 	mockedNodeFile := []byte(`{"App": "customers", "Dependencies": []}`)
-	dir := filepath.Join(build.Default.GOPATH, "src", tmpDir)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	tmpPath, err := makeTmpDir()
+	if err != nil {
 		t.Fatal(err)
 	}
-	defer clearTmp()
-	fp := filepath.Join(dir, "0001_initial.json")
+	defer clearTmpDir()
+	fp := filepath.Join(tmpPath, "0001_initial.json")
 	if err := ioutil.WriteFile(fp, mockedNodeFile, 0644); err != nil {
 		t.Fatal(err)
 	}
-	app := gomodels.NewApp("customers", tmpDir)
+	app := gomodels.NewApp("customers", tmpPath)
 	if err := gomodels.Register(app); err != nil {
 		t.Fatal(err)
 	}

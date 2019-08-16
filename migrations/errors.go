@@ -44,7 +44,7 @@ type NoAppMigrationsError struct {
 }
 
 func (e *NoAppMigrationsError) Error() string {
-	return fmt.Sprintf("migrations: %s: app not found", e.Name)
+	return fmt.Sprintf("migrations: %s: no migrations", e.Name)
 }
 
 func (e *NoAppMigrationsError) Trace() ErrorTrace {
