@@ -152,7 +152,9 @@ func TestAppMakeMigrations(t *testing.T) {
 		gomodels.Fields{
 			"name": gomodels.CharField{MaxLength: 100},
 		},
-		gomodels.Options{},
+		gomodels.Options{
+			Indexes: gomodels.Indexes{"initial_idx": []string{"name"}},
+		},
 	)
 	usersApp := gomodels.NewApp("users", "", user.Model)
 	customersApp := gomodels.NewApp("customers", "", customer.Model)
@@ -234,7 +236,10 @@ func TestAppMakeMigrations(t *testing.T) {
 		customerState := gomodels.New(
 			"Customer",
 			gomodels.Fields{},
-			gomodels.Options{Table: customer.Model.Table()},
+			gomodels.Options{
+				Table:   customer.Model.Table(),
+				Indexes: customer.Model.Indexes(),
+			},
 		)
 		history["customers"].models["Customer"] = customerState.Model
 		migrations, err := history["customers"].MakeMigrations()
@@ -274,7 +279,10 @@ func TestAppMakeMigrations(t *testing.T) {
 		customerState := gomodels.New(
 			"Customer",
 			fields,
-			gomodels.Options{Table: customer.Model.Table()},
+			gomodels.Options{
+				Table:   customer.Model.Table(),
+				Indexes: customer.Model.Indexes(),
+			},
 		)
 		history["customers"].models["Customer"] = customerState.Model
 		migrations, err := history["customers"].MakeMigrations()
@@ -308,13 +316,51 @@ func TestAppMakeMigrations(t *testing.T) {
 		history["customers"].models["Customer"] = customer.Model
 		history["customers"].migrations = []*Node{node}
 	})
+	t.Run("AddIndex", func(t *testing.T) {
+		customerState := gomodels.New(
+			"Customer",
+			customer.Model.Fields(),
+			gomodels.Options{Table: customer.Model.Table()},
+		)
+		history["customers"].models["Customer"] = customerState.Model
+		migrations, err := history["customers"].MakeMigrations()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(migrations) != 1 {
+			t.Fatal("expected one created node")
+		}
+		if migrations[0].number != 2 {
+			t.Errorf("expected node number 2, got %d", migrations[0].number)
+		}
+		if len(migrations[0].Operations) != 1 {
+			t.Fatal("expected migration to contain one operation")
+		}
+		if migrations[0].Operations[0].OpName() != "AddIndex" {
+			name := migrations[0].Operations[0].OpName()
+			t.Fatalf("expected AddIndex, got %s", name)
+		}
+		idxOp := migrations[0].Operations[0].(*AddIndex)
+		if idxOp.Model != "Customer" || idxOp.Name != "initial_idx" {
+			t.Errorf("operation AddIndex has wrong details")
+		}
+		modelState := history["customers"].models["Customer"]
+		if _, ok := modelState.Indexes()["initial_idx"]; !ok {
+			t.Errorf("operation AddIndex was not applied to state")
+		}
+		history["customers"].models["Customer"] = customer.Model
+		history["customers"].migrations = []*Node{node}
+	})
 	t.Run("RemoveIndex", func(t *testing.T) {
 		customerState := gomodels.New(
 			"Customer",
 			customer.Model.Fields(),
 			gomodels.Options{
-				Indexes: gomodels.Indexes{"name_idx": []string{"name"}},
-				Table:   customer.Model.Table(),
+				Indexes: gomodels.Indexes{
+					"initial_idx": []string{"name"},
+					"new_idx":     []string{"name"},
+				},
+				Table: customer.Model.Table(),
 			},
 		)
 		history["customers"].models["Customer"] = customerState.Model
@@ -336,11 +382,11 @@ func TestAppMakeMigrations(t *testing.T) {
 			t.Fatalf("expected RemoveIndex, got %s", name)
 		}
 		idxOp := migrations[0].Operations[0].(*RemoveIndex)
-		if idxOp.Model != "Customer" || idxOp.Name != "name_idx" {
+		if idxOp.Model != "Customer" || idxOp.Name != "new_idx" {
 			t.Errorf("operation RemoveIndex has wrong details")
 		}
 		modelState := history["customers"].models["Customer"]
-		if _, found := modelState.Indexes()["name_idx"]; found {
+		if _, found := modelState.Indexes()["new_idx"]; found {
 			t.Errorf("operation RemoveIndex was not applied to state")
 		}
 		history["customers"].models["Customer"] = customer.Model
