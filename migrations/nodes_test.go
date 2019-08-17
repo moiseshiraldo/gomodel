@@ -26,53 +26,6 @@ func clearTmpDir() {
 	os.RemoveAll(dir)
 }
 
-type mockedOperation struct {
-	run    bool
-	back   bool
-	state  bool
-	runErr bool
-}
-
-func (op *mockedOperation) reset() {
-	op.run = false
-	op.back = false
-	op.state = false
-	op.runErr = false
-}
-
-func (op mockedOperation) OpName() string {
-	return "MockedOperation"
-}
-
-func (op *mockedOperation) SetState(state *AppState) error {
-	op.state = true
-	return nil
-}
-
-func (op *mockedOperation) Run(
-	tx *gomodels.Transaction,
-	state *AppState,
-	prevState *AppState,
-) error {
-	if op.runErr {
-		return fmt.Errorf("run error")
-	}
-	op.run = true
-	return nil
-}
-
-func (op *mockedOperation) Backwards(
-	tx *gomodels.Transaction,
-	state *AppState,
-	prevState *AppState,
-) error {
-	if op.runErr {
-		return fmt.Errorf("run error")
-	}
-	op.back = true
-	return nil
-}
-
 func TestNodeStorage(t *testing.T) {
 	mockedNodeFile := []byte(`{
 	  "App": "test",
@@ -88,7 +41,9 @@ func TestNodeStorage(t *testing.T) {
 	if err := ioutil.WriteFile(fp, mockedNodeFile, 0644); err != nil {
 		t.Fatal(err)
 	}
-	RegisterOperation("MockedOperation", &mockedOperation{})
+	if _, ok := operationsRegistry["MockedOperation"]; !ok {
+		operationsRegistry["MockedOperation"] = &mockedOperation{}
+	}
 	t.Run("LoadNoPath", func(t *testing.T) {
 		node := &Node{App: "test", Name: "initial", number: 1}
 		if err := node.Load(); err == nil {
