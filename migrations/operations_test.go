@@ -12,6 +12,7 @@ type mockedOperation struct {
 	back   bool
 	state  bool
 	runErr bool
+	Field  string
 }
 
 func (op *mockedOperation) reset() {
@@ -75,10 +76,10 @@ func TestOperationList(t *testing.T) {
 	})
 	t.Run("UnmarshalInvalidOperation", func(t *testing.T) {
 		opList := OperationList{}
-		data := []byte(`[{"MockedOperation": {---}}]`)
+		data := []byte(`[{"MockedOperation": {"Field": []}}]`)
 		err := opList.UnmarshalJSON(data)
-		if _, ok := err.(*json.SyntaxError); !ok {
-			t.Errorf("expected json.SyntaxError, got %T", err)
+		if _, ok := err.(*json.UnmarshalTypeError); !ok {
+			t.Errorf("expected json.UnmarshalTypeError, got %T", err)
 		}
 	})
 	t.Run("UnmarshalValidOperation", func(t *testing.T) {
@@ -98,8 +99,8 @@ func TestOperationList(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		expected := `[{"MockedOperation":{}}]`
-		if string(data) != `[{"MockedOperation":{}}]` {
+		expected := `[{"MockedOperation":{"Field":""}}]`
+		if string(data) != expected {
 			t.Fatalf("expected %s, got %s", expected, string(data))
 		}
 	})

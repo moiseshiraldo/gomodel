@@ -195,7 +195,7 @@ func loadApp(app *gomodels.Application) error {
 	dir := app.FullPath()
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
-		return &PathError{ErrorTrace{Err: err}}
+		return &PathError{app.Name(), ErrorTrace{Err: err}}
 	}
 	mLen := 0
 	for _, file := range files {
@@ -221,7 +221,8 @@ func loadApp(app *gomodels.Application) error {
 			return err
 		}
 		if dup := state.migrations[number-1]; dup != nil {
-			return &DuplicateNumberError{ErrorTrace{Node: node}}
+			err := fmt.Errorf("duplicate number")
+			return &DuplicateNumberError{ErrorTrace{Node: node, Err: err}}
 		}
 		state.migrations[number-1] = node
 	}

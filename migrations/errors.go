@@ -9,159 +9,110 @@ type Error interface {
 
 type ErrorTrace struct {
 	Node      *Node
-	Operation *Operation
+	Operation Operation
 	Err       error
 }
 
-func (e *ErrorTrace) String() string {
+func (e ErrorTrace) String() string {
 	trace := ""
 	if e.Node != nil {
 		trace += fmt.Sprintf("%s: %s: ", e.Node.App, e.Node.Name)
 	}
 	if e.Operation != nil {
-		trace += fmt.Sprintf("%s: ", (*e.Operation).OpName())
+		trace += fmt.Sprintf("%s: ", e.Operation.OpName())
 	}
 	trace += e.Err.Error()
 	return trace
 }
 
 type AppNotFoundError struct {
-	Name string
-	ErrorTrace
+	Name  string
+	Trace ErrorTrace
 }
 
 func (e *AppNotFoundError) Error() string {
 	return fmt.Sprintf("migrations: %s: app not found", e.Name)
 }
 
-func (e *AppNotFoundError) Trace() ErrorTrace {
-	return e.ErrorTrace
-}
-
 type NoAppMigrationsError struct {
-	Name string
-	ErrorTrace
+	Name  string
+	Trace ErrorTrace
 }
 
 func (e *NoAppMigrationsError) Error() string {
 	return fmt.Sprintf("migrations: %s: no migrations", e.Name)
 }
 
-func (e *NoAppMigrationsError) Trace() ErrorTrace {
-	return e.ErrorTrace
-}
-
 type PathError struct {
-	ErrorTrace
+	App   string
+	Trace ErrorTrace
 }
 
 func (e *PathError) Error() string {
-	return fmt.Sprintf("migrations: load files: %s", e.ErrorTrace.String())
-}
-
-func (e *PathError) Trace() ErrorTrace {
-	return e.ErrorTrace
+	return fmt.Sprintf("migrations: %s: path error: %s", e.App, e.Trace)
 }
 
 type NameError struct {
-	Name string
-	ErrorTrace
+	Name  string
+	Trace ErrorTrace
 }
 
 func (e *NameError) Error() string {
-	return fmt.Sprintf("migrations: %s: wrong name", e.Name)
-}
-
-func (e *NameError) Trace() ErrorTrace {
-	return e.ErrorTrace
+	return fmt.Sprintf("migrations: %s: wrong node name", e.Name)
 }
 
 type DuplicateNumberError struct {
-	ErrorTrace
+	Trace ErrorTrace
 }
 
 func (e *DuplicateNumberError) Error() string {
-	return fmt.Sprintf(
-		"migrations: %s: duplicate number", e.ErrorTrace.String(),
-	)
-}
-
-func (e *DuplicateNumberError) Trace() ErrorTrace {
-	return e.ErrorTrace
+	return fmt.Sprintf("migrations: %s", e.Trace)
 }
 
 type LoadError struct {
-	ErrorTrace
+	Trace ErrorTrace
 }
 
 func (e *LoadError) Error() string {
-	return fmt.Sprintf("migrations: %s: load failed", e.ErrorTrace.String())
-}
-
-func (e *LoadError) Trace() ErrorTrace {
-	return e.ErrorTrace
+	return fmt.Sprintf("migrations: %s", e.Trace)
 }
 
 type SaveError struct {
-	ErrorTrace
+	Trace ErrorTrace
 }
 
 func (e *SaveError) Error() string {
-	return fmt.Sprintf("migrations: %s: save failed", e.ErrorTrace.String())
-}
-
-func (e *SaveError) Trace() ErrorTrace {
-	return e.ErrorTrace
+	return fmt.Sprintf("migrations: %s", e.Trace)
 }
 
 type InvalidDependencyError struct {
-	ErrorTrace
+	Trace ErrorTrace
 }
 
 func (e *InvalidDependencyError) Error() string {
-	return fmt.Sprintf(
-		"migrations: %s: invalid dependency", e.ErrorTrace.String(),
-	)
-}
-
-func (e *InvalidDependencyError) Trace() ErrorTrace {
-	return e.ErrorTrace
+	return fmt.Sprintf("migrations: %s", e.Trace)
 }
 
 type CircularDependencyError struct {
-	ErrorTrace
+	Trace ErrorTrace
 }
 
 func (e *CircularDependencyError) Error() string {
-	return fmt.Sprintf(
-		"migrations: %s: circular dependency", e.ErrorTrace.String(),
-	)
-}
-
-func (e *CircularDependencyError) Trace() ErrorTrace {
-	return e.ErrorTrace
+	return fmt.Sprintf("migrations: %s", e.Trace)
 }
 
 type OperationStateError struct {
-	ErrorTrace
+	Trace ErrorTrace
 }
 
 func (e *OperationStateError) Error() string {
-	return fmt.Sprintf("migrations: state error: %s", e.ErrorTrace.String())
-}
-
-func (e *OperationStateError) Trace() ErrorTrace {
-	return e.ErrorTrace
+	return fmt.Sprintf("migrations: %s", e.Trace)
 }
 
 type OperationRunError struct {
-	ErrorTrace
+	Trace ErrorTrace
 }
 
 func (e *OperationRunError) Error() string {
-	return fmt.Sprintf("migrations: run error: %s", e.ErrorTrace.String())
-}
-
-func (e *OperationRunError) Trace() ErrorTrace {
-	return e.ErrorTrace
+	return fmt.Sprintf("migrations: %s", e.Trace)
 }

@@ -31,8 +31,8 @@ func Make(appName string, options MakeOptions) (*AppState, error) {
 	if !options.OmitWrite {
 		for _, node := range migrations {
 			if node.Path == "" {
-				trace := ErrorTrace{Node: node, Err: fmt.Errorf("no path")}
-				return state, &PathError{trace}
+				trace := ErrorTrace{Err: fmt.Errorf("no path")}
+				return state, &PathError{node.App, trace}
 			}
 			if err := node.Save(); err != nil {
 				return state, err

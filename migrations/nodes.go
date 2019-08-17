@@ -108,9 +108,7 @@ func (n Node) runOperations(db gomodels.Database) error {
 					db.Id(), gomodels.ErrorTrace{Err: txErr},
 				}
 			}
-			return &OperationRunError{
-				ErrorTrace{Node: &n, Operation: &op, Err: err},
-			}
+			return &OperationRunError{ErrorTrace{&n, op, err}}
 		}
 		op.SetState(prevState)
 	}
@@ -177,9 +175,7 @@ func (n Node) backwardOperations(db gomodels.Database) error {
 					db.Id(), gomodels.ErrorTrace{Err: txErr},
 				}
 			}
-			return &OperationRunError{
-				ErrorTrace{Node: &n, Operation: &op, Err: err},
-			}
+			return &OperationRunError{ErrorTrace{&n, op, err}}
 		}
 	}
 	if err := tx.DeleteMigration(n.App, n.number); err != nil {
@@ -201,22 +197,27 @@ func (n *Node) setState(stash map[string]map[string]bool) error {
 	stash[n.App][n.fullname()] = true
 	for _, dep := range n.Dependencies {
 		app, depName := dep[0], dep[1]
+		invalidDep := &InvalidDependencyError{
+			ErrorTrace{Node: n, Err: fmt.Errorf("invalid dependency")},
+		}
 		if !mNameRe.MatchString(depName) {
-			return &InvalidDependencyError{ErrorTrace{Node: n}}
+			return invalidDep
 		}
 		if _, ok := history[app]; !ok {
-			return &InvalidDependencyError{ErrorTrace{Node: n}}
+			return invalidDep
 		}
 		number, _ := strconv.Atoi(depName[:4])
 		if number > len(history[app].migrations) {
-			return &InvalidDependencyError{ErrorTrace{Node: n}}
+			return invalidDep
 		}
 		depNode := history[app].migrations[number-1]
 		if depNode == nil {
-			return &InvalidDependencyError{ErrorTrace{Node: n}}
+			return invalidDep
 		}
 		if stash[app][depName] {
-			return &CircularDependencyError{ErrorTrace{Node: n}}
+			return &CircularDependencyError{
+				ErrorTrace{Node: n, Err: fmt.Errorf("invalid dependency")},
+			}
 		}
 		if !depNode.processed {
 			if err := depNode.setState(stash); err != nil {
@@ -226,7 +227,7 @@ func (n *Node) setState(stash map[string]map[string]bool) error {
 	}
 	for _, op := range n.Operations {
 		if err := op.SetState(history[n.App]); err != nil {
-			return &OperationStateError{ErrorTrace{Node: n}}
+			return &OperationStateError{ErrorTrace{n, op, err}}
 		}
 	}
 	n.processed = true
