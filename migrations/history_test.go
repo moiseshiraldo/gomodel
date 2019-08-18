@@ -1,10 +1,8 @@
 package migrations
 
 import (
+	"fmt"
 	"github.com/moiseshiraldo/gomodels"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -428,100 +426,74 @@ func TestAppMakeMigrations(t *testing.T) {
 	})
 }
 
-func TestLoadHistoryErrors(t *testing.T) {
-	tmpPath, err := makeTmpDir()
-	if err != nil {
+func TestLoadHistory(t *testing.T) {
+	app := gomodels.NewApp("test", "test/migrations")
+	if err := gomodels.Register(app); err != nil {
 		t.Fatal(err)
 	}
-	dir := filepath.Join(tmpPath, "wrong/name")
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	defer clearTmpDir()
-	mockedNodeFile := `{"App": "test", "Dependencies": []}`
-	tmpFiles := map[string]string{
-		"wrong/name/file.txt":     mockedNodeFile,
-		"wrong/0001_initial.json": "-",
-		"0001_initial.json":       mockedNodeFile,
-		"0001_duplicate.json":     mockedNodeFile,
-	}
-	for name, content := range tmpFiles {
-		fp := filepath.Join(tmpPath, name)
-		if err := ioutil.WriteFile(fp, []byte(content), 0644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	app := gomodels.NewApp("test", tmpPath)
+	defer gomodels.ClearRegistry()
+	origReadAppNodes := readAppNodes
+	origReadNode := readNode
+	defer func() {
+		readAppNodes = origReadAppNodes
+		readNode = origReadNode
+	}()
 	t.Run("WrongPath", func(t *testing.T) {
-		app.Path = filepath.Join(tmpPath, "wrong/path")
-		if err := gomodels.Register(app); err != nil {
-			t.Fatal(err)
+		readAppNodes = func(path string) ([]string, error) {
+			return nil, fmt.Errorf("wrong path")
 		}
 		err := loadHistory()
 		if _, ok := err.(*PathError); !ok {
 			t.Errorf("Expected PathError, got %T", err)
 		}
-		gomodels.ClearRegistry()
 	})
 	t.Run("WrongName", func(t *testing.T) {
-		app.Path = filepath.Join(tmpPath, "wrong/name")
-		if err := gomodels.Register(app); err != nil {
-			t.Fatal(err)
+		readAppNodes = func(path string) ([]string, error) {
+			return []string{"0001_initial.yaml"}, nil
 		}
 		err := loadHistory()
 		if _, ok := err.(*NameError); !ok {
 			t.Errorf("Expected NameError, got %T", err)
 		}
-		gomodels.ClearRegistry()
 	})
 	t.Run("WrongFile", func(t *testing.T) {
-		app.Path = filepath.Join(tmpPath, "wrong")
-		if err := gomodels.Register(app); err != nil {
-			t.Fatal(err)
+		readAppNodes = func(path string) ([]string, error) {
+			return []string{"0001_initial.json"}, nil
+		}
+		readNode = func(path string) ([]byte, error) {
+			return []byte("-"), nil
 		}
 		err := loadHistory()
 		if _, ok := err.(*LoadError); !ok {
 			t.Errorf("Expected LoadError, got %T", err)
 		}
-		gomodels.ClearRegistry()
 	})
 	t.Run("Duplicate", func(t *testing.T) {
-		app.Path = tmpPath
-		if err := gomodels.Register(app); err != nil {
-			t.Fatal(err)
+		readAppNodes = func(path string) ([]string, error) {
+			return []string{"0001_initial.json", "0001_migration.json"}, nil
+		}
+		readNode = func(path string) ([]byte, error) {
+			return []byte(`{"App": "test", "Dependencies": []}`), nil
 		}
 		err := loadHistory()
 		if _, ok := err.(*DuplicateNumberError); !ok {
 			t.Errorf("Expected DuplicateNumberError, got %T", err)
 		}
-		gomodels.ClearRegistry()
 	})
-}
-
-func TestLoadHistory(t *testing.T) {
-	mockedNodeFile := []byte(`{"App": "customers", "Dependencies": []}`)
-	tmpPath, err := makeTmpDir()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer clearTmpDir()
-	fp := filepath.Join(tmpPath, "0001_initial.json")
-	if err := ioutil.WriteFile(fp, mockedNodeFile, 0644); err != nil {
-		t.Fatal(err)
-	}
-	app := gomodels.NewApp("customers", tmpPath)
-	if err := gomodels.Register(app); err != nil {
-		t.Fatal(err)
-	}
-	defer gomodels.ClearRegistry()
 	t.Run("Success", func(t *testing.T) {
+		readAppNodes = func(path string) ([]string, error) {
+			return []string{"0001_initial.json"}, nil
+		}
+		readNode = func(path string) ([]byte, error) {
+			return []byte(`{"App": "test", "Dependencies": []}`), nil
+		}
 		if err := loadHistory(); err != nil {
 			t.Fatal(err)
 		}
-		if len(history["customers"].migrations) != 1 {
+		if len(history["test"].migrations) != 1 {
 			t.Fatalf("expected one migration to be loaded")
 		}
-		if !history["customers"].migrations[0].processed {
+		if !history["test"].migrations[0].processed {
 			t.Fatalf("expected migration state to be processed")
 		}
 	})

@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/moiseshiraldo/gomodels"
-	"io/ioutil"
-	"path/filepath"
 	"testing"
 )
 
@@ -22,14 +20,16 @@ func TestMake(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer gomodels.ClearRegistry()
-	tmpPath, err := makeTmpDir()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer clearTmpDir()
 	origLoadHistory := loadHistory
 	defer func() { loadHistory = origLoadHistory }()
 	loadHistoryCalled := false
+	origWriteNode := writeNode
+	defer func() { writeNode = origWriteNode }()
+	writeNodeCallData := make([]byte, 0)
+	writeNode = func(path string, data []byte) error {
+		writeNodeCallData = data
+		return nil
+	}
 	t.Run("NoApp", func(t *testing.T) {
 		_, err := Make("test", MakeOptions{})
 		if _, ok := err.(*AppNotFoundError); !ok {
@@ -92,7 +92,7 @@ func TestMake(t *testing.T) {
 			},
 			gomodels.Options{},
 		)
-		app := gomodels.NewApp("customers", tmpDir, customer.Model)
+		app := gomodels.NewApp("customers", "cust/migrations/", customer.Model)
 		if err := gomodels.Register(app); err != nil {
 			t.Fatal(err)
 		}
@@ -107,13 +107,8 @@ func TestMake(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		fp := filepath.Join(tmpPath, "0001_initial.json")
-		data, err := ioutil.ReadFile(fp)
-		if err != nil {
-			t.Fatal(err)
-		}
 		n := &Node{}
-		if err := json.Unmarshal(data, n); err != nil {
+		if err := json.Unmarshal(writeNodeCallData, n); err != nil {
 			t.Fatal(err)
 		}
 		if n.App != "customers" || len(n.Operations) != 1 {

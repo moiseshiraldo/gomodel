@@ -10,6 +10,28 @@ import (
 	"strconv"
 )
 
+var writeNode = func(path string, data []byte) error {
+	return ioutil.WriteFile(path, data, 0644)
+}
+
+var readNode = func(path string) ([]byte, error) {
+	return ioutil.ReadFile(path)
+}
+
+var readAppNodes = func(path string) ([]string, error) {
+	files, err := ioutil.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(files))
+	for _, file := range files {
+		if !file.IsDir() {
+			names = append(names, file.Name())
+		}
+	}
+	return names, nil
+}
+
 type Node struct {
 	App          string
 	Path         string `json:"-"`
@@ -41,7 +63,7 @@ func (n Node) Save() error {
 	if !filepath.IsAbs(fp) {
 		fp = filepath.Join(build.Default.GOPATH, "src", fp)
 	}
-	if err := ioutil.WriteFile(fp, data, 0644); err != nil {
+	if err := writeNode(fp, data); err != nil {
 		return &SaveError{ErrorTrace{Node: &n, Err: err}}
 	}
 	return nil
@@ -55,7 +77,7 @@ func (n *Node) Load() error {
 	if !filepath.IsAbs(fp) {
 		fp = filepath.Join(build.Default.GOPATH, "src", fp)
 	}
-	data, err := ioutil.ReadFile(fp)
+	data, err := readNode(fp)
 	if err != nil {
 		return &LoadError{ErrorTrace{Node: n, Err: err}}
 	}

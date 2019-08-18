@@ -3,7 +3,6 @@ package migrations
 import (
 	"fmt"
 	"github.com/moiseshiraldo/gomodels"
-	"io/ioutil"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -192,37 +191,31 @@ func loadApp(app *gomodels.Application) error {
 	if app.Path() == "" {
 		return nil
 	}
-	dir := app.FullPath()
-	files, err := ioutil.ReadDir(dir)
+	files, err := readAppNodes(app.FullPath())
 	if err != nil {
 		return &PathError{app.Name(), ErrorTrace{Err: err}}
 	}
-	mLen := 0
-	for _, file := range files {
-		if file.IsDir() {
-			continue
+	for _, name := range files {
+		if !mFileRe.MatchString(name) {
+			return &NameError{name, ErrorTrace{}}
 		}
-		if !mFileRe.MatchString(file.Name()) {
-			return &NameError{file.Name(), ErrorTrace{}}
-		}
-		mLen += 1
 	}
-	state.migrations = make([]*Node, mLen)
-	for _, file := range files {
-		filename := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
+	state.migrations = make([]*Node, len(files))
+	for _, name := range files {
+		filename := strings.TrimSuffix(name, filepath.Ext(name))
 		number, _ := strconv.Atoi(filename[:4])
 		node := &Node{
 			App:    app.Name(),
 			Name:   filename[5:],
 			number: number,
-			Path:   dir,
-		}
-		if err := node.Load(); err != nil {
-			return err
+			Path:   app.FullPath(),
 		}
 		if dup := state.migrations[number-1]; dup != nil {
 			err := fmt.Errorf("duplicate number")
 			return &DuplicateNumberError{ErrorTrace{Node: node, Err: err}}
+		}
+		if err := node.Load(); err != nil {
+			return err
 		}
 		state.migrations[number-1] = node
 	}

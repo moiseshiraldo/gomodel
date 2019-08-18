@@ -1,30 +1,10 @@
 package migrations
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/moiseshiraldo/gomodels"
-	"go/build"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"testing"
 )
-
-const tmpDir = "github.com/moiseshiraldo/gomodels/tmp/"
-
-func makeTmpDir() (string, error) {
-	dir := filepath.Join(build.Default.GOPATH, "src", tmpDir)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return "", err
-	}
-	return dir, nil
-}
-
-func clearTmpDir() {
-	dir := filepath.Join(build.Default.GOPATH, "src", tmpDir)
-	os.RemoveAll(dir)
-}
 
 func TestNodeStorage(t *testing.T) {
 	mockedNodeFile := []byte(`{
@@ -32,14 +12,17 @@ func TestNodeStorage(t *testing.T) {
 	  "Dependencies": [],
 	  "Operations": [{"MockedOperation": {}}]
 	}`)
-	tmpPath, err := makeTmpDir()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer clearTmpDir()
-	fp := filepath.Join(tmpPath, "0001_initial.json")
-	if err := ioutil.WriteFile(fp, mockedNodeFile, 0644); err != nil {
-		t.Fatal(err)
+	origReadNode := readNode
+	origWriteNode := writeNode
+	defer func() {
+		readNode = origReadNode
+		writeNode = origWriteNode
+	}()
+	readNode = func(path string) ([]byte, error) { return mockedNodeFile, nil }
+	writeNodeCalled := false
+	writeNode = func(path string, data []byte) error {
+		writeNodeCalled = true
+		return nil
 	}
 	if _, ok := operationsRegistry["MockedOperation"]; !ok {
 		operationsRegistry["MockedOperation"] = &mockedOperation{}
@@ -51,7 +34,7 @@ func TestNodeStorage(t *testing.T) {
 		}
 	})
 	t.Run("LoadSuccess", func(t *testing.T) {
-		node := &Node{Name: "initial", number: 1, Path: tmpDir}
+		node := &Node{Name: "initial", number: 1, Path: "/test/migrations"}
 		if err := node.Load(); err != nil {
 			t.Fatal(err)
 		}
@@ -70,23 +53,14 @@ func TestNodeStorage(t *testing.T) {
 			App:        "test",
 			Name:       "test_migration",
 			number:     2,
-			Path:       tmpDir,
+			Path:       "/test/migrations",
 			Operations: OperationList{&mockedOperation{}},
 		}
 		if err := node.Save(); err != nil {
 			t.Fatal(err)
 		}
-		fp := filepath.Join(tmpPath, "0002_test_migration.json")
-		data, err := ioutil.ReadFile(fp)
-		if err != nil {
-			t.Fatal(err)
-		}
-		n := &Node{}
-		if err := json.Unmarshal(data, n); err != nil {
-			t.Fatal(err)
-		}
-		if n.App != "test" || len(n.Operations) != 1 {
-			t.Errorf("file missing information")
+		if !writeNodeCalled {
+			t.Error("expected writeNode to be called")
 		}
 	})
 }
