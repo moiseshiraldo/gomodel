@@ -186,6 +186,11 @@ func (m *Model) AddIndex(name string, fields []string) error {
 	if _, found := m.meta.Indexes[name]; found {
 		return fmt.Errorf("duplicate index: %s", name)
 	}
+	for _, indexedField := range fields {
+		if _, ok := m.fields[indexedField]; !ok {
+			return fmt.Errorf("unknown indexed field: %s", indexedField)
+		}
+	}
 	m.meta.Indexes[name] = fields
 	return nil
 }

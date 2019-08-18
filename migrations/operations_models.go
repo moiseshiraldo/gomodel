@@ -92,22 +92,7 @@ func (op *AddIndex) SetState(state *AppState) error {
 	if !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}
-	indexes := model.Indexes()
-	fields := model.Fields()
-	if _, found := model.Indexes()[op.Name]; found {
-		return fmt.Errorf("duplicate index name: %s", op.Name)
-	}
-	for _, name := range op.Fields {
-		if _, ok := fields[name]; !ok {
-			return fmt.Errorf("unknown field: %s", name)
-		}
-	}
-	indexes[op.Name] = op.Fields
-	options := gomodels.Options{Table: model.Table(), Indexes: indexes}
-	state.Models[op.Model] = gomodels.New(
-		model.Name(), model.Fields(), options,
-	).Model
-	return nil
+	return model.AddIndex(op.Name, op.Fields)
 }
 
 func (op AddIndex) Run(
@@ -140,16 +125,7 @@ func (op *RemoveIndex) SetState(state *AppState) error {
 	if !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}
-	indexes := model.Indexes()
-	if _, ok := model.Indexes()[op.Name]; !ok {
-		return fmt.Errorf("index not found: %s", op.Name)
-	}
-	delete(indexes, op.Name)
-	options := gomodels.Options{Table: model.Table(), Indexes: indexes}
-	state.Models[op.Model] = gomodels.New(
-		model.Name(), model.Fields(), options,
-	).Model
-	return nil
+	return model.RemoveIndex(op.Name)
 }
 
 func (op RemoveIndex) Run(

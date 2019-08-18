@@ -10,7 +10,8 @@ func TestFieldOperationsState(t *testing.T) {
 	user := gomodels.New(
 		"User",
 		gomodels.Fields{
-			"email": gomodels.CharField{MaxLength: 100, Index: true},
+			"email":         gomodels.CharField{MaxLength: 100, Index: true},
+			"loginAttempts": gomodels.IntegerField{DefaultZero: true},
 		},
 		gomodels.Options{},
 	)
@@ -77,7 +78,7 @@ func TestFieldOperationsState(t *testing.T) {
 			t.Errorf("expected model not found error")
 		}
 	})
-	t.Run("RemoveNonExistentField", func(t *testing.T) {
+	t.Run("RemoveUnknowntField", func(t *testing.T) {
 		op := RemoveFields{
 			Model:  "User",
 			Fields: []string{"lastName"},
@@ -86,16 +87,25 @@ func TestFieldOperationsState(t *testing.T) {
 			t.Errorf("expected field not found error")
 		}
 	})
-	t.Run("RemoveField", func(t *testing.T) {
+	t.Run("RemoveIndexedField", func(t *testing.T) {
 		op := RemoveFields{
 			Model:  "User",
 			Fields: []string{"email"},
+		}
+		if err := op.SetState(appState); err == nil {
+			t.Errorf("expected cannot remove indexed field error")
+		}
+	})
+	t.Run("RemoveField", func(t *testing.T) {
+		op := RemoveFields{
+			Model:  "User",
+			Fields: []string{"loginAttempts"},
 		}
 		if err := op.SetState(appState); err != nil {
 			t.Fatal(err)
 		}
 		fields := appState.Models["User"].Fields()
-		if _, ok := fields["email"]; ok {
+		if _, ok := fields["loginAttemptsl"]; ok {
 			t.Errorf("email field was not removed from state")
 		}
 	})

@@ -19,20 +19,11 @@ func (op *AddFields) SetState(state *AppState) error {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}
 	model := state.Models[op.Model]
-	fields := model.Fields()
 	for name, field := range op.Fields {
-		if _, found := fields[name]; found {
-			return fmt.Errorf("%s: duplicate field: %s", op.Model, name)
+		if err := model.AddField(name, field); err != nil {
+			return err
 		}
-		fields[name] = field
 	}
-	options := gomodels.Options{
-		Table: model.Table(), Indexes: model.Indexes(),
-	}
-	delete(state.Models, op.Model)
-	state.Models[op.Model] = gomodels.New(
-		op.Model, fields, options,
-	).Model
 	return nil
 }
 
@@ -72,20 +63,11 @@ func (op *RemoveFields) SetState(state *AppState) error {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}
 	model := state.Models[op.Model]
-	fields := model.Fields()
 	for _, name := range op.Fields {
-		if _, ok := fields[name]; !ok {
-			return fmt.Errorf("%s: field not found: %s", op.Model, name)
+		if err := model.RemoveField(name); err != nil {
+			return err
 		}
-		delete(fields, name)
 	}
-	options := gomodels.Options{
-		Table: model.Table(), Indexes: state.Models[op.Model].Indexes(),
-	}
-	delete(state.Models, op.Model)
-	state.Models[op.Model] = gomodels.New(
-		op.Model, fields, options,
-	).Model
 	return nil
 }
 
