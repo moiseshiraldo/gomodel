@@ -21,7 +21,7 @@ func TestModelOperationsState(t *testing.T) {
 	defer gomodels.ClearRegistry()
 	appState := &AppState{
 		app: gomodels.Registry()["test"],
-		models: map[string]*gomodels.Model{
+		Models: map[string]*gomodels.Model{
 			"User": user.Model,
 		},
 	}
@@ -43,7 +43,7 @@ func TestModelOperationsState(t *testing.T) {
 		if err := op.SetState(appState); err != nil {
 			t.Fatal(err)
 		}
-		model, ok := appState.models["Customer"]
+		model, ok := appState.Models["Customer"]
 		if !ok {
 			t.Errorf("model was not added to state")
 		} else {
@@ -83,7 +83,7 @@ func TestModelOperationsState(t *testing.T) {
 		if err := op.SetState(appState); err != nil {
 			t.Fatal(err)
 		}
-		model := appState.models["User"]
+		model := appState.Models["User"]
 		if _, ok := model.Indexes()["test_index"]; !ok {
 			t.Errorf("index was not added to model state")
 		}
@@ -105,7 +105,7 @@ func TestModelOperationsState(t *testing.T) {
 		if err := op.SetState(appState); err != nil {
 			t.Fatal(err)
 		}
-		model := appState.models["User"]
+		model := appState.Models["User"]
 		if _, found := model.Indexes()["test_user_email_auto_idx"]; found {
 			t.Errorf("index was not removed from model state")
 		}
@@ -121,7 +121,7 @@ func TestModelOperationsState(t *testing.T) {
 		if err := op.SetState(appState); err != nil {
 			t.Fatal(err)
 		}
-		if _, found := appState.models["User"]; found {
+		if _, found := appState.Models["User"]; found {
 			t.Errorf("model was not removed from state")
 		}
 	})
@@ -142,7 +142,7 @@ func TestModelOperations(t *testing.T) {
 	defer gomodels.ClearRegistry()
 	appState := &AppState{
 		app: gomodels.Registry()["test"],
-		models: map[string]*gomodels.Model{
+		Models: map[string]*gomodels.Model{
 			"User": user.Model,
 		},
 	}
@@ -186,8 +186,8 @@ func testAddModelOperation(
 	).Model
 	state := &AppState{
 		app: prevState.app,
-		models: map[string]*gomodels.Model{
-			"User":     prevState.models["User"],
+		Models: map[string]*gomodels.Model{
+			"User":     prevState.Models["User"],
 			"Customer": model,
 		},
 	}
@@ -234,7 +234,7 @@ func testDeleteModelOperation(
 	op := DeleteModel{Name: "User"}
 	state := &AppState{
 		app:    prevState.app,
-		models: map[string]*gomodels.Model{},
+		Models: map[string]*gomodels.Model{},
 	}
 	t.Run("RunError", func(t *testing.T) {
 		mockedEngine.Reset()
@@ -281,16 +281,16 @@ func testAddIndexOperation(
 		Name:   "test_index",
 		Fields: []string{"email"},
 	}
-	indexes := prevState.models["User"].Indexes()
+	indexes := prevState.Models["User"].Indexes()
 	indexes["test_index"] = []string{"email"}
 	model := gomodels.New(
 		"User",
-		prevState.models["User"].Fields(),
+		prevState.Models["User"].Fields(),
 		gomodels.Options{Indexes: indexes},
 	).Model
 	state := &AppState{
 		app: prevState.app,
-		models: map[string]*gomodels.Model{
+		Models: map[string]*gomodels.Model{
 			"User": model,
 		},
 	}
@@ -338,16 +338,16 @@ func testRemoveIndexOperation(
 		Model: "User",
 		Name:  "test_index",
 	}
-	indexes := prevState.models["User"].Indexes()
+	indexes := prevState.Models["User"].Indexes()
 	delete(indexes, "test_user_email_auto_idx")
 	model := gomodels.New(
 		"User",
-		prevState.models["User"].Fields(),
+		prevState.Models["User"].Fields(),
 		gomodels.Options{Indexes: indexes},
 	).Model
 	state := &AppState{
 		app: prevState.app,
-		models: map[string]*gomodels.Model{
+		Models: map[string]*gomodels.Model{
 			"User": model,
 		},
 	}

@@ -90,7 +90,7 @@ func MakeAndRun(database string) error {
 	for _, app := range gomodels.Registry() {
 		history[app.Name()] = &AppState{
 			app:        app,
-			models:     map[string]*gomodels.Model{},
+			Models:     map[string]*gomodels.Model{},
 			migrations: []*Node{},
 		}
 	}

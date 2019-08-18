@@ -15,10 +15,10 @@ func (op AddFields) OpName() string {
 }
 
 func (op *AddFields) SetState(state *AppState) error {
-	if _, ok := state.models[op.Model]; !ok {
+	if _, ok := state.Models[op.Model]; !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}
-	model := state.models[op.Model]
+	model := state.Models[op.Model]
 	fields := model.Fields()
 	for name, field := range op.Fields {
 		if _, found := fields[name]; found {
@@ -29,8 +29,8 @@ func (op *AddFields) SetState(state *AppState) error {
 	options := gomodels.Options{
 		Table: model.Table(), Indexes: model.Indexes(),
 	}
-	delete(state.models, op.Model)
-	state.models[op.Model] = gomodels.New(
+	delete(state.Models, op.Model)
+	state.Models[op.Model] = gomodels.New(
 		op.Model, fields, options,
 	).Model
 	return nil
@@ -41,7 +41,7 @@ func (op AddFields) Run(
 	state *AppState,
 	prevState *AppState,
 ) error {
-	return tx.AddColumns(state.models[op.Model], op.Fields)
+	return tx.AddColumns(state.Models[op.Model], op.Fields)
 }
 
 func (op AddFields) Backwards(
@@ -54,7 +54,7 @@ func (op AddFields) Backwards(
 		fields = append(fields, name)
 	}
 	return tx.DropColumns(
-		state.models[op.Model], prevState.models[op.Model], fields...,
+		state.Models[op.Model], prevState.Models[op.Model], fields...,
 	)
 }
 
@@ -68,10 +68,10 @@ func (op RemoveFields) OpName() string {
 }
 
 func (op *RemoveFields) SetState(state *AppState) error {
-	if _, ok := state.models[op.Model]; !ok {
+	if _, ok := state.Models[op.Model]; !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}
-	model := state.models[op.Model]
+	model := state.Models[op.Model]
 	fields := model.Fields()
 	for _, name := range op.Fields {
 		if _, ok := fields[name]; !ok {
@@ -80,10 +80,10 @@ func (op *RemoveFields) SetState(state *AppState) error {
 		delete(fields, name)
 	}
 	options := gomodels.Options{
-		Table: model.Table(), Indexes: state.models[op.Model].Indexes(),
+		Table: model.Table(), Indexes: state.Models[op.Model].Indexes(),
 	}
-	delete(state.models, op.Model)
-	state.models[op.Model] = gomodels.New(
+	delete(state.Models, op.Model)
+	state.Models[op.Model] = gomodels.New(
 		op.Model, fields, options,
 	).Model
 	return nil
@@ -95,7 +95,7 @@ func (op RemoveFields) Run(
 	prevState *AppState,
 ) error {
 	return tx.DropColumns(
-		prevState.models[op.Model], state.models[op.Model], op.Fields...,
+		prevState.Models[op.Model], state.Models[op.Model], op.Fields...,
 	)
 }
 
@@ -104,10 +104,10 @@ func (op RemoveFields) Backwards(
 	state *AppState,
 	prevState *AppState,
 ) error {
-	fields := prevState.models[op.Model].Fields()
+	fields := prevState.Models[op.Model].Fields()
 	newFields := gomodels.Fields{}
 	for _, name := range op.Fields {
 		newFields[name] = fields[name]
 	}
-	return tx.AddColumns(state.models[op.Model], newFields)
+	return tx.AddColumns(state.Models[op.Model], newFields)
 }

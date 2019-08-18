@@ -172,11 +172,11 @@ func TestAppMakeMigrations(t *testing.T) {
 	}
 	history["users"] = &AppState{
 		app:    gomodels.Registry()["users"],
-		models: make(map[string]*gomodels.Model),
+		Models: make(map[string]*gomodels.Model),
 	}
 	history["customers"] = &AppState{
 		app:        gomodels.Registry()["customers"],
-		models:     map[string]*gomodels.Model{"Customer": customer.Model},
+		Models:     map[string]*gomodels.Model{"Customer": customer.Model},
 		migrations: []*Node{node},
 	}
 	defer clearHistory()
@@ -214,7 +214,7 @@ func TestAppMakeMigrations(t *testing.T) {
 		if _, ok := createOp.Fields["email"]; !ok {
 			t.Errorf("operation CreateModel missing name field")
 		}
-		if _, ok := history["users"].models["User"]; !ok {
+		if _, ok := history["users"].Models["User"]; !ok {
 			t.Fatal("operation CreateModel was not applied to state")
 		}
 		if migrations[0].Operations[1].OpName() != "AddIndex" {
@@ -228,7 +228,7 @@ func TestAppMakeMigrations(t *testing.T) {
 		if len(idxOp.Fields) != 1 && idxOp.Fields[0] != "email" {
 			t.Errorf("operation AddIndex missing email field")
 		}
-		if len(history["users"].models["User"].Indexes()) == 0 {
+		if len(history["users"].Models["User"].Indexes()) == 0 {
 			t.Errorf("operation AddIndex was not applied to state")
 		}
 	})
@@ -241,7 +241,7 @@ func TestAppMakeMigrations(t *testing.T) {
 				Indexes: customer.Model.Indexes(),
 			},
 		)
-		history["customers"].models["Customer"] = customerState.Model
+		history["customers"].Models["Customer"] = customerState.Model
 		migrations, err := history["customers"].MakeMigrations()
 		if err != nil {
 			t.Fatal(err)
@@ -266,11 +266,11 @@ func TestAppMakeMigrations(t *testing.T) {
 		if _, ok := fieldOp.Fields["name"]; !ok {
 			t.Errorf("operation AddFields missing name field")
 		}
-		modelState := history["customers"].models["Customer"]
+		modelState := history["customers"].Models["Customer"]
 		if _, ok := modelState.Fields()["name"]; !ok {
 			t.Errorf("operation AddFields was not applied to state")
 		}
-		history["customers"].models["Customer"] = customer.Model
+		history["customers"].Models["Customer"] = customer.Model
 		history["customers"].migrations = []*Node{node}
 	})
 	t.Run("RemoveField", func(t *testing.T) {
@@ -284,7 +284,7 @@ func TestAppMakeMigrations(t *testing.T) {
 				Indexes: customer.Model.Indexes(),
 			},
 		)
-		history["customers"].models["Customer"] = customerState.Model
+		history["customers"].Models["Customer"] = customerState.Model
 		migrations, err := history["customers"].MakeMigrations()
 		if err != nil {
 			t.Fatal(err)
@@ -309,11 +309,11 @@ func TestAppMakeMigrations(t *testing.T) {
 		if len(fieldOp.Fields) != 1 || fieldOp.Fields[0] != "active" {
 			t.Errorf("operation RemoveFields missing active field")
 		}
-		modelState := history["customers"].models["Customer"]
+		modelState := history["customers"].Models["Customer"]
 		if _, found := modelState.Fields()["active"]; found {
 			t.Errorf("operation RemoveFields was not applied to state")
 		}
-		history["customers"].models["Customer"] = customer.Model
+		history["customers"].Models["Customer"] = customer.Model
 		history["customers"].migrations = []*Node{node}
 	})
 	t.Run("AddIndex", func(t *testing.T) {
@@ -322,7 +322,7 @@ func TestAppMakeMigrations(t *testing.T) {
 			customer.Model.Fields(),
 			gomodels.Options{Table: customer.Model.Table()},
 		)
-		history["customers"].models["Customer"] = customerState.Model
+		history["customers"].Models["Customer"] = customerState.Model
 		migrations, err := history["customers"].MakeMigrations()
 		if err != nil {
 			t.Fatal(err)
@@ -344,11 +344,11 @@ func TestAppMakeMigrations(t *testing.T) {
 		if idxOp.Model != "Customer" || idxOp.Name != "initial_idx" {
 			t.Errorf("operation AddIndex has wrong details")
 		}
-		modelState := history["customers"].models["Customer"]
+		modelState := history["customers"].Models["Customer"]
 		if _, ok := modelState.Indexes()["initial_idx"]; !ok {
 			t.Errorf("operation AddIndex was not applied to state")
 		}
-		history["customers"].models["Customer"] = customer.Model
+		history["customers"].Models["Customer"] = customer.Model
 		history["customers"].migrations = []*Node{node}
 	})
 	t.Run("RemoveIndex", func(t *testing.T) {
@@ -363,7 +363,7 @@ func TestAppMakeMigrations(t *testing.T) {
 				Table: customer.Model.Table(),
 			},
 		)
-		history["customers"].models["Customer"] = customerState.Model
+		history["customers"].Models["Customer"] = customerState.Model
 		migrations, err := history["customers"].MakeMigrations()
 		if err != nil {
 			t.Fatal(err)
@@ -385,11 +385,11 @@ func TestAppMakeMigrations(t *testing.T) {
 		if idxOp.Model != "Customer" || idxOp.Name != "new_idx" {
 			t.Errorf("operation RemoveIndex has wrong details")
 		}
-		modelState := history["customers"].models["Customer"]
+		modelState := history["customers"].Models["Customer"]
 		if _, found := modelState.Indexes()["new_idx"]; found {
 			t.Errorf("operation RemoveIndex was not applied to state")
 		}
-		history["customers"].models["Customer"] = customer.Model
+		history["customers"].Models["Customer"] = customer.Model
 		history["customers"].migrations = []*Node{node}
 	})
 	t.Run("DeleteModel", func(t *testing.T) {
@@ -398,7 +398,7 @@ func TestAppMakeMigrations(t *testing.T) {
 			gomodels.Fields{},
 			gomodels.Options{},
 		)
-		history["customers"].models["Transaction"] = transaction.Model
+		history["customers"].Models["Transaction"] = transaction.Model
 		migrations, err := history["customers"].MakeMigrations()
 		if err != nil {
 			t.Fatal(err)
@@ -420,10 +420,10 @@ func TestAppMakeMigrations(t *testing.T) {
 		if deleteOp.Name != "Transaction" {
 			t.Errorf("operation DeleteModel has wrong details")
 		}
-		if _, found := history["customers"].models["Transaction"]; found {
+		if _, found := history["customers"].Models["Transaction"]; found {
 			t.Errorf("operation DeleteModel was not applied to state")
 		}
-		history["customers"].models["Customer"] = customer.Model
+		history["customers"].Models["Customer"] = customer.Model
 		history["customers"].migrations = []*Node{node}
 	})
 }

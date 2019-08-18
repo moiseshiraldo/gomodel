@@ -21,7 +21,7 @@ func TestFieldOperationsState(t *testing.T) {
 	defer gomodels.ClearRegistry()
 	appState := &AppState{
 		app: gomodels.Registry()["test"],
-		models: map[string]*gomodels.Model{
+		Models: map[string]*gomodels.Model{
 			"User": user.Model,
 		},
 	}
@@ -60,7 +60,7 @@ func TestFieldOperationsState(t *testing.T) {
 		if err := op.SetState(appState); err != nil {
 			t.Fatal(err)
 		}
-		fields := appState.models["User"].Fields()
+		fields := appState.Models["User"].Fields()
 		if _, ok := fields["firstName"]; !ok {
 			t.Errorf("state missing field firstName")
 		}
@@ -94,7 +94,7 @@ func TestFieldOperationsState(t *testing.T) {
 		if err := op.SetState(appState); err != nil {
 			t.Fatal(err)
 		}
-		fields := appState.models["User"].Fields()
+		fields := appState.Models["User"].Fields()
 		if _, ok := fields["email"]; ok {
 			t.Errorf("email field was not removed from state")
 		}
@@ -116,7 +116,7 @@ func TestFieldOperations(t *testing.T) {
 	defer gomodels.ClearRegistry()
 	appState := &AppState{
 		app: gomodels.Registry()["test"],
-		models: map[string]*gomodels.Model{
+		Models: map[string]*gomodels.Model{
 			"User": user.Model,
 		},
 	}
@@ -154,14 +154,14 @@ func testAddFieldOperation(
 			"firstName": gomodels.CharField{},
 		},
 	}
-	fields := prevState.models["User"].Fields()
+	fields := prevState.Models["User"].Fields()
 	fields["firstName"] = gomodels.CharField{}
 	model := gomodels.New(
 		"User", fields, gomodels.Options{},
 	).Model
 	state := &AppState{
 		app: prevState.app,
-		models: map[string]*gomodels.Model{
+		Models: map[string]*gomodels.Model{
 			"User": model,
 		},
 	}
@@ -214,7 +214,7 @@ func testRemoveFieldOperation(
 	).Model
 	state := &AppState{
 		app: prevState.app,
-		models: map[string]*gomodels.Model{
+		Models: map[string]*gomodels.Model{
 			"User": model,
 		},
 	}

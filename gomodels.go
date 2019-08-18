@@ -92,94 +92,116 @@ func (m Model) Container() Container {
 	}
 }
 
+func (m *Model) Register(app *Application) error {
+	if _, found := app.models[m.name]; found {
+		return fmt.Errorf("duplicate model")
+	}
+	m.app = app
+	if err := m.SetupPrimaryKey(); err != nil {
+		return err
+	}
+	if err := m.SetupIndexes(); err != nil {
+		return err
+	}
+	if m.meta.Container != nil {
+		if !isValidContainer(m.meta.Container) {
+			return fmt.Errorf("invalid container")
+		}
+	} else {
+		m.meta.Container = Values{}
+	}
+	app.models[m.name] = m
+	return nil
+}
+
+func (m *Model) SetupPrimaryKey() error {
+	if m.pk != "" {
+		return nil
+	}
+	for name, field := range m.fields {
+		if field.IsPk() && m.pk != "" {
+			return fmt.Errorf("duplicate pk: %s", name)
+		} else if field.IsPk() {
+			m.pk = name
+		}
+	}
+	if m.pk == "" {
+		m.fields["id"] = AutoField{PrimaryKey: true}
+		m.pk = "id"
+	}
+	return nil
+}
+
+func (m *Model) SetupIndexes() error {
+	for name, field := range m.fields {
+		if field.HasIndex() {
+			idxName := fmt.Sprintf(
+				"%s_%s_%s_auto_idx",
+				strings.ToLower(m.app.name),
+				strings.ToLower(m.name),
+				strings.ToLower(name),
+			)
+			if _, found := m.meta.Indexes[idxName]; found {
+				return fmt.Errorf("duplicate index: %s", idxName)
+			}
+			m.meta.Indexes[idxName] = []string{name}
+		}
+	}
+	return nil
+}
+
+func (m *Model) AddField(name string, field Field) error {
+	if _, found := m.fields[name]; found {
+		return fmt.Errorf("duplicate field: %s", name)
+	}
+	if field.IsPk() && m.pk != "" {
+		return fmt.Errorf("duplicate pk: %s", name)
+	}
+	m.fields[name] = field
+	if field.IsPk() {
+		m.pk = name
+	}
+	return nil
+}
+
+func (m *Model) RemoveField(name string) error {
+	if m.pk == name {
+		return fmt.Errorf("pk field cannot be removed")
+	}
+	if _, ok := m.fields[name]; !ok {
+		return fmt.Errorf("field not found: %s", name)
+	}
+	for _, fields := range m.meta.Indexes {
+		for _, indexedField := range fields {
+			if name == indexedField {
+				return fmt.Errorf("cannot remove indexed field: %s", name)
+			}
+		}
+	}
+	delete(m.fields, name)
+	return nil
+}
+
+func (m *Model) AddIndex(name string, fields []string) error {
+	if _, found := m.meta.Indexes[name]; found {
+		return fmt.Errorf("duplicate index: %s", name)
+	}
+	m.meta.Indexes[name] = fields
+	return nil
+}
+
+func (m *Model) RemoveIndex(name string) error {
+	if _, ok := m.meta.Indexes[name]; !ok {
+		return fmt.Errorf("index not found: %s", name)
+	}
+	delete(m.meta.Indexes, name)
+	return nil
+}
+
 func New(name string, fields Fields, options Options) *Dispatcher {
 	if options.Indexes == nil {
 		options.Indexes = Indexes{}
 	}
 	model := &Model{name: name, fields: fields, meta: options}
 	return &Dispatcher{model, &Manager{model}}
-}
-
-var registry = map[string]*Application{}
-
-func Registry() map[string]*Application {
-	regCopy := map[string]*Application{}
-	for name, app := range registry {
-		regCopy[name] = app
-	}
-	return regCopy
-}
-
-func Register(apps ...AppSettings) error {
-	for _, settings := range apps {
-		appName := settings.Name
-		if _, found := registry[appName]; found || appName == "gomodels" {
-			panic(fmt.Sprintf("gomodels: duplicate app: %s", settings.Name))
-		}
-		app := &Application{
-			name:   settings.Name,
-			path:   settings.Path,
-			models: make(map[string]*Model),
-		}
-		registry[app.name] = app
-		for _, model := range settings.Models {
-			registerModel(app, model)
-			registry[app.name].models[model.name] = model
-		}
-	}
-	return nil
-}
-
-func ClearRegistry() {
-	registry = map[string]*Application{}
-}
-
-func registerModel(app *Application, model *Model) {
-	if _, found := app.models[model.name]; found {
-		panic(fmt.Sprintf(
-			"gomodels: %s: duplicate model: %s", app.name, model.name,
-		))
-	}
-	model.app = app
-	for name, field := range model.fields {
-		if field.IsPk() && model.pk != "" {
-			msg := fmt.Sprintf(
-				"gomodels: %s: %s: %s: duplicate pk",
-				app.name, model.name, name,
-			)
-			panic(msg)
-		} else if field.IsPk() {
-			model.pk = name
-		}
-		if field.HasIndex() {
-			idxName := fmt.Sprintf(
-				"%s_%s_%s_auto_idx",
-				strings.ToLower(app.name),
-				strings.ToLower(model.name),
-				strings.ToLower(field.DBColumn(name)),
-			)
-			if _, found := model.meta.Indexes[idxName]; found {
-				msg := fmt.Sprintf(
-					"gomodels: %s: %s: duplicate index: %s",
-					app.name, model.name, idxName,
-				)
-				panic(msg)
-			}
-			model.meta.Indexes[idxName] = []string{field.DBColumn(name)}
-		}
-	}
-	if model.pk == "" {
-		model.fields["id"] = AutoField{PrimaryKey: true}
-		model.pk = "id"
-	}
-	if model.meta.Container != nil {
-		if !isValidContainer(model.meta.Container) {
-			panic(fmt.Sprintf(
-				"gomodels: %s: %s: invalid container", app.name, model.name,
-			))
-		}
-	} else {
-		model.meta.Container = Values{}
-	}
-	app.models[model.name] = model
 }

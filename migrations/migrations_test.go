@@ -53,7 +53,7 @@ func TestMake(t *testing.T) {
 		loadHistory = func() error {
 			history["users"] = &AppState{
 				app:    gomodels.Registry()["users"],
-				models: make(map[string]*gomodels.Model),
+				Models: make(map[string]*gomodels.Model),
 			}
 			return nil
 		}
@@ -75,7 +75,7 @@ func TestMake(t *testing.T) {
 		loadHistory = func() error {
 			history["users"] = &AppState{
 				app:    gomodels.Registry()["users"],
-				models: make(map[string]*gomodels.Model),
+				Models: make(map[string]*gomodels.Model),
 			}
 			return nil
 		}
@@ -99,7 +99,7 @@ func TestMake(t *testing.T) {
 		loadHistory = func() error {
 			history["customers"] = &AppState{
 				app:    gomodels.Registry()["customers"],
-				models: make(map[string]*gomodels.Model),
+				Models: make(map[string]*gomodels.Model),
 			}
 			return nil
 		}
@@ -152,7 +152,7 @@ func TestRun(t *testing.T) {
 		}
 		state = &AppState{
 			app:        gomodels.Registry()["users"],
-			models:     make(map[string]*gomodels.Model),
+			Models:     make(map[string]*gomodels.Model),
 			migrations: []*Node{node},
 		}
 		history["users"] = state

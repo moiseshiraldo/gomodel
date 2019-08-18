@@ -18,7 +18,7 @@ var history = map[string]*AppState{}
 
 type AppState struct {
 	app         *gomodels.Application
-	models      map[string]*gomodels.Model
+	Models      map[string]*gomodels.Model
 	migrations  []*Node
 	lastApplied int
 }
@@ -58,13 +58,13 @@ func (state *AppState) makeMigrations(stash map[string]bool) ([]*Node, error) {
 	stash[app.Name()] = true
 	migrations := []*Node{}
 	node := state.nextNode()
-	for name := range state.models {
+	for name := range state.Models {
 		if _, ok := app.Models()[name]; !ok {
 			node.Operations = append(node.Operations, &DeleteModel{Name: name})
 		}
 	}
 	for _, model := range app.Models() {
-		modelState, ok := state.models[model.Name()]
+		modelState, ok := state.Models[model.Name()]
 		if !ok {
 			operation := &CreateModel{
 				Name:   model.Name(),
@@ -185,7 +185,7 @@ func clearHistory() {
 func loadApp(app *gomodels.Application) error {
 	state := &AppState{
 		app:        app,
-		models:     map[string]*gomodels.Model{},
+		Models:     map[string]*gomodels.Model{},
 		migrations: []*Node{},
 	}
 	history[app.Name()] = state
@@ -235,7 +235,7 @@ func loadPreviousState(node Node) map[string]*AppState {
 	for name := range history {
 		prevState[name] = &AppState{
 			app:    registry[node.App],
-			models: map[string]*gomodels.Model{},
+			Models: map[string]*gomodels.Model{},
 		}
 	}
 	if node.number > 1 {
