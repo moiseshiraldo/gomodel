@@ -3,6 +3,7 @@ package migrations
 import (
 	"fmt"
 	"github.com/moiseshiraldo/gomodels"
+	"strings"
 	"testing"
 )
 
@@ -438,6 +439,9 @@ func TestLoadHistory(t *testing.T) {
 		readAppNodes = origReadAppNodes
 		readNode = origReadNode
 	}()
+	if _, ok := operationsRegistry["MockedOperation"]; !ok {
+		operationsRegistry["MockedOperation"] = &mockedOperation{}
+	}
 	t.Run("WrongPath", func(t *testing.T) {
 		readAppNodes = func(path string) ([]string, error) {
 			return nil, fmt.Errorf("wrong path")
@@ -478,6 +482,93 @@ func TestLoadHistory(t *testing.T) {
 		err := loadHistory()
 		if _, ok := err.(*DuplicateNumberError); !ok {
 			t.Errorf("Expected DuplicateNumberError, got %T", err)
+		}
+	})
+	t.Run("WrongDependencyName", func(t *testing.T) {
+		readAppNodes = func(path string) ([]string, error) {
+			return []string{"0001_initial.json"}, nil
+		}
+		readNode = func(path string) ([]byte, error) {
+			data := `{"App": "test", "Dependencies": [["test", "qwerty"]]}`
+			return []byte(data), nil
+		}
+		err := loadHistory()
+		if _, ok := err.(*InvalidDependencyError); !ok {
+			t.Errorf("Expected InvalidDependencyError, got %T", err)
+		}
+	})
+	t.Run("MissingDependencyApp", func(t *testing.T) {
+		readAppNodes = func(path string) ([]string, error) {
+			return []string{"0001_initial.json"}, nil
+		}
+		readNode = func(path string) ([]byte, error) {
+			data := `{"App": "test", "Dependencies": [["users", "0001_a"]]}`
+			return []byte(data), nil
+		}
+		err := loadHistory()
+		if _, ok := err.(*InvalidDependencyError); !ok {
+			t.Errorf("Expected InvalidDependencyError, got %T", err)
+		}
+	})
+	t.Run("WrongDependencyNumber", func(t *testing.T) {
+		readAppNodes = func(path string) ([]string, error) {
+			return []string{"0001_initial.json"}, nil
+		}
+		readNode = func(path string) ([]byte, error) {
+			data := `{"App": "test", "Dependencies": [["test", "0004_node"]]}`
+			return []byte(data), nil
+		}
+		err := loadHistory()
+		if _, ok := err.(*InvalidDependencyError); !ok {
+			t.Errorf("Expected InvalidDependencyError, got %T", err)
+		}
+	})
+	t.Run("DifferentDependencyName", func(t *testing.T) {
+		readAppNodes = func(path string) ([]string, error) {
+			return []string{"0001_initial.json"}, nil
+		}
+		readNode = func(path string) ([]byte, error) {
+			data := `{"App": "test", "Dependencies": [["test", "0001_a"]]}`
+			return []byte(data), nil
+		}
+		err := loadHistory()
+		if _, ok := err.(*InvalidDependencyError); !ok {
+			t.Errorf("Expected InvalidDependencyError, got %T", err)
+		}
+	})
+	t.Run("CircularDependency", func(t *testing.T) {
+		readAppNodes = func(path string) ([]string, error) {
+			return []string{"0001_a.json", "0002_b.json"}, nil
+		}
+		readNode = func(path string) ([]byte, error) {
+			data := ""
+			if strings.HasSuffix(path, "0001_a.json") {
+				data = `{"App": "test", "Dependencies": [["test", "0002_b"]]}`
+			} else {
+				data = `{"App": "test", "Dependencies": [["test", "0001_a"]]}`
+			}
+			return []byte(data), nil
+		}
+		err := loadHistory()
+		if _, ok := err.(*CircularDependencyError); !ok {
+			t.Errorf("Expected CircularDependencyError, got %T", err)
+		}
+	})
+	t.Run("OperationError", func(t *testing.T) {
+		readAppNodes = func(path string) ([]string, error) {
+			return []string{"0001_initial.json"}, nil
+		}
+		readNode = func(path string) ([]byte, error) {
+			data := []byte(`{
+			  "App": "test",
+			  "Dependencies": [],
+			  "Operations": [{"MockedOperation": {"StateErr": true}}]
+			}`)
+			return []byte(data), nil
+		}
+		err := loadHistory()
+		if _, ok := err.(*OperationStateError); !ok {
+			t.Errorf("Expected OperationStateError, got %T", err)
 		}
 	})
 	t.Run("Success", func(t *testing.T) {

@@ -168,7 +168,7 @@ var loadHistory = func() error {
 		stash[app] = map[string]bool{}
 	}
 	for _, state := range history {
-		for _, node := range state.migrations[0:1] {
+		for _, node := range state.migrations {
 			if err := node.setState(stash); err != nil {
 				return err
 			}

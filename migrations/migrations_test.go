@@ -25,11 +25,6 @@ func TestMake(t *testing.T) {
 	loadHistoryCalled := false
 	origWriteNode := writeNode
 	defer func() { writeNode = origWriteNode }()
-	writeNodeCallData := make([]byte, 0)
-	writeNode = func(path string, data []byte) error {
-		writeNodeCallData = data
-		return nil
-	}
 	t.Run("NoApp", func(t *testing.T) {
 		_, err := Make("test", MakeOptions{})
 		if _, ok := err.(*AppNotFoundError); !ok {
@@ -84,26 +79,46 @@ func TestMake(t *testing.T) {
 			t.Errorf("expected PathError, got %T", err)
 		}
 	})
-	t.Run("Success", func(t *testing.T) {
-		customer := gomodels.New(
-			"Customer",
-			gomodels.Fields{
-				"name": gomodels.CharField{MaxLength: 100},
-			},
-			gomodels.Options{},
-		)
-		app := gomodels.NewApp("customers", "cust/migrations/", customer.Model)
+	t.Run("WriteError", func(t *testing.T) {
+		gomodels.ClearRegistry()
+		app.Path = "users/migrations"
 		if err := gomodels.Register(app); err != nil {
 			t.Fatal(err)
 		}
 		loadHistory = func() error {
-			history["customers"] = &AppState{
-				app:    gomodels.Registry()["customers"],
+			history["users"] = &AppState{
+				app:    gomodels.Registry()["users"],
 				Models: make(map[string]*gomodels.Model),
 			}
 			return nil
 		}
-		_, err := Make("customers", MakeOptions{})
+		writeNode = func(path string, data []byte) error {
+			return fmt.Errorf("write error")
+		}
+		_, err := Make("users", MakeOptions{})
+		if _, ok := err.(*SaveError); !ok {
+			t.Errorf("expected SaveError, got %T", err)
+		}
+	})
+	t.Run("Success", func(t *testing.T) {
+		gomodels.ClearRegistry()
+		app.Path = "users/migrations"
+		if err := gomodels.Register(app); err != nil {
+			t.Fatal(err)
+		}
+		loadHistory = func() error {
+			history["users"] = &AppState{
+				app:    gomodels.Registry()["users"],
+				Models: make(map[string]*gomodels.Model),
+			}
+			return nil
+		}
+		writeNodeCallData := make([]byte, 0)
+		writeNode = func(path string, data []byte) error {
+			writeNodeCallData = data
+			return nil
+		}
+		_, err := Make("users", MakeOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -111,7 +126,7 @@ func TestMake(t *testing.T) {
 		if err := json.Unmarshal(writeNodeCallData, n); err != nil {
 			t.Fatal(err)
 		}
-		if n.App != "customers" || len(n.Operations) != 1 {
+		if n.App != "users" || len(n.Operations) != 1 {
 			t.Error("file missing information")
 		}
 	})
@@ -249,6 +264,15 @@ func TestMakeAndRun(t *testing.T) {
 	loadAppliedCalled := false
 	t.Run("NoDatabase", func(t *testing.T) {
 		err := MakeAndRun("missing")
+		if _, ok := err.(*gomodels.DatabaseError); !ok {
+			t.Errorf("expected DatabaseError, got %T", err)
+		}
+	})
+	t.Run("LoadAppliedError", func(t *testing.T) {
+		loadAppliedMigrations = func(db gomodels.Database) error {
+			return fmt.Errorf("db error")
+		}
+		err := MakeAndRun("default")
 		if _, ok := err.(*gomodels.DatabaseError); !ok {
 			t.Errorf("expected DatabaseError, got %T", err)
 		}

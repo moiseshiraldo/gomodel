@@ -228,12 +228,12 @@ func (n *Node) setState(stash map[string]map[string]bool) error {
 		if _, ok := history[app]; !ok {
 			return invalidDep
 		}
-		number, _ := strconv.Atoi(depName[:4])
-		if number > len(history[app].migrations) {
+		depNumber, _ := strconv.Atoi(depName[:4])
+		if depNumber > len(history[app].migrations) {
 			return invalidDep
 		}
-		depNode := history[app].migrations[number-1]
-		if depNode == nil {
+		depNode := history[app].migrations[depNumber-1]
+		if depNode == nil || depNode.fullname() != depName {
 			return invalidDep
 		}
 		if stash[app][depName] {
