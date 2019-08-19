@@ -59,10 +59,13 @@ func (op *mockedOperation) Backwards(
 	return nil
 }
 
+// TestOperationList tests OperationList marshal/unmarshall methods
 func TestOperationList(t *testing.T) {
+	// Registers mocked operation
 	if _, ok := operationsRegistry["MockedOperation"]; !ok {
 		operationsRegistry["MockedOperation"] = &mockedOperation{}
 	}
+
 	t.Run("UnmarshalInvalidJSON", func(t *testing.T) {
 		opList := OperationList{}
 		err := opList.UnmarshalJSON([]byte("-"))
@@ -70,6 +73,7 @@ func TestOperationList(t *testing.T) {
 			t.Errorf("expected json.SyntaxError, got %T", err)
 		}
 	})
+
 	t.Run("UnmarshalUnknownOperation", func(t *testing.T) {
 		opList := OperationList{}
 		data := []byte(`[{"UnknownOperation": {}}]`)
@@ -78,6 +82,7 @@ func TestOperationList(t *testing.T) {
 			t.Errorf("expected invalid operation error, got %s", err)
 		}
 	})
+
 	t.Run("UnmarshalInvalidOperation", func(t *testing.T) {
 		opList := OperationList{}
 		data := []byte(`[{"MockedOperation": {"StateErr": []}}]`)
@@ -86,6 +91,7 @@ func TestOperationList(t *testing.T) {
 			t.Errorf("expected json.UnmarshalTypeError, got %T", err)
 		}
 	})
+
 	t.Run("UnmarshalValidOperation", func(t *testing.T) {
 		opList := OperationList{}
 		data := []byte(`[{"MockedOperation": {}}]`)
@@ -97,6 +103,7 @@ func TestOperationList(t *testing.T) {
 			t.Error("expected operation list to contain one operation")
 		}
 	})
+
 	t.Run("Marshal", func(t *testing.T) {
 		opList := OperationList{&mockedOperation{}}
 		data, err := opList.MarshalJSON()
@@ -110,7 +117,9 @@ func TestOperationList(t *testing.T) {
 	})
 }
 
+// TestRegisterOperation tests the RegisterOperation function
 func TestRegisterOperation(t *testing.T) {
+
 	t.Run("Duplicate", func(t *testing.T) {
 		err := RegisterOperation("CreateModel", &mockedOperation{})
 		expected := "migrations: duplicate operation: CreateModel"
@@ -118,6 +127,7 @@ func TestRegisterOperation(t *testing.T) {
 			t.Errorf("expected '%s', got '%s'", expected, err)
 		}
 	})
+
 	t.Run("Success", func(t *testing.T) {
 		err := RegisterOperation("CustomOperation", &mockedOperation{})
 		if err != nil {

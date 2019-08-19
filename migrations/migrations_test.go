@@ -7,7 +7,9 @@ import (
 	"testing"
 )
 
+// TestMake tests the Make function
 func TestMake(t *testing.T) {
+	// Models setup
 	user := gomodels.New(
 		"User",
 		gomodels.Fields{
@@ -15,22 +17,26 @@ func TestMake(t *testing.T) {
 		},
 		gomodels.Options{},
 	)
+	// App setup
 	app := gomodels.NewApp("users", "", user.Model)
 	if err := gomodels.Register(app); err != nil {
 		t.Fatal(err)
 	}
 	defer gomodels.ClearRegistry()
+	// Mocks loadHistory and writeNode functions
 	origLoadHistory := loadHistory
 	defer func() { loadHistory = origLoadHistory }()
 	loadHistoryCalled := false
 	origWriteNode := writeNode
 	defer func() { writeNode = origWriteNode }()
+
 	t.Run("NoApp", func(t *testing.T) {
 		_, err := Make("test", MakeOptions{})
 		if _, ok := err.(*AppNotFoundError); !ok {
 			t.Errorf("expected AppNotFoundError, got %T", err)
 		}
 	})
+
 	t.Run("LoadHistoryError", func(t *testing.T) {
 		loadHistory = func() error {
 			loadHistoryCalled = true
@@ -44,6 +50,7 @@ func TestMake(t *testing.T) {
 			t.Errorf("expected load history error, got %T", err)
 		}
 	})
+
 	t.Run("Empty", func(t *testing.T) {
 		loadHistory = func() error {
 			history["users"] = &AppState{
@@ -66,6 +73,7 @@ func TestMake(t *testing.T) {
 			)
 		}
 	})
+
 	t.Run("NoPath", func(t *testing.T) {
 		loadHistory = func() error {
 			history["users"] = &AppState{
@@ -79,6 +87,7 @@ func TestMake(t *testing.T) {
 			t.Errorf("expected PathError, got %T", err)
 		}
 	})
+
 	t.Run("WriteError", func(t *testing.T) {
 		gomodels.ClearRegistry()
 		app.Path = "users/migrations"
@@ -100,6 +109,7 @@ func TestMake(t *testing.T) {
 			t.Errorf("expected SaveError, got %T", err)
 		}
 	})
+
 	t.Run("Success", func(t *testing.T) {
 		gomodels.ClearRegistry()
 		app.Path = "users/migrations"
@@ -132,12 +142,15 @@ func TestMake(t *testing.T) {
 	})
 }
 
+// TestRun tests the Run method
 func TestRun(t *testing.T) {
+	// App setup
 	app := gomodels.NewApp("users", "")
 	if err := gomodels.Register(app); err != nil {
 		t.Fatal(err)
 	}
 	defer gomodels.ClearRegistry()
+	// DB setup
 	err := gomodels.Start(gomodels.DBSettings{
 		"default": {Driver: "mocker", Name: "test"},
 	})
@@ -145,6 +158,7 @@ func TestRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer gomodels.Stop()
+	// Mocks loadHistory and loadAppliedMigrations functions
 	origLoadHistory := loadHistory
 	origLoadApplied := loadAppliedMigrations
 	defer func() {
@@ -168,12 +182,14 @@ func TestRun(t *testing.T) {
 		history["users"] = state
 		return nil
 	}
+
 	t.Run("NoDatabase", func(t *testing.T) {
 		err := Run(RunOptions{App: "users", Database: "missing"})
 		if _, ok := err.(*gomodels.DatabaseError); !ok {
 			t.Errorf("expected DatabaseError, got %T", err)
 		}
 	})
+
 	t.Run("LoadHistoryError", func(t *testing.T) {
 		loadHistory = func() error {
 			loadHistoryCalled = true
@@ -187,6 +203,7 @@ func TestRun(t *testing.T) {
 			t.Errorf("expected load history error, got %T", err)
 		}
 	})
+
 	t.Run("LoadAppliedError", func(t *testing.T) {
 		loadHistory = mockedLoadHistory
 		loadAppliedMigrations = func(db gomodels.Database) error {
@@ -201,6 +218,7 @@ func TestRun(t *testing.T) {
 			t.Errorf("expected DatabaseError, got %T", err)
 		}
 	})
+
 	t.Run("NoApp", func(t *testing.T) {
 		loadHistory = mockedLoadHistory
 		loadAppliedMigrations = func(db gomodels.Database) error { return nil }
@@ -209,6 +227,7 @@ func TestRun(t *testing.T) {
 			t.Errorf("expected AppNotFoundError, got %T", err)
 		}
 	})
+
 	t.Run("App", func(t *testing.T) {
 		loadHistory = mockedLoadHistory
 		loadAppliedMigrations = func(db gomodels.Database) error {
@@ -226,6 +245,7 @@ func TestRun(t *testing.T) {
 			t.Fatal("migration was not applied")
 		}
 	})
+
 	t.Run("All", func(t *testing.T) {
 		loadHistory = mockedLoadHistory
 		loadAppliedMigrations = func(db gomodels.Database) error { return nil }
@@ -239,7 +259,9 @@ func TestRun(t *testing.T) {
 	})
 }
 
+// TestMakeAndRun tests the MakeAndRun function
 func TestMakeAndRun(t *testing.T) {
+	// Models setup
 	user := gomodels.New(
 		"User",
 		gomodels.Fields{
@@ -247,11 +269,13 @@ func TestMakeAndRun(t *testing.T) {
 		},
 		gomodels.Options{},
 	)
+	// App setup
 	app := gomodels.NewApp("users", "", user.Model)
 	if err := gomodels.Register(app); err != nil {
 		t.Fatal(err)
 	}
 	defer gomodels.ClearRegistry()
+	// DB setup
 	err := gomodels.Start(gomodels.DBSettings{
 		"default": {Driver: "mocker", Name: "test"},
 	})
@@ -259,15 +283,18 @@ func TestMakeAndRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer gomodels.Stop()
+	// Mocks loadAppliedMigrations function
 	origLoadApplied := loadAppliedMigrations
 	defer func() { loadAppliedMigrations = origLoadApplied }()
 	loadAppliedCalled := false
+
 	t.Run("NoDatabase", func(t *testing.T) {
 		err := MakeAndRun("missing")
 		if _, ok := err.(*gomodels.DatabaseError); !ok {
 			t.Errorf("expected DatabaseError, got %T", err)
 		}
 	})
+
 	t.Run("LoadAppliedError", func(t *testing.T) {
 		loadAppliedMigrations = func(db gomodels.Database) error {
 			return fmt.Errorf("db error")
@@ -277,6 +304,7 @@ func TestMakeAndRun(t *testing.T) {
 			t.Errorf("expected DatabaseError, got %T", err)
 		}
 	})
+
 	t.Run("Success", func(t *testing.T) {
 		db := gomodels.Databases()["default"]
 		mockedEngine := db.Engine.(gomodels.MockedEngine)

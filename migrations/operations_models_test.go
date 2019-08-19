@@ -6,7 +6,9 @@ import (
 	"testing"
 )
 
+// TestModelOperationsState tests model operations SetState method
 func TestModelOperationsState(t *testing.T) {
+	// Models setup
 	user := gomodels.New(
 		"User",
 		gomodels.Fields{
@@ -14,11 +16,13 @@ func TestModelOperationsState(t *testing.T) {
 		},
 		gomodels.Options{},
 	)
+	// App setup
 	app := gomodels.NewApp("test", "", user.Model)
 	if err := gomodels.Register(app); err != nil {
 		t.Fatal(err)
 	}
 	defer gomodels.ClearRegistry()
+	// App state setup
 	appState := &AppState{
 		app: gomodels.Registry()["test"],
 		Models: map[string]*gomodels.Model{
@@ -27,12 +31,14 @@ func TestModelOperationsState(t *testing.T) {
 	}
 	history["test"] = appState
 	defer clearHistory()
+
 	t.Run("AddDuplicateModel", func(t *testing.T) {
 		op := CreateModel{Name: "User"}
 		if err := op.SetState(appState); err == nil {
 			t.Errorf("expected duplicate model error")
 		}
 	})
+
 	t.Run("AddModel", func(t *testing.T) {
 		op := CreateModel{
 			Name: "Customer",
@@ -52,18 +58,21 @@ func TestModelOperationsState(t *testing.T) {
 			}
 		}
 	})
+
 	t.Run("AddDuplicateIndex", func(t *testing.T) {
 		op := AddIndex{Model: "User", Name: "test_user_email_auto_idx"}
 		if err := op.SetState(appState); err == nil {
 			t.Errorf("expected duplicate index error")
 		}
 	})
+
 	t.Run("AddIndexNoModel", func(t *testing.T) {
 		op := AddIndex{Model: "Transaction", Name: "test_index"}
 		if err := op.SetState(appState); err == nil {
 			t.Errorf("expected model not found error")
 		}
 	})
+
 	t.Run("AddIndexNoField", func(t *testing.T) {
 		op := AddIndex{
 			Model:  "User",
@@ -74,6 +83,7 @@ func TestModelOperationsState(t *testing.T) {
 			t.Errorf("expected unknown field error")
 		}
 	})
+
 	t.Run("AddIndex", func(t *testing.T) {
 		op := AddIndex{
 			Model:  "User",
@@ -88,18 +98,21 @@ func TestModelOperationsState(t *testing.T) {
 			t.Errorf("index was not added to model state")
 		}
 	})
+
 	t.Run("RemoveIndexNoModel", func(t *testing.T) {
 		op := RemoveIndex{Model: "Transaction", Name: "test_index"}
 		if err := op.SetState(appState); err == nil {
 			t.Errorf("expected model not found error")
 		}
 	})
+
 	t.Run("RemoveMissingIndex", func(t *testing.T) {
 		op := RemoveIndex{Model: "User", Name: "missing_index"}
 		if err := op.SetState(appState); err == nil {
 			t.Errorf("expected index not found error")
 		}
 	})
+
 	t.Run("RemoveIndex", func(t *testing.T) {
 		op := RemoveIndex{Model: "User", Name: "test_user_email_auto_idx"}
 		if err := op.SetState(appState); err != nil {
@@ -110,12 +123,14 @@ func TestModelOperationsState(t *testing.T) {
 			t.Errorf("index was not removed from model state")
 		}
 	})
+
 	t.Run("RemoveMissingModel", func(t *testing.T) {
 		op := DeleteModel{Name: "Transaction"}
 		if err := op.SetState(appState); err == nil {
 			t.Errorf("expected model not found error")
 		}
 	})
+
 	t.Run("RemoveModel", func(t *testing.T) {
 		op := DeleteModel{Name: "User"}
 		if err := op.SetState(appState); err != nil {
@@ -127,7 +142,9 @@ func TestModelOperationsState(t *testing.T) {
 	})
 }
 
+// TestModelOperations tests model operations Run/Backwards methods
 func TestModelOperations(t *testing.T) {
+	// Models setup
 	user := gomodels.New(
 		"User",
 		gomodels.Fields{
@@ -135,11 +152,13 @@ func TestModelOperations(t *testing.T) {
 		},
 		gomodels.Options{},
 	)
+	// App setup
 	app := gomodels.NewApp("test", "", user.Model)
 	if err := gomodels.Register(app); err != nil {
 		t.Fatal(err)
 	}
 	defer gomodels.ClearRegistry()
+	// App state setup
 	appState := &AppState{
 		app: gomodels.Registry()["test"],
 		Models: map[string]*gomodels.Model{
@@ -148,6 +167,7 @@ func TestModelOperations(t *testing.T) {
 	}
 	history["test"] = appState
 	defer clearHistory()
+	// DB setup
 	err := gomodels.Start(gomodels.DBSettings{
 		"default": {Driver: "mocker", Name: "test"},
 	})
@@ -191,6 +211,7 @@ func testAddModelOperation(
 			"Customer": model,
 		},
 	}
+
 	t.Run("RunError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.CreateTable = fmt.Errorf("db error")
@@ -198,6 +219,7 @@ func testAddModelOperation(
 			t.Errorf("expected db error")
 		}
 	})
+
 	t.Run("RunSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Run(tx, state, prevState); err != nil {
@@ -207,6 +229,7 @@ func testAddModelOperation(
 			t.Errorf("expected engine CreateTable to be called")
 		}
 	})
+
 	t.Run("BackwardsError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.DropTable = fmt.Errorf("db error")
@@ -214,6 +237,7 @@ func testAddModelOperation(
 			t.Errorf("expected db error")
 		}
 	})
+
 	t.Run("BackwardsSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Backwards(tx, prevState, state); err != nil {
@@ -236,6 +260,7 @@ func testDeleteModelOperation(
 		app:    prevState.app,
 		Models: map[string]*gomodels.Model{},
 	}
+
 	t.Run("RunError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.DropTable = fmt.Errorf("db error")
@@ -243,6 +268,7 @@ func testDeleteModelOperation(
 			t.Errorf("expected db error")
 		}
 	})
+
 	t.Run("RunSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Run(tx, state, prevState); err != nil {
@@ -252,6 +278,7 @@ func testDeleteModelOperation(
 			t.Errorf("expected engine DropTable to be called")
 		}
 	})
+
 	t.Run("BackwardsError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.CreateTable = fmt.Errorf("db error")
@@ -259,6 +286,7 @@ func testDeleteModelOperation(
 			t.Errorf("expected db error")
 		}
 	})
+
 	t.Run("BackwardsSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Backwards(tx, prevState, state); err != nil {
@@ -294,6 +322,7 @@ func testAddIndexOperation(
 			"User": model,
 		},
 	}
+
 	t.Run("RunError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.AddIndex = fmt.Errorf("db error")
@@ -301,6 +330,7 @@ func testAddIndexOperation(
 			t.Errorf("expected db error")
 		}
 	})
+
 	t.Run("RunSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Run(tx, state, prevState); err != nil {
@@ -310,6 +340,7 @@ func testAddIndexOperation(
 			t.Errorf("expected engine AddIndex to be called")
 		}
 	})
+
 	t.Run("BackwardsError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.DropIndex = fmt.Errorf("db error")
@@ -317,6 +348,7 @@ func testAddIndexOperation(
 			t.Errorf("expected db error")
 		}
 	})
+
 	t.Run("BackwardsSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Backwards(tx, prevState, state); err != nil {
@@ -351,6 +383,7 @@ func testRemoveIndexOperation(
 			"User": model,
 		},
 	}
+
 	t.Run("RunError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.DropIndex = fmt.Errorf("db error")
@@ -358,6 +391,7 @@ func testRemoveIndexOperation(
 			t.Errorf("expected db error")
 		}
 	})
+
 	t.Run("RunSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Run(tx, state, prevState); err != nil {
@@ -367,6 +401,7 @@ func testRemoveIndexOperation(
 			t.Errorf("expected engine DropIndex to be called")
 		}
 	})
+
 	t.Run("BackwardsError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.AddIndex = fmt.Errorf("db error")
@@ -374,6 +409,7 @@ func testRemoveIndexOperation(
 			t.Errorf("expected db error")
 		}
 	})
+
 	t.Run("BackwardsSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Backwards(tx, prevState, state); err != nil {

@@ -6,7 +6,9 @@ import (
 	"testing"
 )
 
+// TestFieldOperationsState tests field operations SetState method
 func TestFieldOperationsState(t *testing.T) {
+	// Models setup
 	user := gomodels.New(
 		"User",
 		gomodels.Fields{
@@ -15,11 +17,13 @@ func TestFieldOperationsState(t *testing.T) {
 		},
 		gomodels.Options{},
 	)
+	// App setup
 	app := gomodels.NewApp("test", "", user.Model)
 	if err := gomodels.Register(app); err != nil {
 		t.Fatal(err)
 	}
 	defer gomodels.ClearRegistry()
+	// App state setup
 	appState := &AppState{
 		app: gomodels.Registry()["test"],
 		Models: map[string]*gomodels.Model{
@@ -28,6 +32,7 @@ func TestFieldOperationsState(t *testing.T) {
 	}
 	history["test"] = appState
 	defer clearHistory()
+
 	t.Run("AddFieldNoModel", func(t *testing.T) {
 		op := AddFields{
 			Model: "Customer",
@@ -39,6 +44,7 @@ func TestFieldOperationsState(t *testing.T) {
 			t.Errorf("expected model not found error")
 		}
 	})
+
 	t.Run("DuplicateField", func(t *testing.T) {
 		op := AddFields{
 			Model: "User",
@@ -50,6 +56,7 @@ func TestFieldOperationsState(t *testing.T) {
 			t.Errorf("expected duplicate field error")
 		}
 	})
+
 	t.Run("AddField", func(t *testing.T) {
 		op := AddFields{
 			Model: "User",
@@ -63,12 +70,13 @@ func TestFieldOperationsState(t *testing.T) {
 		}
 		fields := appState.Models["User"].Fields()
 		if _, ok := fields["firstName"]; !ok {
-			t.Errorf("state missing field firstName")
+			t.Errorf("model state is missing field firstName")
 		}
 		if _, ok := fields["dob"]; !ok {
-			t.Errorf("state missing field dob")
+			t.Errorf("model state is missing field dob")
 		}
 	})
+
 	t.Run("RemoveFieldNoModel", func(t *testing.T) {
 		op := RemoveFields{
 			Model:  "Customer",
@@ -78,6 +86,7 @@ func TestFieldOperationsState(t *testing.T) {
 			t.Errorf("expected model not found error")
 		}
 	})
+
 	t.Run("RemoveUnknowntField", func(t *testing.T) {
 		op := RemoveFields{
 			Model:  "User",
@@ -87,6 +96,7 @@ func TestFieldOperationsState(t *testing.T) {
 			t.Errorf("expected field not found error")
 		}
 	})
+
 	t.Run("RemoveIndexedField", func(t *testing.T) {
 		op := RemoveFields{
 			Model:  "User",
@@ -96,6 +106,7 @@ func TestFieldOperationsState(t *testing.T) {
 			t.Errorf("expected cannot remove indexed field error")
 		}
 	})
+
 	t.Run("RemoveField", func(t *testing.T) {
 		op := RemoveFields{
 			Model:  "User",
@@ -106,12 +117,14 @@ func TestFieldOperationsState(t *testing.T) {
 		}
 		fields := appState.Models["User"].Fields()
 		if _, ok := fields["loginAttemptsl"]; ok {
-			t.Errorf("email field was not removed from state")
+			t.Errorf("email field was not removed from model state")
 		}
 	})
 }
 
+// TestFieldOperations tests field operations Run/Backwards methods
 func TestFieldOperations(t *testing.T) {
+	// Models setup
 	user := gomodels.New(
 		"User",
 		gomodels.Fields{
@@ -119,11 +132,13 @@ func TestFieldOperations(t *testing.T) {
 		},
 		gomodels.Options{},
 	)
+	// App setup
 	app := gomodels.NewApp("test", "", user.Model)
 	if err := gomodels.Register(app); err != nil {
 		t.Fatal(err)
 	}
 	defer gomodels.ClearRegistry()
+	// App state setup
 	appState := &AppState{
 		app: gomodels.Registry()["test"],
 		Models: map[string]*gomodels.Model{
@@ -132,6 +147,7 @@ func TestFieldOperations(t *testing.T) {
 	}
 	history["test"] = appState
 	defer clearHistory()
+	// DB setup
 	err := gomodels.Start(gomodels.DBSettings{
 		"default": {Driver: "mocker", Name: "test"},
 	})
@@ -175,6 +191,7 @@ func testAddFieldOperation(
 			"User": model,
 		},
 	}
+
 	t.Run("RunError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.AddColumns = fmt.Errorf("db error")
@@ -182,6 +199,7 @@ func testAddFieldOperation(
 			t.Errorf("expected db error")
 		}
 	})
+
 	t.Run("RunSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Run(tx, state, prevState); err != nil {
@@ -191,6 +209,7 @@ func testAddFieldOperation(
 			t.Errorf("expected engine AddColumns to be called")
 		}
 	})
+
 	t.Run("BackwardsError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.DropColumns = fmt.Errorf("db error")
@@ -198,6 +217,7 @@ func testAddFieldOperation(
 			t.Errorf("expected db error")
 		}
 	})
+
 	t.Run("BackwardsSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Backwards(tx, prevState, state); err != nil {
@@ -228,6 +248,7 @@ func testRemoveFieldOperation(
 			"User": model,
 		},
 	}
+
 	t.Run("RunError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.DropColumns = fmt.Errorf("db error")
@@ -235,6 +256,7 @@ func testRemoveFieldOperation(
 			t.Errorf("expected db error")
 		}
 	})
+
 	t.Run("RunSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Run(tx, state, prevState); err != nil {
@@ -244,6 +266,7 @@ func testRemoveFieldOperation(
 			t.Errorf("expected engine DropColumns to be called")
 		}
 	})
+
 	t.Run("BackwardsError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.AddColumns = fmt.Errorf("db error")
@@ -251,6 +274,7 @@ func testRemoveFieldOperation(
 			t.Errorf("expected db error")
 		}
 	})
+
 	t.Run("BackwardsSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
 		if err := op.Backwards(tx, state, prevState); err != nil {

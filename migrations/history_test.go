@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// rowsMocker mocks the results returned by the database engine
 type rowsMocker struct {
 	finished bool
 }
@@ -35,18 +36,24 @@ func (r *rowsMocker) Scan(dest ...interface{}) error {
 	return nil
 }
 
+// TestAppMigrate tests the Migrate method of the app state
 func TestAppMigrate(t *testing.T) {
+	// App setup
 	if err := gomodels.Register(gomodels.NewApp("test", "")); err != nil {
 		t.Fatal(err)
 	}
-	err := gomodels.Start(gomodels.DBSettings{
+	defer gomodels.ClearRegistry()
+	// DB setup
+	dbSettings := gomodels.DBSettings{
 		"default": {Driver: "mocker", Name: "test"},
-	})
-	if err != nil {
+	}
+	if err := gomodels.Start(dbSettings); err != nil {
 		t.Fatal(err)
 	}
+	db := gomodels.Databases()["default"]
+	mockedEngine := db.Engine.(gomodels.MockedEngine)
 	defer gomodels.Stop()
-	defer gomodels.ClearRegistry()
+	// App state setup
 	firstNode := &Node{App: "test", Name: "initial", number: 1}
 	secondNode := &Node{
 		App:          "test",
@@ -59,86 +66,141 @@ func TestAppMigrate(t *testing.T) {
 	}
 	history["test"] = appState
 	defer clearHistory()
+
 	t.Run("NoMigrations", func(t *testing.T) {
 		err := appState.Migrate("default", "")
 		if _, ok := err.(*NoAppMigrationsError); !ok {
-			t.Errorf("Expected NoAppMigrationsError, got %T", err)
+			t.Errorf("expected NoAppMigrationsError, got %T", err)
 		}
 	})
+
 	appState.migrations = []*Node{firstNode, secondNode}
+
 	t.Run("NoDatabase", func(t *testing.T) {
-		err := appState.Migrate("SlaveDB", "")
+		err := appState.Migrate("Slave", "")
 		if _, ok := err.(*gomodels.DatabaseError); !ok {
-			t.Errorf("Expected gomodels.DatabaseError, got %T", err)
+			t.Errorf("expected gomodels.DatabaseError, got %T", err)
 		}
 	})
+
 	t.Run("InvalidNodeName", func(t *testing.T) {
 		err := appState.Migrate("default", "TestName")
 		if _, ok := err.(*NameError); !ok {
-			t.Errorf("Expected NameError, got %T", err)
+			t.Errorf("expected NameError, got %T", err)
 		}
 	})
+
 	t.Run("InvalidNodeNumber", func(t *testing.T) {
 		err := appState.Migrate("default", "0003_test_migration")
 		if _, ok := err.(*NameError); !ok {
-			t.Errorf("Expected NameError, got %T", err)
+			t.Errorf("expected NameError, got %T", err)
 		}
 	})
+
 	t.Run("MigrateFirstNode", func(t *testing.T) {
+		mockedEngine.Reset()
 		if err := appState.Migrate("default", "0001"); err != nil {
 			t.Fatal(err)
 		}
 		if !appState.migrations[0].applied {
-			t.Errorf("First migration was not applied")
+			t.Errorf("first migration was not applied")
 		}
 		if appState.migrations[1].applied {
-			t.Errorf("Second migration was applied")
+			t.Errorf("second migration was applied")
+		}
+		if mockedEngine.Calls("SaveMigration") != 1 {
+			t.Errorf("expected engine SaveMigration to be called")
+		}
+		args := mockedEngine.Args.SaveMigration
+		if args.App != "test" || args.Number != 1 {
+			t.Errorf(
+				"SaveMigration called with wrong arguments: %s, %d",
+				args.App, args.Number,
+			)
 		}
 	})
+
 	t.Run("MigrateAll", func(t *testing.T) {
 		firstNode.applied = false
 		secondNode.applied = false
+		mockedEngine.Reset()
 		if err := appState.Migrate("default", ""); err != nil {
 			t.Fatal(err)
 		}
 		if !appState.migrations[0].applied {
-			t.Errorf("First migration was not applied")
+			t.Errorf("first migration was not applied")
 		}
 		if !appState.migrations[1].applied {
-			t.Errorf("Second migration was not applied")
+			t.Errorf("second migration was not applied")
+		}
+		if mockedEngine.Calls("SaveMigration") != 2 {
+			t.Errorf("expected engine SaveMigration to be called twice")
+		}
+		args := mockedEngine.Args.SaveMigration
+		if args.App != "test" || args.Number != 2 {
+			t.Errorf(
+				"SaveMigration called with wrong arguments: %s, %d",
+				args.App, args.Number,
+			)
 		}
 	})
+
 	t.Run("MigrateBackwardsFirst", func(t *testing.T) {
 		firstNode.applied = true
 		secondNode.applied = true
 		appState.lastApplied = 2
+		mockedEngine.Reset()
 		if err := appState.Migrate("default", "0001"); err != nil {
 			t.Fatal(err)
 		}
 		if !appState.migrations[0].applied {
-			t.Errorf("First migration is not applied")
+			t.Errorf("first migration is not applied")
 		}
 		if appState.migrations[1].applied {
-			t.Errorf("Second migration is still applied")
+			t.Errorf("second migration is still applied")
+		}
+		if mockedEngine.Calls("DeleteMigration") != 1 {
+			t.Errorf("expected engine DeleteMigration to be called")
+		}
+		args := mockedEngine.Args.DeleteMigration
+		if args.App != "test" || args.Number != 2 {
+			t.Errorf(
+				"SaveMigration called with wrong arguments: %s, %d",
+				args.App, args.Number,
+			)
 		}
 	})
+
 	t.Run("MigrateBackwardsAll", func(t *testing.T) {
 		firstNode.applied = true
 		secondNode.applied = true
 		appState.lastApplied = 2
+		mockedEngine.Reset()
 		if err := appState.Migrate("default", "0000"); err != nil {
 			t.Fatal(err)
 		}
 		if appState.migrations[0].applied {
-			t.Errorf("First migration is still applied")
+			t.Errorf("first migration is still applied")
 		}
 		if appState.migrations[1].applied {
-			t.Errorf("Second migration is still applied")
+			t.Errorf("second migration is still applied")
+		}
+		if mockedEngine.Calls("DeleteMigration") != 2 {
+			t.Errorf("expected engine DeleteMigration to be called twice")
+		}
+		args := mockedEngine.Args.DeleteMigration
+		if args.App != "test" || args.Number != 1 {
+			t.Errorf(
+				"SaveMigration called with wrong arguments: %s, %d",
+				args.App, args.Number,
+			)
 		}
 	})
 }
 
+// TestAppMakeMigrations tests the MakeMigrations method of the app state
 func TestAppMakeMigrations(t *testing.T) {
+	// Models setup
 	user := gomodels.New(
 		"User",
 		gomodels.Fields{
@@ -155,12 +217,14 @@ func TestAppMakeMigrations(t *testing.T) {
 			Indexes: gomodels.Indexes{"initial_idx": []string{"name"}},
 		},
 	)
+	// Apps setup
 	usersApp := gomodels.NewApp("users", "", user.Model)
 	customersApp := gomodels.NewApp("customers", "", customer.Model)
 	if err := gomodels.Register(usersApp, customersApp); err != nil {
 		t.Fatal(err)
 	}
 	defer gomodels.ClearRegistry()
+	// App states setup
 	operation := &CreateModel{Name: "Customer", Fields: customer.Model.Fields()}
 	node := &Node{
 		App:        "customers",
@@ -179,32 +243,34 @@ func TestAppMakeMigrations(t *testing.T) {
 		migrations: []*Node{node},
 	}
 	defer clearHistory()
+
 	t.Run("NoChanges", func(t *testing.T) {
 		migrations, err := history["customers"].MakeMigrations()
 		if err != nil {
 			t.Fatal(err)
 		}
 		if len(migrations) > 0 {
-			t.Fatal("expected no migrations")
+			t.Fatalf("expected no migrations, got %d", len(migrations))
 		}
 	})
+
 	t.Run("Initial", func(t *testing.T) {
 		migrations, err := history["users"].MakeMigrations()
 		if err != nil {
 			t.Fatal(err)
 		}
 		if len(migrations) != 1 {
-			t.Fatal("expected one created node")
+			t.Fatalf("expected 1 migration, got %d", len(migrations))
 		}
 		if migrations[0].number != 1 {
 			t.Errorf("expected node number 1, got %d", migrations[0].number)
 		}
 		if len(migrations[0].Operations) != 2 {
-			t.Fatal("expected migration to contain two operations")
+			t.Fatalf("expected migration to contain two operations")
 		}
 		if migrations[0].Operations[0].OpName() != "CreateModel" {
 			name := migrations[0].Operations[0]
-			t.Fatalf("expected CreateModel, got %s", name)
+			t.Fatalf("expected CreateModel operation, got %s", name)
 		}
 		createOp := migrations[0].Operations[0].(*CreateModel)
 		if createOp.Name != "User" || createOp.Table != "users" {
@@ -218,7 +284,7 @@ func TestAppMakeMigrations(t *testing.T) {
 		}
 		if migrations[0].Operations[1].OpName() != "AddIndex" {
 			name := migrations[0].Operations[1].OpName()
-			t.Fatalf("expected AddIndex, got %s", name)
+			t.Fatalf("expected AddIndex operation, got %s", name)
 		}
 		idxOp := migrations[0].Operations[1].(*AddIndex)
 		if idxOp.Model != "User" || idxOp.Name != "users_user_email_auto_idx" {
@@ -231,6 +297,7 @@ func TestAppMakeMigrations(t *testing.T) {
 			t.Errorf("operation AddIndex was not applied to state")
 		}
 	})
+
 	t.Run("AddField", func(t *testing.T) {
 		customerState := gomodels.New(
 			"Customer",
@@ -246,7 +313,7 @@ func TestAppMakeMigrations(t *testing.T) {
 			t.Fatal(err)
 		}
 		if len(migrations) != 1 {
-			t.Fatal("expected one created node")
+			t.Fatalf("expected 1 migration, got %d", len(migrations))
 		}
 		if migrations[0].number != 2 {
 			t.Errorf("expected node number 2, got %d", migrations[0].number)
@@ -256,7 +323,7 @@ func TestAppMakeMigrations(t *testing.T) {
 		}
 		if migrations[0].Operations[0].OpName() != "AddFields" {
 			name := migrations[0].Operations[0].OpName()
-			t.Fatalf("expected AddFields, got %s", name)
+			t.Fatalf("expected AddFields operation, got %s", name)
 		}
 		fieldOp := migrations[0].Operations[0].(*AddFields)
 		if fieldOp.Model != "Customer" {
@@ -272,6 +339,7 @@ func TestAppMakeMigrations(t *testing.T) {
 		history["customers"].Models["Customer"] = customer.Model
 		history["customers"].migrations = []*Node{node}
 	})
+
 	t.Run("RemoveField", func(t *testing.T) {
 		fields := customer.Model.Fields()
 		fields["active"] = gomodels.BooleanField{}
@@ -289,7 +357,7 @@ func TestAppMakeMigrations(t *testing.T) {
 			t.Fatal(err)
 		}
 		if len(migrations) != 1 {
-			t.Fatal("expected one created node")
+			t.Fatalf("expected 1 migration, got %d", len(migrations))
 		}
 		if migrations[0].number != 2 {
 			t.Errorf("expected node number 2, got %d", migrations[0].number)
@@ -299,7 +367,7 @@ func TestAppMakeMigrations(t *testing.T) {
 		}
 		if migrations[0].Operations[0].OpName() != "RemoveFields" {
 			name := migrations[0].Operations[0].OpName()
-			t.Fatalf("expected RemoveFields, got %s", name)
+			t.Fatalf("expected RemoveFields operation, got %s", name)
 		}
 		fieldOp := migrations[0].Operations[0].(*RemoveFields)
 		if fieldOp.Model != "Customer" {
@@ -315,6 +383,7 @@ func TestAppMakeMigrations(t *testing.T) {
 		history["customers"].Models["Customer"] = customer.Model
 		history["customers"].migrations = []*Node{node}
 	})
+
 	t.Run("AddIndex", func(t *testing.T) {
 		customerState := gomodels.New(
 			"Customer",
@@ -327,7 +396,7 @@ func TestAppMakeMigrations(t *testing.T) {
 			t.Fatal(err)
 		}
 		if len(migrations) != 1 {
-			t.Fatal("expected one created node")
+			t.Fatalf("expected 1 migration, got %d", len(migrations))
 		}
 		if migrations[0].number != 2 {
 			t.Errorf("expected node number 2, got %d", migrations[0].number)
@@ -337,7 +406,7 @@ func TestAppMakeMigrations(t *testing.T) {
 		}
 		if migrations[0].Operations[0].OpName() != "AddIndex" {
 			name := migrations[0].Operations[0].OpName()
-			t.Fatalf("expected AddIndex, got %s", name)
+			t.Fatalf("expected AddIndex operation, got %s", name)
 		}
 		idxOp := migrations[0].Operations[0].(*AddIndex)
 		if idxOp.Model != "Customer" || idxOp.Name != "initial_idx" {
@@ -350,6 +419,7 @@ func TestAppMakeMigrations(t *testing.T) {
 		history["customers"].Models["Customer"] = customer.Model
 		history["customers"].migrations = []*Node{node}
 	})
+
 	t.Run("RemoveIndex", func(t *testing.T) {
 		customerState := gomodels.New(
 			"Customer",
@@ -368,7 +438,7 @@ func TestAppMakeMigrations(t *testing.T) {
 			t.Fatal(err)
 		}
 		if len(migrations) != 1 {
-			t.Fatal("expected one created node")
+			t.Fatalf("expected 1 migration, got %d", len(migrations))
 		}
 		if migrations[0].number != 2 {
 			t.Errorf("expected node number 2, got %d", migrations[0].number)
@@ -378,7 +448,7 @@ func TestAppMakeMigrations(t *testing.T) {
 		}
 		if migrations[0].Operations[0].OpName() != "RemoveIndex" {
 			name := migrations[0].Operations[0].OpName()
-			t.Fatalf("expected RemoveIndex, got %s", name)
+			t.Fatalf("expected RemoveIndex operation, got %s", name)
 		}
 		idxOp := migrations[0].Operations[0].(*RemoveIndex)
 		if idxOp.Model != "Customer" || idxOp.Name != "new_idx" {
@@ -391,6 +461,7 @@ func TestAppMakeMigrations(t *testing.T) {
 		history["customers"].Models["Customer"] = customer.Model
 		history["customers"].migrations = []*Node{node}
 	})
+
 	t.Run("DeleteModel", func(t *testing.T) {
 		transaction := gomodels.New(
 			"Transaction",
@@ -403,7 +474,7 @@ func TestAppMakeMigrations(t *testing.T) {
 			t.Fatal(err)
 		}
 		if len(migrations) != 1 {
-			t.Fatal("expected one created node")
+			t.Fatalf("expected 1 migration, got %d", len(migrations))
 		}
 		if migrations[0].number != 2 {
 			t.Errorf("expected node number 2, got %d", migrations[0].number)
@@ -413,7 +484,7 @@ func TestAppMakeMigrations(t *testing.T) {
 		}
 		if migrations[0].Operations[0].OpName() != "DeleteModel" {
 			name := migrations[0].Operations[0].OpName()
-			t.Fatalf("expected DeleteModel, got %s", name)
+			t.Fatalf("expected DeleteModel operation, got %s", name)
 		}
 		deleteOp := migrations[0].Operations[0].(*DeleteModel)
 		if deleteOp.Name != "Transaction" {
@@ -427,39 +498,46 @@ func TestAppMakeMigrations(t *testing.T) {
 	})
 }
 
+// TestLoadHistory tests the loadHistory function
 func TestLoadHistory(t *testing.T) {
+	// App setup
 	app := gomodels.NewApp("test", "test/migrations")
 	if err := gomodels.Register(app); err != nil {
 		t.Fatal(err)
 	}
 	defer gomodels.ClearRegistry()
+	// Mocks file read/write functions
 	origReadAppNodes := readAppNodes
 	origReadNode := readNode
 	defer func() {
 		readAppNodes = origReadAppNodes
 		readNode = origReadNode
 	}()
+	// Registers mocked operation
 	if _, ok := operationsRegistry["MockedOperation"]; !ok {
 		operationsRegistry["MockedOperation"] = &mockedOperation{}
 	}
+
 	t.Run("WrongPath", func(t *testing.T) {
 		readAppNodes = func(path string) ([]string, error) {
 			return nil, fmt.Errorf("wrong path")
 		}
 		err := loadHistory()
 		if _, ok := err.(*PathError); !ok {
-			t.Errorf("Expected PathError, got %T", err)
+			t.Errorf("expected PathError, got %T", err)
 		}
 	})
+
 	t.Run("WrongName", func(t *testing.T) {
 		readAppNodes = func(path string) ([]string, error) {
 			return []string{"0001_initial.yaml"}, nil
 		}
 		err := loadHistory()
 		if _, ok := err.(*NameError); !ok {
-			t.Errorf("Expected NameError, got %T", err)
+			t.Errorf("expected NameError, got %T", err)
 		}
 	})
+
 	t.Run("WrongFile", func(t *testing.T) {
 		readAppNodes = func(path string) ([]string, error) {
 			return []string{"0001_initial.json"}, nil
@@ -469,9 +547,10 @@ func TestLoadHistory(t *testing.T) {
 		}
 		err := loadHistory()
 		if _, ok := err.(*LoadError); !ok {
-			t.Errorf("Expected LoadError, got %T", err)
+			t.Errorf("expected LoadError, got %T", err)
 		}
 	})
+
 	t.Run("Duplicate", func(t *testing.T) {
 		readAppNodes = func(path string) ([]string, error) {
 			return []string{"0001_initial.json", "0001_migration.json"}, nil
@@ -481,9 +560,10 @@ func TestLoadHistory(t *testing.T) {
 		}
 		err := loadHistory()
 		if _, ok := err.(*DuplicateNumberError); !ok {
-			t.Errorf("Expected DuplicateNumberError, got %T", err)
+			t.Errorf("expected DuplicateNumberError, got %T", err)
 		}
 	})
+
 	t.Run("WrongDependencyName", func(t *testing.T) {
 		readAppNodes = func(path string) ([]string, error) {
 			return []string{"0001_initial.json"}, nil
@@ -494,10 +574,11 @@ func TestLoadHistory(t *testing.T) {
 		}
 		err := loadHistory()
 		if _, ok := err.(*InvalidDependencyError); !ok {
-			t.Errorf("Expected InvalidDependencyError, got %T", err)
+			t.Errorf("expected InvalidDependencyError, got %T", err)
 		}
 	})
-	t.Run("MissingDependencyApp", func(t *testing.T) {
+
+	t.Run("UnknownDependencyApp", func(t *testing.T) {
 		readAppNodes = func(path string) ([]string, error) {
 			return []string{"0001_initial.json"}, nil
 		}
@@ -507,9 +588,10 @@ func TestLoadHistory(t *testing.T) {
 		}
 		err := loadHistory()
 		if _, ok := err.(*InvalidDependencyError); !ok {
-			t.Errorf("Expected InvalidDependencyError, got %T", err)
+			t.Errorf("expected InvalidDependencyError, got %T", err)
 		}
 	})
+
 	t.Run("WrongDependencyNumber", func(t *testing.T) {
 		readAppNodes = func(path string) ([]string, error) {
 			return []string{"0001_initial.json"}, nil
@@ -520,9 +602,10 @@ func TestLoadHistory(t *testing.T) {
 		}
 		err := loadHistory()
 		if _, ok := err.(*InvalidDependencyError); !ok {
-			t.Errorf("Expected InvalidDependencyError, got %T", err)
+			t.Errorf("expected InvalidDependencyError, got %T", err)
 		}
 	})
+
 	t.Run("DifferentDependencyName", func(t *testing.T) {
 		readAppNodes = func(path string) ([]string, error) {
 			return []string{"0001_initial.json"}, nil
@@ -533,9 +616,10 @@ func TestLoadHistory(t *testing.T) {
 		}
 		err := loadHistory()
 		if _, ok := err.(*InvalidDependencyError); !ok {
-			t.Errorf("Expected InvalidDependencyError, got %T", err)
+			t.Errorf("expected InvalidDependencyError, got %T", err)
 		}
 	})
+
 	t.Run("CircularDependency", func(t *testing.T) {
 		readAppNodes = func(path string) ([]string, error) {
 			return []string{"0001_a.json", "0002_b.json"}, nil
@@ -551,9 +635,10 @@ func TestLoadHistory(t *testing.T) {
 		}
 		err := loadHistory()
 		if _, ok := err.(*CircularDependencyError); !ok {
-			t.Errorf("Expected CircularDependencyError, got %T", err)
+			t.Errorf("expected CircularDependencyError, got %T", err)
 		}
 	})
+
 	t.Run("OperationError", func(t *testing.T) {
 		readAppNodes = func(path string) ([]string, error) {
 			return []string{"0001_initial.json"}, nil
@@ -568,9 +653,10 @@ func TestLoadHistory(t *testing.T) {
 		}
 		err := loadHistory()
 		if _, ok := err.(*OperationStateError); !ok {
-			t.Errorf("Expected OperationStateError, got %T", err)
+			t.Errorf("expected OperationStateError, got %T", err)
 		}
 	})
+
 	t.Run("Success", func(t *testing.T) {
 		readAppNodes = func(path string) ([]string, error) {
 			return []string{"0001_initial.json"}, nil
@@ -581,27 +667,32 @@ func TestLoadHistory(t *testing.T) {
 		if err := loadHistory(); err != nil {
 			t.Fatal(err)
 		}
-		if len(history["test"].migrations) != 1 {
-			t.Fatalf("expected one migration to be loaded")
+		migrations := history["test"].migrations
+		if len(migrations) != 1 {
+			t.Fatalf("expected one loaded migration, got %d", len(migrations))
 		}
-		if !history["test"].migrations[0].processed {
-			t.Fatalf("expected migration state to be processed")
+		if !migrations[0].processed {
+			t.Errorf("expected node state to be processed")
 		}
 	})
 }
 
+// TestLoadAppliedMigrations test the loadAppliedMigrations function
 func TestLoadAppliedMigrations(t *testing.T) {
+	// App setup
 	app := gomodels.NewApp("test", "")
 	if err := gomodels.Register(app); err != nil {
 		t.Fatal(err)
 	}
 	defer gomodels.ClearRegistry()
+	// App state setup
 	appState := &AppState{
 		app:        gomodels.Registry()["test"],
 		migrations: []*Node{},
 	}
 	history["test"] = appState
 	defer clearHistory()
+	// DB Setup
 	err := gomodels.Start(gomodels.DBSettings{
 		"default": {Driver: "mocker", Name: "test"},
 	})
@@ -611,19 +702,21 @@ func TestLoadAppliedMigrations(t *testing.T) {
 	db := gomodels.Databases()["default"]
 	defer gomodels.Stop()
 	mockedEngine := db.Engine.(gomodels.MockedEngine)
+
 	t.Run("Error", func(t *testing.T) {
 		mockedEngine.Results.GetMigrations.Rows = &rowsMocker{}
 		if err := loadAppliedMigrations(db); err == nil {
-			t.Fatalf("expected missing node error")
+			t.Fatal("expected missing node error, got nil")
 		}
 		if mockedEngine.Calls("PrepareMigrations") != 1 {
-			t.Fatalf("expected engine PrepareMigrations to be called")
+			t.Fatal("expected engine PrepareMigrations to be called")
 		}
 		if mockedEngine.Calls("GetMigrations") != 1 {
-			t.Fatalf("expected engine GetMigrations to be called")
+			t.Fatal("expected engine GetMigrations to be called")
 		}
 		mockedEngine.Reset()
 	})
+
 	t.Run("Success", func(t *testing.T) {
 		node := &Node{
 			App:    "test",
@@ -636,7 +729,7 @@ func TestLoadAppliedMigrations(t *testing.T) {
 			t.Fatal(err)
 		}
 		if !history["test"].migrations[0].applied {
-			t.Fatalf("expected migration to be applied")
+			t.Fatal("expected migration to be applied")
 		}
 		mockedEngine.Reset()
 	})
