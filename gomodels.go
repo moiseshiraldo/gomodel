@@ -119,14 +119,14 @@ func (m *Model) SetupPrimaryKey() error {
 		return nil
 	}
 	for name, field := range m.fields {
-		if field.IsPk() && m.pk != "" {
+		if field.IsPK() && m.pk != "" {
 			return fmt.Errorf("duplicate pk: %s", name)
-		} else if field.IsPk() {
+		} else if field.IsPK() {
 			m.pk = name
 		}
 	}
 	if m.pk == "" {
-		m.fields["id"] = AutoField{PrimaryKey: true}
+		m.fields["id"] = IntegerField{PrimaryKey: true, Auto: true}
 		m.pk = "id"
 	}
 	return nil
@@ -154,11 +154,11 @@ func (m *Model) AddField(name string, field Field) error {
 	if _, found := m.fields[name]; found {
 		return fmt.Errorf("duplicate field: %s", name)
 	}
-	if field.IsPk() && m.pk != "" {
+	if field.IsPK() && m.pk != "" {
 		return fmt.Errorf("duplicate pk: %s", name)
 	}
 	m.fields[name] = field
-	if field.IsPk() {
+	if field.IsPK() {
 		m.pk = name
 	}
 	return nil

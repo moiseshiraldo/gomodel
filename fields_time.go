@@ -49,6 +49,34 @@ type DateField struct {
 	AutoNowAdd bool         `json:",omitempty"`
 }
 
+func (f DateField) IsPK() bool {
+	return f.PrimaryKey
+}
+
+func (f DateField) IsUnique() bool {
+	return f.Unique
+}
+
+func (f DateField) IsNull() bool {
+	return f.Null
+}
+
+func (f DateField) IsAuto() bool {
+	return false
+}
+
+func (f DateField) IsAutoNow() bool {
+	return f.AutoNow
+}
+
+func (f DateField) IsAutoNowAdd() bool {
+	return f.AutoNowAdd
+}
+
+func (f DateField) HasIndex() bool {
+	return f.Index && !(f.PrimaryKey || f.Unique)
+}
+
 func (f DateField) DBColumn(name string) string {
 	if f.Column != "" {
 		return f.Column
@@ -56,16 +84,8 @@ func (f DateField) DBColumn(name string) string {
 	return name
 }
 
-func (f DateField) IsPk() bool {
-	return f.PrimaryKey
-}
-
-func (f DateField) IsAuto() bool {
-	return false
-}
-
-func (f DateField) HasIndex() bool {
-	return f.Index && !(f.PrimaryKey || f.Unique)
+func (f DateField) DataType(dvr string) string {
+	return "DATE"
 }
 
 func (f DateField) DefaultVal() (Value, bool) {
@@ -78,16 +98,6 @@ func (f DateField) DefaultVal() (Value, bool) {
 func (f DateField) Recipient() interface{} {
 	var val Date
 	return &val
-}
-
-func (f DateField) SqlDatatype(dvr string) string {
-	dt := fmt.Sprintf(
-		"DATE %s", sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique),
-	)
-	if !f.Default.Equal(time.Time{}) {
-		dt += fmt.Sprintf(" DEFAULT '%s'", f.Default.Format("2006-01-02"))
-	}
-	return dt
 }
 
 func (f DateField) Value(rec interface{}) Value {
@@ -113,12 +123,4 @@ func (f DateField) DriverValue(v Value, dvr string) (interface{}, error) {
 		return s, nil
 	}
 	return v, fmt.Errorf("invalid value")
-}
-
-func (f DateField) IsAutoNow() bool {
-	return f.AutoNow
-}
-
-func (f DateField) IsAutoNowAdd() bool {
-	return f.AutoNowAdd
 }

@@ -1,10 +1,8 @@
 package benchmarks
 
 import (
-	"fmt"
 	_ "github.com/gwenn/gosqlite"
 	"github.com/moiseshiraldo/gomodels"
-	"os"
 	"testing"
 )
 
@@ -18,8 +16,7 @@ func updateMapContainer(b *testing.B) {
 			"email":     "darth.vader@deathstar.com",
 		})
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
+			b.Fatal(err)
 		}
 	}
 }
@@ -34,8 +31,7 @@ func updateStructContainer(b *testing.B) {
 			Email:     "darth.vader@deathstar.com",
 		})
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
+			b.Fatal(err)
 		}
 	}
 }
@@ -50,8 +46,7 @@ func updateBuilderContainer(b *testing.B) {
 			Email:     "darth.vader@deathstar.com",
 		})
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
+			b.Fatal(err)
 		}
 	}
 }
@@ -70,8 +65,7 @@ func updateRawSqlContainer(b *testing.B) {
 			query, "Darth", "Vader", "darth.vader@deathstar.com", "Anakin",
 		)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
+			b.Fatal(err)
 		}
 	}
 }
@@ -85,8 +79,7 @@ func BenchmarkUpdate(b *testing.B) {
 			"superuser": true,
 		})
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
+			b.Fatal(err)
 		}
 	}
 	b.Run("RawSqlQuerySet", updateRawSqlContainer)

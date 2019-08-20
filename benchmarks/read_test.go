@@ -13,8 +13,7 @@ func loadMapInstance(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		user, err := User.Objects.Get(gomodels.Q{"firstName": "Anakin"})
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
+			b.Fatal(err)
 		}
 		fmt.Printf("%s", user.Get("email"))
 	}
@@ -26,8 +25,7 @@ func loadStructInstance(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		user, err := qs.Get(gomodels.Q{"firstName": "Anakin"})
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
+			b.Fatal(err)
 		}
 		fmt.Printf("%s", user.Get("email"))
 	}
@@ -39,8 +37,7 @@ func loadBuilderInstance(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		user, err := qs.Get(gomodels.Q{"firstName": "Anakin"})
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
+			b.Fatal(err)
 		}
 		fmt.Printf("%s", user.Get("email"))
 	}
@@ -62,8 +59,7 @@ func loadRawSqlInstance(b *testing.B) {
 			&user.Active, &user.Superuser, &user.LoginAttempts,
 		)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
+			b.Fatal(err)
 		}
 		fmt.Printf("%s", user.Email)
 	}
@@ -77,8 +73,7 @@ func BenchmarkRead(b *testing.B) {
 		"superuser": true,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s", err)
-		os.Exit(1)
+		b.Fatal(err)
 	}
 	os.Stdout, _ = os.Open(os.DevNull)
 	b.Run("RawSqlContainer", loadRawSqlInstance)

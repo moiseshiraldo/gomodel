@@ -24,15 +24,16 @@ type CharField struct {
 	MaxLength    int          `json:",omitempty"`
 }
 
-func (f CharField) DBColumn(name string) string {
-	if f.Column != "" {
-		return f.Column
-	}
-	return name
+func (f CharField) IsPK() bool {
+	return f.PrimaryKey
 }
 
-func (f CharField) IsPk() bool {
-	return f.PrimaryKey
+func (f CharField) IsUnique() bool {
+	return f.Unique
+}
+
+func (f CharField) IsNull() bool {
+	return f.Null
 }
 
 func (f CharField) IsAuto() bool {
@@ -51,6 +52,17 @@ func (f CharField) HasIndex() bool {
 	return f.Index && !(f.PrimaryKey || f.Unique)
 }
 
+func (f CharField) DBColumn(name string) string {
+	if f.Column != "" {
+		return f.Column
+	}
+	return name
+}
+
+func (f CharField) DataType(driver string) string {
+	return fmt.Sprintf("VARCHAR(%d)", f.MaxLength)
+}
+
 func (f CharField) DefaultVal() (Value, bool) {
 	if f.Default != "" || f.DefaultEmpty {
 		return f.Default, true
@@ -66,15 +78,6 @@ func (f CharField) Recipient() interface{} {
 	}
 	var val string
 	return &val
-}
-
-func (f CharField) SqlDatatype(driver string) string {
-	dt := fmt.Sprintf("VARCHAR(%d)", f.MaxLength)
-	dt += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
-	if f.Default != "" || f.DefaultEmpty {
-		dt += fmt.Sprintf(" DEFAULT '%s'", f.Default)
-	}
-	return dt
 }
 
 func (f CharField) Value(rec interface{}) Value {
@@ -102,15 +105,16 @@ type BooleanField struct {
 	DefaultFalse bool   `json:",omitempty"`
 }
 
-func (f BooleanField) DBColumn(name string) string {
-	if f.Column != "" {
-		return f.Column
-	}
-	return name
+func (f BooleanField) IsPK() bool {
+	return false
 }
 
-func (f BooleanField) IsPk() bool {
+func (f BooleanField) IsUnique() bool {
 	return false
+}
+
+func (f BooleanField) IsNull() bool {
+	return f.Null
 }
 
 func (f BooleanField) IsAuto() bool {
@@ -127,6 +131,17 @@ func (f BooleanField) IsAutoNowAdd() bool {
 
 func (f BooleanField) HasIndex() bool {
 	return f.Index
+}
+
+func (f BooleanField) DBColumn(name string) string {
+	if f.Column != "" {
+		return f.Column
+	}
+	return name
+}
+
+func (f BooleanField) DataType(dvr string) string {
+	return "BOOLEAN"
 }
 
 func (f BooleanField) DefaultVal() (Value, bool) {
@@ -146,21 +161,6 @@ func (f BooleanField) Recipient() interface{} {
 	}
 	var val bool
 	return &val
-}
-
-func (f BooleanField) SqlDatatype(dvr string) string {
-	dt := "BOOLEAN"
-	if f.Null {
-		dt += " NULL"
-	} else {
-		dt += " NOT NULL"
-	}
-	if f.Default {
-		dt += " DEFAULT true"
-	} else if f.DefaultFalse {
-		dt += " DEFAULT false"
-	}
-	return dt
 }
 
 func (f BooleanField) Value(rec interface{}) Value {
@@ -194,21 +194,23 @@ type IntegerField struct {
 	DefaultZero bool        `json:",omitempty"`
 	PrimaryKey  bool        `json:",omitempty"`
 	Unique      bool        `json:",omitempty"`
+	Auto        bool        `json:",omitempty"`
 }
 
-func (f IntegerField) DBColumn(name string) string {
-	if f.Column != "" {
-		return f.Column
-	}
-	return name
-}
-
-func (f IntegerField) IsPk() bool {
+func (f IntegerField) IsPK() bool {
 	return f.PrimaryKey
 }
 
+func (f IntegerField) IsUnique() bool {
+	return f.Unique
+}
+
+func (f IntegerField) IsNull() bool {
+	return f.Null
+}
+
 func (f IntegerField) IsAuto() bool {
-	return false
+	return f.Auto
 }
 
 func (f IntegerField) IsAutoNow() bool {
@@ -221,6 +223,21 @@ func (f IntegerField) IsAutoNowAdd() bool {
 
 func (f IntegerField) HasIndex() bool {
 	return f.Index && !(f.PrimaryKey || f.Unique)
+}
+
+func (f IntegerField) DBColumn(name string) string {
+	if f.Column != "" {
+		return f.Column
+	}
+	return name
+}
+
+func (f IntegerField) DataType(dvr string) string {
+	if dvr == "postgres" && f.IsAuto() {
+		return "SERIAL"
+	} else {
+		return "INTEGER"
+	}
 }
 
 func (f IntegerField) DefaultVal() (Value, bool) {
@@ -240,15 +257,6 @@ func (f IntegerField) Recipient() interface{} {
 	return &val
 }
 
-func (f IntegerField) SqlDatatype(dvr string) string {
-	dt := "INTEGER"
-	dt += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
-	if f.Default != 0 || f.DefaultZero {
-		dt += fmt.Sprintf(" DEFAULT %d", f.Default)
-	}
-	return dt
-}
-
 func (f IntegerField) Value(rec interface{}) Value {
 	if vlr, ok := rec.(driver.Valuer); ok {
 		if val, err := vlr.Value(); err == nil {
@@ -259,70 +267,6 @@ func (f IntegerField) Value(rec interface{}) Value {
 }
 
 func (f IntegerField) DriverValue(v Value, dvr string) (interface{}, error) {
-	if vlr, ok := v.(driver.Valuer); ok {
-		return vlr.Value()
-	}
-	return v, nil
-}
-
-type AutoField IntegerField
-
-func (f AutoField) DBColumn(name string) string {
-	if f.Column != "" {
-		return f.Column
-	}
-	return name
-}
-
-func (f AutoField) IsPk() bool {
-	return f.PrimaryKey
-}
-
-func (f AutoField) IsAuto() bool {
-	return true
-}
-
-func (f AutoField) IsAutoNow() bool {
-	return false
-}
-
-func (f AutoField) IsAutoNowAdd() bool {
-	return false
-}
-
-func (f AutoField) HasIndex() bool {
-	return f.Index && !(f.PrimaryKey || f.Unique)
-}
-
-func (f AutoField) DefaultVal() (Value, bool) {
-	return nil, false
-}
-
-func (f AutoField) Recipient() interface{} {
-	var val int64
-	return &val
-}
-
-func (f AutoField) SqlDatatype(dvr string) string {
-	dt := "INTEGER"
-	dt += sqlColumnOptions(f.Null, f.PrimaryKey, f.Unique)
-	dt += " AUTOINCREMENT"
-	if dvr == "postgres" {
-		dt = "SERIAL"
-	}
-	return dt
-}
-
-func (f AutoField) Value(rec interface{}) Value {
-	if vlr, ok := rec.(driver.Valuer); ok {
-		if val, err := vlr.Value(); err == nil {
-			return val
-		}
-	}
-	return rec
-}
-
-func (f AutoField) DriverValue(v Value, dvr string) (interface{}, error) {
 	if vlr, ok := v.(driver.Valuer); ok {
 		return vlr.Value()
 	}

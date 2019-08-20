@@ -120,12 +120,32 @@ func (e PostgresEngine) DeleteMigration(app string, number int) error {
 	return err
 }
 
+func (e PostgresEngine) sqlColumnOptions(field Field) string {
+	options := ""
+	if !field.IsAuto() {
+		if field.IsNull() {
+			options += " NULL"
+		} else {
+			options += " NOT NULL"
+		}
+	}
+	if field.IsPK() {
+		options += " PRIMARY KEY"
+	} else if field.IsUnique() {
+		options += " UNIQUE"
+	}
+	return options
+}
+
 func (e PostgresEngine) CreateTable(model *Model) error {
 	fields := model.Fields()
 	columns := make([]string, 0, len(fields))
 	for name, field := range fields {
 		sqlColumn := fmt.Sprintf(
-			"\"%s\" %s", field.DBColumn(name), field.SqlDatatype("postgres"),
+			"\"%s\" %s %s",
+			field.DBColumn(name),
+			field.DataType("postgres"),
+			e.sqlColumnOptions(field),
 		)
 		columns = append(columns, sqlColumn)
 	}
@@ -179,8 +199,10 @@ func (e PostgresEngine) AddColumns(model *Model, fields Fields) error {
 	addColumns := make([]string, 0, len(fields))
 	for name, field := range fields {
 		addColumn := fmt.Sprintf(
-			"ADD COLUMN \"%s\" %s",
-			field.DBColumn(name), field.SqlDatatype("postgres"),
+			"ADD COLUMN \"%s\" %s %s",
+			field.DBColumn(name),
+			field.DataType("postgres"),
+			e.sqlColumnOptions(field),
 		)
 		addColumns = append(addColumns, addColumn)
 	}
@@ -337,14 +359,24 @@ func (e PostgresEngine) InsertRow(
 	for name, field := range model.fields {
 		if !field.IsAuto() && (allFields || fieldInList(name, fields)) {
 			var value Value
-			if getter, ok := container.(Getter); ok {
+			var found bool
+			if field.IsAutoNowAdd() {
+				value = time.Now()
+				found = true
+			} else if getter, ok := container.(Getter); ok {
 				if val, ok := getter.Get(name); ok {
 					value = val
+					found = true
 				}
 			} else if val, ok := getStructField(container, name); ok {
 				value = val
-			} else if field.IsAutoNowAdd() {
-				value = time.Now()
+				found = true
+			}
+			if !found {
+				if val, hasDefault := field.DefaultVal(); hasDefault {
+					value = val
+					found = true
+				}
 			}
 			driverVal, err := field.DriverValue(value, "postgres")
 			if err != nil {
@@ -376,7 +408,7 @@ func (e PostgresEngine) InsertRow(
 
 func (e PostgresEngine) UpdateRows(
 	model *Model,
-	cont Container,
+	container Container,
 	conditioner Conditioner,
 	fields ...string,
 ) (int64, error) {
@@ -387,20 +419,24 @@ func (e PostgresEngine) UpdateRows(
 	for name, field := range model.fields {
 		if name != model.pk && (allFields || fieldInList(name, fields)) {
 			var value Value
-			if getter, ok := cont.(Getter); ok {
+			var found bool
+			if field.IsAutoNow() {
+				value = time.Now()
+				found = true
+			} else if getter, ok := container.(Getter); ok {
 				if val, ok := getter.Get(name); ok {
 					value = val
+					found = true
 				}
-			} else if val, ok := getStructField(cont, name); ok {
+			} else if val, ok := getStructField(container, name); ok {
 				value = val
-			} else if field.IsAutoNowAdd() {
-				value = time.Now()
+				found = true
 			}
-			driverVal, err := field.DriverValue(value, "postgres")
-			if err != nil {
-				return 0, err
-			}
-			if driverVal != nil {
+			if found {
+				driverVal, err := field.DriverValue(value, "postgres")
+				if err != nil {
+					return 0, err
+				}
 				col := fmt.Sprintf(
 					"\"%s\" = $%d", field.DBColumn(name), index,
 				)

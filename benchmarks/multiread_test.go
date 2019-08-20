@@ -16,8 +16,7 @@ func loadMapQuerySet(b *testing.B) {
 			gomodels.Q{"firstName": "Anakin"},
 		).Load()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
+			b.Fatal(err)
 		}
 		for _, user := range users {
 			fmt.Printf("%s", user.Get("email"))
@@ -31,8 +30,7 @@ func loadStructQuerySet(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		users, err := qs.Filter(gomodels.Q{"firstName": "Anakin"}).Load()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
+			b.Fatal(err)
 		}
 		for _, user := range users {
 			fmt.Printf("%s", user.Get("email"))
@@ -46,8 +44,7 @@ func loadBuilderQuerySet(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		users, err := qs.Filter(gomodels.Q{"firstName": "Anakin"}).Load()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
+			b.Fatal(err)
 		}
 		for _, user := range users {
 			fmt.Printf("%s", user.Get("email"))
@@ -67,8 +64,7 @@ func loadRawSqlQuerySet(b *testing.B) {
               firstName = ?`
 		rows, err := db.Conn().Query(query, "Anakin")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
+			b.Fatal(err)
 		}
 		users := []*userContainer{}
 		for rows.Next() {
@@ -78,15 +74,13 @@ func loadRawSqlQuerySet(b *testing.B) {
 				&user.Active, &user.Superuser, &user.LoginAttempts,
 			)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s", err)
-				os.Exit(1)
+				b.Fatal(err)
 			}
 			users = append(users, &user)
 		}
 		err = rows.Close()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
+			b.Fatal(err)
 		}
 		for _, user := range users {
 			fmt.Printf("%s", user.Email)
@@ -103,8 +97,7 @@ func BenchmarkMultiRead(b *testing.B) {
 			"superuser": true,
 		})
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s", err)
-			os.Exit(1)
+			b.Fatal(err)
 		}
 	}
 	os.Stdout, _ = os.Open(os.DevNull)

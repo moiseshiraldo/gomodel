@@ -8,13 +8,15 @@ import (
 )
 
 type Field interface {
-	IsPk() bool
+	IsPK() bool
+	IsUnique() bool
+	IsNull() bool
 	IsAuto() bool
 	IsAutoNow() bool
 	IsAutoNowAdd() bool
-	DBColumn(fieldName string) string
 	HasIndex() bool
-	SqlDatatype(driver string) string
+	DBColumn(fieldName string) string
+	DataType(driver string) string
 	DefaultVal() (val Value, hasDefault bool)
 	Recipient() interface{}
 	Value(recipient interface{}) Value
@@ -60,7 +62,6 @@ func (fp *Fields) UnmarshalJSON(data []byte) error {
 func AvailableFields() Fields {
 	return Fields{
 		"IntegerField": &IntegerField{},
-		"AutoField":    &AutoField{},
 		"BooleanField": &BooleanField{},
 		"CharField":    &CharField{},
 		"DateField":    &DateField{},
@@ -74,19 +75,4 @@ func fieldInList(name string, fields []string) bool {
 		}
 	}
 	return false
-}
-
-func sqlColumnOptions(null bool, pk bool, unique bool) string {
-	options := ""
-	if null {
-		options += " NULL"
-	} else {
-		options += " NOT NULL"
-	}
-	if pk {
-		options += " PRIMARY KEY"
-	} else if unique {
-		options += " UNIQUE"
-	}
-	return options
 }

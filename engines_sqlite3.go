@@ -110,12 +110,33 @@ func (e SqliteEngine) DeleteMigration(app string, number int) error {
 	return err
 }
 
+func (e SqliteEngine) sqlColumnOptions(field Field) string {
+	options := ""
+	if field.IsNull() {
+		options += " NULL"
+	} else {
+		options += " NOT NULL"
+	}
+	if field.IsPK() {
+		options += " PRIMARY KEY"
+	} else if field.IsUnique() {
+		options += " UNIQUE"
+	}
+	if field.IsAuto() {
+		options += " AUTOINCREMENT"
+	}
+	return options
+}
+
 func (e SqliteEngine) CreateTable(model *Model) error {
 	fields := model.Fields()
 	columns := make([]string, 0, len(fields))
 	for name, field := range fields {
 		sqlColumn := fmt.Sprintf(
-			"\"%s\" %s", field.DBColumn(name), field.SqlDatatype("sqlite3"),
+			"\"%s\" %s %s",
+			field.DBColumn(name),
+			field.DataType("sqlite3"),
+			e.sqlColumnOptions(field),
 		)
 		columns = append(columns, sqlColumn)
 	}
@@ -177,8 +198,11 @@ func (e SqliteEngine) DropIndex(model *Model, name string) error {
 func (e SqliteEngine) AddColumns(model *Model, fields Fields) error {
 	for name, field := range fields {
 		stmt := fmt.Sprintf(
-			"ALTER TABLE \"%s\" ADD COLUMN \"%s\" %s",
-			model.Table(), field.DBColumn(name), field.SqlDatatype("sqlite3"),
+			"ALTER TABLE \"%s\" ADD COLUMN \"%s\" %s %s",
+			model.Table(),
+			field.DBColumn(name),
+			field.DataType("sqlite3"),
+			e.sqlColumnOptions(field),
 		)
 		if _, err := e.exec(Query{Stmt: stmt}); err != nil {
 			return err
@@ -346,14 +370,24 @@ func (e SqliteEngine) InsertRow(
 	for name, field := range model.fields {
 		if !field.IsAuto() && (allFields || fieldInList(name, fields)) {
 			var value Value
-			if getter, ok := container.(Getter); ok {
+			var found bool
+			if field.IsAutoNowAdd() {
+				value = time.Now()
+				found = true
+			} else if getter, ok := container.(Getter); ok {
 				if val, ok := getter.Get(name); ok {
 					value = val
+					found = true
 				}
 			} else if val, ok := getStructField(container, name); ok {
 				value = val
-			} else if field.IsAutoNowAdd() {
-				value = time.Now()
+				found = true
+			}
+			if !found {
+				if val, hasDefault := field.DefaultVal(); hasDefault {
+					value = val
+					found = true
+				}
 			}
 			driverVal, err := field.DriverValue(value, "sqlite3")
 			if err != nil {
@@ -385,7 +419,7 @@ func (e SqliteEngine) InsertRow(
 
 func (e SqliteEngine) UpdateRows(
 	model *Model,
-	cont Container,
+	container Container,
 	conditioner Conditioner,
 	fields ...string,
 ) (int64, error) {
@@ -395,20 +429,24 @@ func (e SqliteEngine) UpdateRows(
 	for name, field := range model.fields {
 		if name != model.pk && (allFields || fieldInList(name, fields)) {
 			var value Value
-			if getter, ok := cont.(Getter); ok {
+			var found bool
+			if field.IsAutoNow() {
+				value = time.Now()
+				found = true
+			} else if getter, ok := container.(Getter); ok {
 				if val, ok := getter.Get(name); ok {
 					value = val
+					found = true
 				}
-			} else if val, ok := getStructField(cont, name); ok {
+			} else if val, ok := getStructField(container, name); ok {
 				value = val
-			} else if field.IsAutoNow() {
-				value = time.Now()
+				found = true
 			}
-			driverVal, err := field.DriverValue(value, "sqlite3")
-			if err != nil {
-				return 0, err
-			}
-			if driverVal != nil {
+			if found {
+				driverVal, err := field.DriverValue(value, "sqlite3")
+				if err != nil {
+					return 0, err
+				}
 				cols = append(
 					cols, fmt.Sprintf("\"%s\" = ?", field.DBColumn(name)),
 				)
