@@ -14,7 +14,7 @@ func (op AddFields) OpName() string {
 	return "AddFields"
 }
 
-func (op *AddFields) SetState(state *AppState) error {
+func (op AddFields) SetState(state *AppState) error {
 	if _, ok := state.Models[op.Model]; !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}
@@ -58,7 +58,7 @@ func (op RemoveFields) OpName() string {
 	return "RemoveFields"
 }
 
-func (op *RemoveFields) SetState(state *AppState) error {
+func (op RemoveFields) SetState(state *AppState) error {
 	if _, ok := state.Models[op.Model]; !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}

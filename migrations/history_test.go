@@ -225,7 +225,7 @@ func TestAppMakeMigrations(t *testing.T) {
 	}
 	defer gomodels.ClearRegistry()
 	// App states setup
-	operation := &CreateModel{Name: "Customer", Fields: customer.Model.Fields()}
+	operation := CreateModel{Name: "Customer", Fields: customer.Model.Fields()}
 	node := &Node{
 		App:        "customers",
 		Name:       "initial",
@@ -272,7 +272,7 @@ func TestAppMakeMigrations(t *testing.T) {
 			name := migrations[0].Operations[0]
 			t.Fatalf("expected CreateModel operation, got %s", name)
 		}
-		createOp := migrations[0].Operations[0].(*CreateModel)
+		createOp := migrations[0].Operations[0].(CreateModel)
 		if createOp.Name != "User" || createOp.Table != "users" {
 			t.Errorf("operation CreateModel has wrong details")
 		}
@@ -286,7 +286,7 @@ func TestAppMakeMigrations(t *testing.T) {
 			name := migrations[0].Operations[1].OpName()
 			t.Fatalf("expected AddIndex operation, got %s", name)
 		}
-		idxOp := migrations[0].Operations[1].(*AddIndex)
+		idxOp := migrations[0].Operations[1].(AddIndex)
 		if idxOp.Model != "User" || idxOp.Name != "users_user_email_auto_idx" {
 			t.Errorf("operation AddIndex has wrong details")
 		}
@@ -325,7 +325,7 @@ func TestAppMakeMigrations(t *testing.T) {
 			name := migrations[0].Operations[0].OpName()
 			t.Fatalf("expected AddFields operation, got %s", name)
 		}
-		fieldOp := migrations[0].Operations[0].(*AddFields)
+		fieldOp := migrations[0].Operations[0].(AddFields)
 		if fieldOp.Model != "Customer" {
 			t.Errorf("operation AddFields has wrong model")
 		}
@@ -369,7 +369,7 @@ func TestAppMakeMigrations(t *testing.T) {
 			name := migrations[0].Operations[0].OpName()
 			t.Fatalf("expected RemoveFields operation, got %s", name)
 		}
-		fieldOp := migrations[0].Operations[0].(*RemoveFields)
+		fieldOp := migrations[0].Operations[0].(RemoveFields)
 		if fieldOp.Model != "Customer" {
 			t.Errorf("operation RemoveFields has wrong model")
 		}
@@ -408,7 +408,7 @@ func TestAppMakeMigrations(t *testing.T) {
 			name := migrations[0].Operations[0].OpName()
 			t.Fatalf("expected AddIndex operation, got %s", name)
 		}
-		idxOp := migrations[0].Operations[0].(*AddIndex)
+		idxOp := migrations[0].Operations[0].(AddIndex)
 		if idxOp.Model != "Customer" || idxOp.Name != "initial_idx" {
 			t.Errorf("operation AddIndex has wrong details")
 		}
@@ -450,7 +450,7 @@ func TestAppMakeMigrations(t *testing.T) {
 			name := migrations[0].Operations[0].OpName()
 			t.Fatalf("expected RemoveIndex operation, got %s", name)
 		}
-		idxOp := migrations[0].Operations[0].(*RemoveIndex)
+		idxOp := migrations[0].Operations[0].(RemoveIndex)
 		if idxOp.Model != "Customer" || idxOp.Name != "new_idx" {
 			t.Errorf("operation RemoveIndex has wrong details")
 		}
@@ -486,7 +486,7 @@ func TestAppMakeMigrations(t *testing.T) {
 			name := migrations[0].Operations[0].OpName()
 			t.Fatalf("expected DeleteModel operation, got %s", name)
 		}
-		deleteOp := migrations[0].Operations[0].(*DeleteModel)
+		deleteOp := migrations[0].Operations[0].(DeleteModel)
 		if deleteOp.Name != "Transaction" {
 			t.Errorf("operation DeleteModel has wrong details")
 		}

@@ -6,25 +6,37 @@ import (
 	"time"
 )
 
-type Date struct {
+type Time struct {
 	Time  time.Time
 	Valid bool
 }
 
-func (d *Date) Scan(value interface{}) error {
+func (d *Time) Scan(value interface{}) error {
 	if t, ok := value.(time.Time); ok {
 		d.Time = t
 		d.Valid = true
+		return nil
 	} else if s, ok := value.(string); ok {
+		if t, err := time.Parse("2006-01-02 15:04:05", s); err == nil {
+			d.Time = t
+			d.Valid = true
+			return nil
+		}
 		if t, err := time.Parse("2006-01-02", s); err == nil {
 			d.Time = t
 			d.Valid = true
+			return nil
+		}
+		if t, err := time.Parse("15:04:05", s); err == nil {
+			d.Time = t
+			d.Valid = true
+			return nil
 		}
 	}
-	return nil
+	return fmt.Errorf("cannot parse %T into gomodels.Time", value)
 }
 
-func (d Date) Value() (driver.Value, error) {
+func (d Time) Value() (driver.Value, error) {
 	if !d.Valid {
 		return nil, nil
 	}
@@ -96,7 +108,7 @@ func (f DateField) DefaultVal() (Value, bool) {
 }
 
 func (f DateField) Recipient() interface{} {
-	var val Date
+	var val Time
 	return &val
 }
 
@@ -119,6 +131,192 @@ func (f DateField) DriverValue(v Value, dvr string) (interface{}, error) {
 	}
 	if t, ok := v.(time.Time); ok {
 		return t.Format("2006-01-02"), nil
+	} else if s, ok := v.(string); ok {
+		return s, nil
+	}
+	return v, fmt.Errorf("invalid value")
+}
+
+type TimeField struct {
+	Null       bool         `json:",omitempty"`
+	Blank      bool         `json:",omitempty"`
+	Choices    []TimeChoice `json:",omitempty"`
+	Column     string       `json:",omitempty"`
+	Index      bool         `json:",omitempty"`
+	Default    time.Time    `json:",omitempty"`
+	PrimaryKey bool         `json:",omitempty"`
+	Unique     bool         `json:",omitempty"`
+	AutoNow    bool         `json:",omitempty"`
+	AutoNowAdd bool         `json:",omitempty"`
+}
+
+func (f TimeField) IsPK() bool {
+	return f.PrimaryKey
+}
+
+func (f TimeField) IsUnique() bool {
+	return f.Unique
+}
+
+func (f TimeField) IsNull() bool {
+	return f.Null
+}
+
+func (f TimeField) IsAuto() bool {
+	return false
+}
+
+func (f TimeField) IsAutoNow() bool {
+	return f.AutoNow
+}
+
+func (f TimeField) IsAutoNowAdd() bool {
+	return f.AutoNowAdd
+}
+
+func (f TimeField) HasIndex() bool {
+	return f.Index && !(f.PrimaryKey || f.Unique)
+}
+
+func (f TimeField) DBColumn(name string) string {
+	if f.Column != "" {
+		return f.Column
+	}
+	return name
+}
+
+func (f TimeField) DataType(dvr string) string {
+	if dvr == "postgres" {
+		return "TIME"
+	} else {
+		return "DATETIME"
+	}
+}
+
+func (f TimeField) DefaultVal() (Value, bool) {
+	if f.Default.Equal(time.Time{}) {
+		return f.Default, false
+	}
+	return f.Default, true
+}
+
+func (f TimeField) Recipient() interface{} {
+	var val Time
+	return &val
+}
+
+func (f TimeField) Value(rec interface{}) Value {
+	if vlr, ok := rec.(driver.Valuer); ok {
+		if val, err := vlr.Value(); err == nil {
+			if t, ok := val.(time.Time); ok {
+				return t
+			}
+		}
+	}
+	return rec
+}
+
+func (f TimeField) DriverValue(v Value, dvr string) (interface{}, error) {
+	if vlr, ok := v.(driver.Valuer); ok {
+		if val, err := vlr.Value(); err == nil {
+			v = val
+		}
+	}
+	if t, ok := v.(time.Time); ok {
+		return t.Format("15:04:05"), nil
+	} else if s, ok := v.(string); ok {
+		return s, nil
+	}
+	return v, fmt.Errorf("invalid value")
+}
+
+type DateTimeField struct {
+	Null       bool         `json:",omitempty"`
+	Blank      bool         `json:",omitempty"`
+	Choices    []TimeChoice `json:",omitempty"`
+	Column     string       `json:",omitempty"`
+	Index      bool         `json:",omitempty"`
+	Default    time.Time    `json:",omitempty"`
+	PrimaryKey bool         `json:",omitempty"`
+	Unique     bool         `json:",omitempty"`
+	AutoNow    bool         `json:",omitempty"`
+	AutoNowAdd bool         `json:",omitempty"`
+}
+
+func (f DateTimeField) IsPK() bool {
+	return f.PrimaryKey
+}
+
+func (f DateTimeField) IsUnique() bool {
+	return f.Unique
+}
+
+func (f DateTimeField) IsNull() bool {
+	return f.Null
+}
+
+func (f DateTimeField) IsAuto() bool {
+	return false
+}
+
+func (f DateTimeField) IsAutoNow() bool {
+	return f.AutoNow
+}
+
+func (f DateTimeField) IsAutoNowAdd() bool {
+	return f.AutoNowAdd
+}
+
+func (f DateTimeField) HasIndex() bool {
+	return f.Index && !(f.PrimaryKey || f.Unique)
+}
+
+func (f DateTimeField) DBColumn(name string) string {
+	if f.Column != "" {
+		return f.Column
+	}
+	return name
+}
+
+func (f DateTimeField) DataType(dvr string) string {
+	if dvr == "postgres" {
+		return "TIME"
+	} else {
+		return "DATETIME"
+	}
+}
+
+func (f DateTimeField) DefaultVal() (Value, bool) {
+	if f.Default.Equal(time.Time{}) {
+		return f.Default, false
+	}
+	return f.Default, true
+}
+
+func (f DateTimeField) Recipient() interface{} {
+	var val Time
+	return &val
+}
+
+func (f DateTimeField) Value(rec interface{}) Value {
+	if vlr, ok := rec.(driver.Valuer); ok {
+		if val, err := vlr.Value(); err == nil {
+			if t, ok := val.(time.Time); ok {
+				return t
+			}
+		}
+	}
+	return rec
+}
+
+func (f DateTimeField) DriverValue(v Value, dvr string) (interface{}, error) {
+	if vlr, ok := v.(driver.Valuer); ok {
+		if val, err := vlr.Value(); err == nil {
+			v = val
+		}
+	}
+	if t, ok := v.(time.Time); ok {
+		return t.Format("2006-01-02 15:04:05"), nil
 	} else if s, ok := v.(string); ok {
 		return s, nil
 	}

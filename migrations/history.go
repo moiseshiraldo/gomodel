@@ -59,13 +59,13 @@ func (state *AppState) makeMigrations(stash map[string]bool) ([]*Node, error) {
 	node := state.nextNode()
 	for name := range state.Models {
 		if _, ok := app.Models()[name]; !ok {
-			node.Operations = append(node.Operations, &DeleteModel{Name: name})
+			node.Operations = append(node.Operations, DeleteModel{Name: name})
 		}
 	}
 	for _, model := range app.Models() {
 		modelState, ok := state.Models[model.Name()]
 		if !ok {
-			operation := &CreateModel{
+			operation := CreateModel{
 				Name:   model.Name(),
 				Fields: model.Fields(),
 			}
@@ -75,13 +75,13 @@ func (state *AppState) makeMigrations(stash map[string]bool) ([]*Node, error) {
 			}
 			node.Operations = append(node.Operations, operation)
 			for idxName, fields := range model.Indexes() {
-				operation := &AddIndex{model.Name(), idxName, fields}
+				operation := AddIndex{model.Name(), idxName, fields}
 				node.Operations = append(node.Operations, operation)
 			}
 		} else {
 			for idxName := range modelState.Indexes() {
 				if _, ok := model.Indexes()[idxName]; !ok {
-					operation := &RemoveIndex{model.Name(), idxName}
+					operation := RemoveIndex{model.Name(), idxName}
 					node.Operations = append(node.Operations, operation)
 				}
 			}
@@ -93,7 +93,7 @@ func (state *AppState) makeMigrations(stash map[string]bool) ([]*Node, error) {
 				}
 			}
 			if len(removedFields) > 0 {
-				operation := &RemoveFields{model.Name(), removedFields}
+				operation := RemoveFields{model.Name(), removedFields}
 				node.Operations = append(node.Operations, operation)
 			}
 			for name, field := range model.Fields() {
@@ -102,12 +102,12 @@ func (state *AppState) makeMigrations(stash map[string]bool) ([]*Node, error) {
 				}
 			}
 			if len(newFields) > 0 {
-				operation := &AddFields{Model: model.Name(), Fields: newFields}
+				operation := AddFields{Model: model.Name(), Fields: newFields}
 				node.Operations = append(node.Operations, operation)
 			}
 			for idxName, fields := range model.Indexes() {
 				if _, ok := modelState.Indexes()[idxName]; !ok {
-					operation := &AddIndex{model.Name(), idxName, fields}
+					operation := AddIndex{model.Name(), idxName, fields}
 					node.Operations = append(node.Operations, operation)
 				}
 			}

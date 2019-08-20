@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/moiseshiraldo/gomodels"
+	"reflect"
 )
 
 type Operation interface {
@@ -38,10 +39,16 @@ func (op *OperationList) UnmarshalJSON(data []byte) error {
 			if !ok {
 				return fmt.Errorf("invalid operation: %s", name)
 			}
-			if err := json.Unmarshal(rawOp, &operation); err != nil {
+			if err := json.Unmarshal(rawOp, operation); err != nil {
 				return err
 			}
-			opList = append(opList, operation)
+			opVal := reflect.ValueOf(operation).Interface()
+			if op, ok := opVal.(Operation); ok {
+				opList = append(opList, op)
+			} else {
+				op := reflect.Indirect(reflect.ValueOf(operation)).Interface()
+				opList = append(opList, op.(Operation))
+			}
 		}
 	}
 	*op = opList

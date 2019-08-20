@@ -15,7 +15,7 @@ func (op CreateModel) OpName() string {
 	return "CreateModel"
 }
 
-func (op *CreateModel) SetState(state *AppState) error {
+func (op CreateModel) SetState(state *AppState) error {
 	if _, found := state.Models[op.Name]; found {
 		return fmt.Errorf("duplicate model: %s", op.Name)
 	}
@@ -53,7 +53,7 @@ func (op DeleteModel) OpName() string {
 	return "DeleteModel"
 }
 
-func (op *DeleteModel) SetState(state *AppState) error {
+func (op DeleteModel) SetState(state *AppState) error {
 	if _, ok := state.Models[op.Name]; !ok {
 		return fmt.Errorf("model not found: %s", op.Name)
 	}
@@ -87,7 +87,7 @@ func (op AddIndex) OpName() string {
 	return "AddIndex"
 }
 
-func (op *AddIndex) SetState(state *AppState) error {
+func (op AddIndex) SetState(state *AppState) error {
 	model, ok := state.Models[op.Model]
 	if !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
@@ -120,7 +120,7 @@ func (op RemoveIndex) OpName() string {
 	return "RemoveIndex"
 }
 
-func (op *RemoveIndex) SetState(state *AppState) error {
+func (op RemoveIndex) SetState(state *AppState) error {
 	model, ok := state.Models[op.Model]
 	if !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
