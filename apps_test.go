@@ -6,9 +6,10 @@ import (
 	"testing"
 )
 
-func TestApps(t *testing.T) {
+// TestApp tests the Application struct methods
+func TestApp(t *testing.T) {
 	user := &Model{name: "User"}
-	app := Application{
+	app := &Application{
 		name:   "users",
 		path:   "tmp/migrations",
 		models: map[string]*Model{"User": user},
@@ -32,10 +33,16 @@ func TestApps(t *testing.T) {
 			t.Errorf("expected tmp/migrations, got %s", app.Path())
 		}
 	})
-	t.Run("FullPath", func(t *testing.T) {
+	t.Run("RelativePath", func(t *testing.T) {
 		path := filepath.Join(build.Default.GOPATH, "src", "tmp/migrations")
 		if app.FullPath() != path {
 			t.Errorf("expected %s, got %s", path, app.FullPath())
+		}
+	})
+	t.Run("FullPath", func(t *testing.T) {
+		app.path = "/tmp/migrations"
+		if app.FullPath() != app.path {
+			t.Errorf("expected %s, got %s", app.path, app.FullPath())
 		}
 	})
 	t.Run("Models", func(t *testing.T) {
@@ -44,6 +51,52 @@ func TestApps(t *testing.T) {
 		}
 		if app.Models()["User"] != user {
 			t.Errorf("wrong user model")
+		}
+	})
+}
+
+// TestRegistry tests app registry related functions
+func TestRegistry(t *testing.T) {
+	registry["users"] = &Application{name: "users"}
+	defer ClearRegistry()
+	t.Run("Get", func(t *testing.T) {
+		reg := Registry()
+		if _, ok := reg["users"]; !ok {
+			t.Error("returned registry is missing app users")
+		}
+	})
+	t.Run("Modify", func(t *testing.T) {
+		reg := Registry()
+		delete(reg, "users")
+		if _, ok := registry["users"]; !ok {
+			t.Error("app users was deleted from internal registry")
+		}
+	})
+	t.Run("AddApp", func(t *testing.T) {
+		customer := &Model{name: "Customer", fields: Fields{}}
+		appSettings := AppSettings{
+			Name:   "customers",
+			Models: []*Model{customer},
+		}
+		if err := Register(appSettings); err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := registry["customers"]; !ok {
+			t.Fatal("internal registry is missing app customers")
+		}
+		app := registry["customers"]
+		if _, ok := app.models["Customer"]; !ok {
+			t.Fatal("app is missing Customer model")
+		}
+		if app.models["Customer"].app != app {
+			t.Fatal("expected model to be linked to app")
+		}
+	})
+	t.Run("Clear", func(t *testing.T) {
+		registry["services"] = &Application{name: "services"}
+		ClearRegistry()
+		if len(registry) > 0 {
+			t.Errorf("app registry was not cleared")
 		}
 	})
 }
