@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// TestErrors tests migrations error types
 func TestErrors(t *testing.T) {
 	node := &Node{App: "users", Name: "initial"}
 	operation := &mockedOperation{}

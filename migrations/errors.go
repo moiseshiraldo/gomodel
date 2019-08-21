@@ -2,11 +2,6 @@ package migrations
 
 import "fmt"
 
-type Error interface {
-	error
-	Trace() ErrorTrace
-}
-
 type ErrorTrace struct {
 	Node      *Node
 	Operation Operation

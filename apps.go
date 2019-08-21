@@ -59,7 +59,7 @@ func ClearRegistry() {
 	registry = map[string]*Application{}
 }
 
-func Register(apps ...AppSettings) error {
+func Register(apps ...AppSettings) {
 	for _, settings := range apps {
 		appName := settings.Name
 		if _, found := registry[appName]; found || appName == "gomodels" {
@@ -80,5 +80,4 @@ func Register(apps ...AppSettings) error {
 			app.models[model.name] = model
 		}
 	}
-	return nil
 }

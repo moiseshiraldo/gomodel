@@ -4,11 +4,6 @@ import (
 	"fmt"
 )
 
-type Error interface {
-	error
-	Trace() ErrorTrace
-}
-
 type ErrorTrace struct {
 	App   *Application
 	Model *Model
@@ -16,7 +11,7 @@ type ErrorTrace struct {
 	Err   error
 }
 
-func (e *ErrorTrace) String() string {
+func (e ErrorTrace) String() string {
 	trace := ""
 	if e.App != nil {
 		trace += fmt.Sprintf("%s: ", e.App.name)
@@ -32,62 +27,42 @@ func (e *ErrorTrace) String() string {
 }
 
 type DatabaseError struct {
-	Name string
-	ErrorTrace
+	Name  string
+	Trace ErrorTrace
 }
 
 func (e *DatabaseError) Error() string {
-	return fmt.Sprintf("gomodels: %s: %s", e.Name, e.ErrorTrace.String())
-}
-
-func (e *DatabaseError) Trace() ErrorTrace {
-	return e.ErrorTrace
+	return fmt.Sprintf("gomodels: %s db: %s", e.Name, e.Trace)
 }
 
 type ContainerError struct {
-	ErrorTrace
+	Trace ErrorTrace
 }
 
 func (e *ContainerError) Error() string {
-	return fmt.Sprintf("gomodels: %s", e.ErrorTrace.String())
-}
-
-func (e *ContainerError) Trace() ErrorTrace {
-	return e.ErrorTrace
+	return fmt.Sprintf("gomodels: %s", e.Trace)
 }
 
 type QuerySetError struct {
-	ErrorTrace
+	Trace ErrorTrace
 }
 
 func (e *QuerySetError) Error() string {
-	return fmt.Sprintf("gomodels: %s", e.ErrorTrace.String())
-}
-
-func (e *QuerySetError) Trace() ErrorTrace {
-	return e.ErrorTrace
+	return fmt.Sprintf("gomodels: %s", e.Trace)
 }
 
 type ObjectNotFoundError struct {
-	ErrorTrace
+	Trace ErrorTrace
 }
 
 func (e *ObjectNotFoundError) Error() string {
-	return fmt.Sprintf("gomodels: %s", e.ErrorTrace.String())
-}
-
-func (e *ObjectNotFoundError) Trace() ErrorTrace {
-	return e.ErrorTrace
+	return fmt.Sprintf("gomodels: %s", e.Trace)
 }
 
 type MultipleObjectsError struct {
-	ErrorTrace
+	Trace ErrorTrace
 }
 
 func (e *MultipleObjectsError) Error() string {
-	return fmt.Sprintf("gomodels: %s", e.ErrorTrace.String())
-}
-
-func (e *MultipleObjectsError) Trace() ErrorTrace {
-	return e.ErrorTrace
+	return fmt.Sprintf("gomodels: %s", e.Trace)
 }

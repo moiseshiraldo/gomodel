@@ -18,9 +18,7 @@ func TestModelOperationsState(t *testing.T) {
 	)
 	// App setup
 	app := gomodels.NewApp("test", "", user.Model)
-	if err := gomodels.Register(app); err != nil {
-		t.Fatal(err)
-	}
+	gomodels.Register(app)
 	defer gomodels.ClearRegistry()
 	// App state setup
 	appState := &AppState{
@@ -154,9 +152,7 @@ func TestModelOperations(t *testing.T) {
 	)
 	// App setup
 	app := gomodels.NewApp("test", "", user.Model)
-	if err := gomodels.Register(app); err != nil {
-		t.Fatal(err)
-	}
+	gomodels.Register(app)
 	defer gomodels.ClearRegistry()
 	// App state setup
 	appState := &AppState{

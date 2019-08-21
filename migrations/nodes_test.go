@@ -249,9 +249,7 @@ func testNodeRun(t *testing.T, db gomodels.Database) {
 			number:       2,
 			Dependencies: [][]string{{"test", "0001_initial"}},
 		}
-		if err := gomodels.Register(gomodels.NewApp("test", "")); err != nil {
-			t.Fatal(err)
-		}
+		gomodels.Register(gomodels.NewApp("test", ""))
 		appState := &AppState{
 			app:        gomodels.Registry()["test"],
 			migrations: []*Node{node, secondNode},
@@ -279,9 +277,7 @@ func testNodeRun(t *testing.T, db gomodels.Database) {
 			number:       3,
 			Dependencies: [][]string{{"test", "0002_second"}},
 		}
-		if err := gomodels.Register(gomodels.NewApp("test", "")); err != nil {
-			t.Fatal(err)
-		}
+		gomodels.Register(gomodels.NewApp("test", ""))
 		appState := &AppState{
 			app:        gomodels.Registry()["test"],
 			migrations: []*Node{node, secondNode, thirdNode},
@@ -413,9 +409,7 @@ func testNodeBackwards(t *testing.T, db gomodels.Database) {
 			Operations:   OperationList{op},
 			applied:      true,
 		}
-		if err := gomodels.Register(gomodels.NewApp("test", "")); err != nil {
-			t.Fatal(err)
-		}
+		gomodels.Register(gomodels.NewApp("test", ""))
 		appState := &AppState{
 			app:        gomodels.Registry()["test"],
 			migrations: []*Node{node, secondNode},
@@ -439,9 +433,7 @@ func testNodeBackwards(t *testing.T, db gomodels.Database) {
 			Operations:   OperationList{op},
 			applied:      true,
 		}
-		if err := gomodels.Register(gomodels.NewApp("test", "")); err != nil {
-			t.Fatal(err)
-		}
+		gomodels.Register(gomodels.NewApp("test", ""))
 		appState := &AppState{
 			app:        gomodels.Registry()["test"],
 			migrations: []*Node{node, secondNode},

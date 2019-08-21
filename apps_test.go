@@ -72,15 +72,42 @@ func TestRegistry(t *testing.T) {
 			t.Error("app users was deleted from internal registry")
 		}
 	})
+	t.Run("AddDuplicateApp", func(t *testing.T) {
+		registry["customers"] = &Application{name: "customers"}
+		appSettings := AppSettings{Name: "customers"}
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("expected Register function to panic")
+			}
+			delete(registry, "customers")
+		}()
+		Register(appSettings)
+	})
+	t.Run("AddAppInvalidModel", func(t *testing.T) {
+		customer := &Model{
+			name:   "Customer",
+			fields: Fields{},
+			meta:   Options{Container: "Invalid container"},
+		}
+		appSettings := AppSettings{
+			Name:   "customers",
+			Models: []*Model{customer},
+		}
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("expected Register function to panic")
+			}
+			delete(registry, "customers")
+		}()
+		Register(appSettings)
+	})
 	t.Run("AddApp", func(t *testing.T) {
 		customer := &Model{name: "Customer", fields: Fields{}}
 		appSettings := AppSettings{
 			Name:   "customers",
 			Models: []*Model{customer},
 		}
-		if err := Register(appSettings); err != nil {
-			t.Fatal(err)
-		}
+		Register(appSettings)
 		if _, ok := registry["customers"]; !ok {
 			t.Fatal("internal registry is missing app customers")
 		}

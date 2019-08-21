@@ -39,9 +39,7 @@ func (r *rowsMocker) Scan(dest ...interface{}) error {
 // TestAppMigrate tests the Migrate method of the app state
 func TestAppMigrate(t *testing.T) {
 	// App setup
-	if err := gomodels.Register(gomodels.NewApp("test", "")); err != nil {
-		t.Fatal(err)
-	}
+	gomodels.Register(gomodels.NewApp("test", ""))
 	defer gomodels.ClearRegistry()
 	// DB setup
 	dbSettings := gomodels.DBSettings{
@@ -220,9 +218,7 @@ func TestAppMakeMigrations(t *testing.T) {
 	// Apps setup
 	usersApp := gomodels.NewApp("users", "", user.Model)
 	customersApp := gomodels.NewApp("customers", "", customer.Model)
-	if err := gomodels.Register(usersApp, customersApp); err != nil {
-		t.Fatal(err)
-	}
+	gomodels.Register(usersApp, customersApp)
 	defer gomodels.ClearRegistry()
 	// App states setup
 	operation := CreateModel{Name: "Customer", Fields: customer.Model.Fields()}
@@ -502,9 +498,7 @@ func TestAppMakeMigrations(t *testing.T) {
 func TestLoadHistory(t *testing.T) {
 	// App setup
 	app := gomodels.NewApp("test", "test/migrations")
-	if err := gomodels.Register(app); err != nil {
-		t.Fatal(err)
-	}
+	gomodels.Register(app)
 	defer gomodels.ClearRegistry()
 	// Mocks file read/write functions
 	origReadAppNodes := readAppNodes
@@ -681,9 +675,7 @@ func TestLoadHistory(t *testing.T) {
 func TestLoadAppliedMigrations(t *testing.T) {
 	// App setup
 	app := gomodels.NewApp("test", "")
-	if err := gomodels.Register(app); err != nil {
-		t.Fatal(err)
-	}
+	gomodels.Register(app)
 	defer gomodels.ClearRegistry()
 	// App state setup
 	appState := &AppState{

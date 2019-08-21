@@ -19,9 +19,7 @@ func TestMake(t *testing.T) {
 	)
 	// App setup
 	app := gomodels.NewApp("users", "", user.Model)
-	if err := gomodels.Register(app); err != nil {
-		t.Fatal(err)
-	}
+	gomodels.Register(app)
 	defer gomodels.ClearRegistry()
 	// Mocks loadHistory and writeNode functions
 	origLoadHistory := loadHistory
@@ -91,9 +89,7 @@ func TestMake(t *testing.T) {
 	t.Run("WriteError", func(t *testing.T) {
 		gomodels.ClearRegistry()
 		app.Path = "users/migrations"
-		if err := gomodels.Register(app); err != nil {
-			t.Fatal(err)
-		}
+		gomodels.Register(app)
 		loadHistory = func() error {
 			history["users"] = &AppState{
 				app:    gomodels.Registry()["users"],
@@ -113,9 +109,7 @@ func TestMake(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		gomodels.ClearRegistry()
 		app.Path = "users/migrations"
-		if err := gomodels.Register(app); err != nil {
-			t.Fatal(err)
-		}
+		gomodels.Register(app)
 		loadHistory = func() error {
 			history["users"] = &AppState{
 				app:    gomodels.Registry()["users"],
@@ -146,9 +140,7 @@ func TestMake(t *testing.T) {
 func TestRun(t *testing.T) {
 	// App setup
 	app := gomodels.NewApp("users", "")
-	if err := gomodels.Register(app); err != nil {
-		t.Fatal(err)
-	}
+	gomodels.Register(app)
 	defer gomodels.ClearRegistry()
 	// DB setup
 	err := gomodels.Start(gomodels.DBSettings{
@@ -271,9 +263,7 @@ func TestMakeAndRun(t *testing.T) {
 	)
 	// App setup
 	app := gomodels.NewApp("users", "", user.Model)
-	if err := gomodels.Register(app); err != nil {
-		t.Fatal(err)
-	}
+	gomodels.Register(app)
 	defer gomodels.ClearRegistry()
 	// DB setup
 	err := gomodels.Start(gomodels.DBSettings{
