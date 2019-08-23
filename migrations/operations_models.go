@@ -92,7 +92,7 @@ func (op AddIndex) SetState(state *AppState) error {
 	if !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
 	}
-	return model.AddIndex(op.Name, op.Fields)
+	return model.AddIndex(op.Name, op.Fields...)
 }
 
 func (op AddIndex) Run(

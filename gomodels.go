@@ -133,6 +133,16 @@ func (m *Model) SetupPrimaryKey() error {
 }
 
 func (m *Model) SetupIndexes() error {
+	for name, fields := range m.meta.Indexes {
+		if len(fields) == 0 {
+			return fmt.Errorf("index with no fields: %s", name)
+		}
+		for _, indexedField := range fields {
+			if _, ok := m.fields[indexedField]; !ok {
+				return fmt.Errorf("unknown indexed field: %s", indexedField)
+			}
+		}
+	}
 	for name, field := range m.fields {
 		if field.HasIndex() {
 			idxName := fmt.Sprintf(
@@ -158,9 +168,6 @@ func (m *Model) AddField(name string, field Field) error {
 		return fmt.Errorf("duplicate pk: %s", name)
 	}
 	m.fields[name] = field
-	if field.IsPK() {
-		m.pk = name
-	}
 	return nil
 }
 
@@ -182,9 +189,12 @@ func (m *Model) RemoveField(name string) error {
 	return nil
 }
 
-func (m *Model) AddIndex(name string, fields []string) error {
+func (m *Model) AddIndex(name string, fields ...string) error {
 	if _, found := m.meta.Indexes[name]; found {
 		return fmt.Errorf("duplicate index: %s", name)
+	}
+	if len(fields) == 0 {
+		return fmt.Errorf("cannot add index with no fields: %s", name)
 	}
 	for _, indexedField := range fields {
 		if _, ok := m.fields[indexedField]; !ok {
