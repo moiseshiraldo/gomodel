@@ -44,29 +44,27 @@ func (fp *Fields) UnmarshalJSON(data []byte) error {
 	}
 	for name, fMap := range rawMap {
 		for fType, raw := range fMap {
-			field, ok := AvailableFields()[fType]
+			field, ok := fieldsRegistry[fType]
 			if !ok {
 				return fmt.Errorf("invalid field type: %s", fType)
 			}
-			if err := json.Unmarshal(raw, &field); err != nil {
-				fmt.Println(err)
+			if err := json.Unmarshal(raw, field); err != nil {
 				return err
 			}
-			fields[name] = field
+			fVal := reflect.Indirect(reflect.ValueOf(field)).Interface()
+			fields[name] = fVal.(Field)
 		}
 	}
 	*fp = fields
 	return nil
 }
 
-func AvailableFields() Fields {
-	return Fields{
-		"IntegerField": &IntegerField{},
-		"BooleanField": &BooleanField{},
-		"CharField":    &CharField{},
-		"DateField":    &DateField{},
-		"TimeField":    &TimeField{},
-	}
+var fieldsRegistry = Fields{
+	"IntegerField": &IntegerField{},
+	"BooleanField": &BooleanField{},
+	"CharField":    &CharField{},
+	"DateField":    &DateField{},
+	"TimeField":    &TimeField{},
 }
 
 func fieldInList(name string, fields []string) bool {

@@ -14,6 +14,7 @@ func TestApp(t *testing.T) {
 		path:   "tmp/migrations",
 		models: map[string]*Model{"User": user},
 	}
+
 	t.Run("NewApp", func(t *testing.T) {
 		settings := NewApp("test", "tmp/migrations", user)
 		if settings.Name != "test" || settings.Path != "tmp/migrations" {
@@ -23,28 +24,33 @@ func TestApp(t *testing.T) {
 			t.Errorf("app settings missing model")
 		}
 	})
+
 	t.Run("Name", func(t *testing.T) {
 		if app.Name() != "users" {
 			t.Errorf("expected users, got %s", app.Name())
 		}
 	})
+
 	t.Run("Path", func(t *testing.T) {
 		if app.Path() != "tmp/migrations" {
 			t.Errorf("expected tmp/migrations, got %s", app.Path())
 		}
 	})
+
 	t.Run("RelativePath", func(t *testing.T) {
 		path := filepath.Join(build.Default.GOPATH, "src", "tmp/migrations")
 		if app.FullPath() != path {
 			t.Errorf("expected %s, got %s", path, app.FullPath())
 		}
 	})
+
 	t.Run("FullPath", func(t *testing.T) {
 		app.path = "/tmp/migrations"
 		if app.FullPath() != app.path {
 			t.Errorf("expected %s, got %s", app.path, app.FullPath())
 		}
 	})
+
 	t.Run("Models", func(t *testing.T) {
 		if _, ok := app.Models()["User"]; !ok {
 			t.Fatal("expected User model to be returned")
@@ -59,12 +65,14 @@ func TestApp(t *testing.T) {
 func TestRegistry(t *testing.T) {
 	registry["users"] = &Application{name: "users"}
 	defer ClearRegistry()
+
 	t.Run("Get", func(t *testing.T) {
 		reg := Registry()
 		if _, ok := reg["users"]; !ok {
 			t.Error("returned registry is missing app users")
 		}
 	})
+
 	t.Run("Modify", func(t *testing.T) {
 		reg := Registry()
 		delete(reg, "users")
@@ -72,6 +80,7 @@ func TestRegistry(t *testing.T) {
 			t.Error("app users was deleted from internal registry")
 		}
 	})
+
 	t.Run("AddDuplicateApp", func(t *testing.T) {
 		registry["customers"] = &Application{name: "customers"}
 		appSettings := AppSettings{Name: "customers"}
@@ -83,6 +92,7 @@ func TestRegistry(t *testing.T) {
 		}()
 		Register(appSettings)
 	})
+
 	t.Run("AddAppInvalidModel", func(t *testing.T) {
 		customer := &Model{
 			name:   "Customer",
@@ -101,6 +111,7 @@ func TestRegistry(t *testing.T) {
 		}()
 		Register(appSettings)
 	})
+
 	t.Run("AddApp", func(t *testing.T) {
 		customer := &Model{name: "Customer", fields: Fields{}}
 		appSettings := AppSettings{
@@ -119,6 +130,7 @@ func TestRegistry(t *testing.T) {
 			t.Fatal("expected model to be linked to app")
 		}
 	})
+
 	t.Run("Clear", func(t *testing.T) {
 		registry["services"] = &Application{name: "services"}
 		ClearRegistry()

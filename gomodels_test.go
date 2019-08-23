@@ -17,28 +17,33 @@ func TestModel(t *testing.T) {
 			Indexes: Indexes{"test_idx": []string{"email"}},
 		},
 	}
+
 	t.Run("Name", func(t *testing.T) {
 		if model.Name() != "User" {
 			t.Errorf("expected User, got %s", model.Name())
 		}
 	})
+
 	t.Run("App", func(t *testing.T) {
 		if model.App() != app {
 			t.Error("method returned wrong app")
 		}
 	})
+
 	t.Run("DefaultTable", func(t *testing.T) {
 		model.meta.Table = ""
 		if model.Table() != "users_user" {
 			t.Errorf("expected users_user, got %s", model.Table())
 		}
 	})
+
 	t.Run("CustomTable", func(t *testing.T) {
 		model.meta.Table = "custom_table"
 		if model.Table() != "custom_table" {
 			t.Errorf("expected custom_table, got %s", model.Table())
 		}
 	})
+
 	t.Run("Fields", func(t *testing.T) {
 		fields := model.Fields()
 		if _, ok := fields["email"]; !ok {
@@ -49,6 +54,7 @@ func TestModel(t *testing.T) {
 			t.Error("internal model fields map was modified")
 		}
 	})
+
 	t.Run("Indexes", func(t *testing.T) {
 		indexes := model.Indexes()
 		if _, ok := indexes["test_idx"]; !ok {
@@ -59,6 +65,7 @@ func TestModel(t *testing.T) {
 			t.Error("internal model indexes map was modified")
 		}
 	})
+
 	t.Run("BuilderContainer", func(t *testing.T) {
 		model.meta.Container = Values{"email": "user@test.com"}
 		container := model.Container()
@@ -69,11 +76,12 @@ func TestModel(t *testing.T) {
 			t.Error("expected container to be empty")
 		}
 	})
+
 	t.Run("StructContainer", func(t *testing.T) {
 		type userContainer struct {
 			email string
 		}
-		model.meta.Container = userContainer{email: "user@test.com"}
+		model.meta.Container = &userContainer{email: "user@test.com"}
 		container := model.Container()
 		if _, ok := container.(*userContainer); !ok {
 			t.Fatalf("expected userContainer type, got %T", container)
@@ -82,6 +90,7 @@ func TestModel(t *testing.T) {
 			t.Error("expected container to be empty")
 		}
 	})
+
 	t.Run("DuplicatePK", func(t *testing.T) {
 		model.pk = ""
 		model.fields["id"] = IntegerField{PrimaryKey: true}
@@ -90,12 +99,14 @@ func TestModel(t *testing.T) {
 			t.Error("expected duplicate primery key error")
 		}
 	})
+
 	t.Run("SkipPKSetup", func(t *testing.T) {
 		model.pk = "id"
 		if err := model.SetupPrimaryKey(); err != nil {
 			t.Error(err)
 		}
 	})
+
 	t.Run("ManualPKSetup", func(t *testing.T) {
 		model.pk = ""
 		model.fields = Fields{"email": CharField{PrimaryKey: true}}
@@ -106,6 +117,7 @@ func TestModel(t *testing.T) {
 			t.Errorf("expected pk to be email, got %s", model.pk)
 		}
 	})
+
 	t.Run("AutoPKSetup", func(t *testing.T) {
 		model.pk = ""
 		model.fields = Fields{}
@@ -126,6 +138,7 @@ func TestModel(t *testing.T) {
 			t.Error("expeceted id field to be primary key")
 		}
 	})
+
 	t.Run("EmptyIndex", func(t *testing.T) {
 		model.fields = Fields{}
 		model.meta.Indexes = Indexes{
@@ -135,6 +148,7 @@ func TestModel(t *testing.T) {
 			t.Error("expected empty index error")
 		}
 	})
+
 	t.Run("DuplicateIndex", func(t *testing.T) {
 		model.fields = Fields{"email": CharField{Index: true}}
 		model.meta.Indexes = Indexes{
@@ -144,6 +158,7 @@ func TestModel(t *testing.T) {
 			t.Error("expected duplicate index error")
 		}
 	})
+
 	t.Run("IndexUnknownField", func(t *testing.T) {
 		model.fields = Fields{}
 		model.meta.Indexes = Indexes{
@@ -153,6 +168,7 @@ func TestModel(t *testing.T) {
 			t.Error("expected duplicate index error")
 		}
 	})
+
 	t.Run("SetupIndexes", func(t *testing.T) {
 		model.fields = Fields{"username": CharField{Index: true}}
 		model.meta.Indexes = Indexes{}
@@ -167,22 +183,26 @@ func TestModel(t *testing.T) {
 			t.Error("added index with wrong details")
 		}
 	})
+
 	t.Run("RegisterDuplicate", func(t *testing.T) {
 		app.models["User"] = model
 		if err := model.Register(app); err == nil {
 			t.Error("expected duplicate model error")
 		}
 	})
+
 	t.Run("RegisterInvalidPK", func(t *testing.T) {
 		app.models = map[string]*Model{}
 		model.fields = Fields{
 			"id":    IntegerField{PrimaryKey: true},
 			"email": CharField{PrimaryKey: true},
 		}
+		model.pk = ""
 		if err := model.Register(app); err == nil {
 			t.Error("expected duplicate pk error")
 		}
 	})
+
 	t.Run("RegisterInvalidIndexes", func(t *testing.T) {
 		app.models = map[string]*Model{}
 		model.fields = Fields{}
@@ -191,12 +211,14 @@ func TestModel(t *testing.T) {
 			t.Error("expected empty index error")
 		}
 	})
+
 	t.Run("AddDuplicateField", func(t *testing.T) {
 		model.fields = Fields{"email": CharField{}}
 		if err := model.AddField("email", CharField{}); err == nil {
 			t.Error("expected duplicate field error")
 		}
 	})
+
 	t.Run("AddFieldDuplicatePK", func(t *testing.T) {
 		model.pk = "id"
 		model.fields = Fields{}
@@ -205,6 +227,7 @@ func TestModel(t *testing.T) {
 			t.Error("expected duplicate pk error")
 		}
 	})
+
 	t.Run("AddField", func(t *testing.T) {
 		model.fields = Fields{}
 		if err := model.AddField("foo", CharField{}); err != nil {
@@ -214,6 +237,7 @@ func TestModel(t *testing.T) {
 			t.Error("field was not added to model")
 		}
 	})
+
 	t.Run("RemovePKField", func(t *testing.T) {
 		model.pk = "id"
 		model.fields = Fields{"id": IntegerField{PrimaryKey: true}}
@@ -221,12 +245,14 @@ func TestModel(t *testing.T) {
 			t.Error("expected cannot remove pk error")
 		}
 	})
+
 	t.Run("RemoveUnknownField", func(t *testing.T) {
 		model.fields = Fields{}
 		if err := model.RemoveField("bar"); err == nil {
 			t.Error("expected field does not exist error")
 		}
 	})
+
 	t.Run("RemoveIndexesField", func(t *testing.T) {
 		model.fields = Fields{"email": CharField{}}
 		model.meta.Indexes = Indexes{"email_idx": []string{"email"}}
@@ -234,6 +260,7 @@ func TestModel(t *testing.T) {
 			t.Error("expected cannot remove indexed field error")
 		}
 	})
+
 	t.Run("RemoveField", func(t *testing.T) {
 		model.fields = Fields{"email": CharField{}}
 		model.meta.Indexes = Indexes{}
@@ -244,18 +271,21 @@ func TestModel(t *testing.T) {
 			t.Error("field was not removed from model")
 		}
 	})
+
 	t.Run("AddDuplicateIndex", func(t *testing.T) {
 		model.meta.Indexes = Indexes{"email_idx": []string{"email"}}
 		if err := model.AddIndex("email_idx", "email"); err == nil {
 			t.Error("expected duplicate index error")
 		}
 	})
+
 	t.Run("AddEmptyIndex", func(t *testing.T) {
 		model.meta.Indexes = Indexes{}
 		if err := model.AddIndex("email_idx"); err == nil {
 			t.Error("expected empty index error")
 		}
 	})
+
 	t.Run("AddIndexUnknownField", func(t *testing.T) {
 		model.meta.Indexes = Indexes{}
 		model.fields = Fields{}
@@ -263,6 +293,7 @@ func TestModel(t *testing.T) {
 			t.Error("expected field not found error")
 		}
 	})
+
 	t.Run("AddIndex", func(t *testing.T) {
 		model.meta.Indexes = Indexes{}
 		model.fields = Fields{"email": CharField{}}
@@ -277,12 +308,14 @@ func TestModel(t *testing.T) {
 			t.Error("index added with wrong details")
 		}
 	})
+
 	t.Run("RemoveUnknownIndex", func(t *testing.T) {
 		model.meta.Indexes = Indexes{}
 		if err := model.RemoveIndex("foo"); err == nil {
 			t.Error("expected index not found error")
 		}
 	})
+
 	t.Run("RemoveUnknownIndex", func(t *testing.T) {
 		model.meta.Indexes = Indexes{"foo": []string{"bar"}}
 		if err := model.RemoveIndex("foo"); err != nil {
@@ -307,6 +340,7 @@ func TestDispatcher(t *testing.T) {
 		Model:   model,
 		Objects: &Manager{model},
 	}
+
 	t.Run("NewInstance", func(t *testing.T) {
 		instance, err := dispatcher.New(Values{"email": "user@test.com"})
 		if err != nil {
@@ -322,6 +356,31 @@ func TestDispatcher(t *testing.T) {
 			t.Fatalf("expected field value to be bar, got %s", val)
 		}
 	})
+
+	t.Run("NewInstanceInvalidField", func(t *testing.T) {
+		type userContainer struct {
+			email string
+		}
+		model.meta.Container = userContainer{}
+		_, err := dispatcher.New(Values{"username": "alice"})
+		if _, ok := err.(*ContainerError); !ok {
+			t.Errorf("expected ContainerError, got %T", err)
+		}
+
+	})
+
+	t.Run("NewInstanceInvalidDefault", func(t *testing.T) {
+		type userContainer struct {
+			email string
+		}
+		model.meta.Container = userContainer{}
+		_, err := dispatcher.New(Values{})
+		if _, ok := err.(*ContainerError); !ok {
+			t.Errorf("expected ContainerError, got %T", err)
+		}
+
+	})
+
 	t.Run("NewModel", func(t *testing.T) {
 		dispatcher := New(
 			"User",
