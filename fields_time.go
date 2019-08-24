@@ -6,12 +6,12 @@ import (
 	"time"
 )
 
-type Time struct {
+type NullTime struct {
 	Time  time.Time
 	Valid bool
 }
 
-func (d *Time) Scan(value interface{}) error {
+func (d *NullTime) Scan(value interface{}) error {
 	if t, ok := value.(time.Time); ok {
 		d.Time = t
 		d.Valid = true
@@ -33,10 +33,10 @@ func (d *Time) Scan(value interface{}) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("cannot parse %T into gomodels.Time", value)
+	return fmt.Errorf("cannot parse %T into gomodels.NullTime", value)
 }
 
-func (d Time) Value() (driver.Value, error) {
+func (d NullTime) Value() (driver.Value, error) {
 	if !d.Valid {
 		return nil, nil
 	}
@@ -108,17 +108,20 @@ func (f DateField) DefaultVal() (Value, bool) {
 }
 
 func (f DateField) Recipient() interface{} {
-	var val Time
+	if f.Null {
+		var val NullTime
+		return &val
+	}
+	var val time.Time
 	return &val
 }
 
 func (f DateField) Value(rec interface{}) Value {
-	if vlr, ok := rec.(driver.Valuer); ok {
-		if val, err := vlr.Value(); err == nil {
-			if t, ok := val.(time.Time); ok {
-				return t
-			}
+	if val, ok := rec.(NullTime); ok {
+		if !val.Valid {
+			return nil
 		}
+		return val.Time
 	}
 	return rec
 }
@@ -129,7 +132,9 @@ func (f DateField) DriverValue(v Value, dvr string) (interface{}, error) {
 			v = val
 		}
 	}
-	if t, ok := v.(time.Time); ok {
+	if v == nil {
+		return v, nil
+	} else if t, ok := v.(time.Time); ok {
 		return t.Format("2006-01-02"), nil
 	} else if s, ok := v.(string); ok {
 		return s, nil
@@ -186,11 +191,7 @@ func (f TimeField) DBColumn(name string) string {
 }
 
 func (f TimeField) DataType(dvr string) string {
-	if dvr == "postgres" {
-		return "TIME"
-	} else {
-		return "DATETIME"
-	}
+	return "TIME"
 }
 
 func (f TimeField) DefaultVal() (Value, bool) {
@@ -201,17 +202,20 @@ func (f TimeField) DefaultVal() (Value, bool) {
 }
 
 func (f TimeField) Recipient() interface{} {
-	var val Time
+	if f.Null {
+		var val NullTime
+		return &val
+	}
+	var val time.Time
 	return &val
 }
 
 func (f TimeField) Value(rec interface{}) Value {
-	if vlr, ok := rec.(driver.Valuer); ok {
-		if val, err := vlr.Value(); err == nil {
-			if t, ok := val.(time.Time); ok {
-				return t
-			}
+	if val, ok := rec.(NullTime); ok {
+		if !val.Valid {
+			return nil
 		}
+		return val.Time
 	}
 	return rec
 }
@@ -222,7 +226,9 @@ func (f TimeField) DriverValue(v Value, dvr string) (interface{}, error) {
 			v = val
 		}
 	}
-	if t, ok := v.(time.Time); ok {
+	if v == nil {
+		return v, nil
+	} else if t, ok := v.(time.Time); ok {
 		return t.Format("15:04:05"), nil
 	} else if s, ok := v.(string); ok {
 		return s, nil
@@ -280,7 +286,7 @@ func (f DateTimeField) DBColumn(name string) string {
 
 func (f DateTimeField) DataType(dvr string) string {
 	if dvr == "postgres" {
-		return "TIME"
+		return "TIMESTAMP"
 	} else {
 		return "DATETIME"
 	}
@@ -294,17 +300,20 @@ func (f DateTimeField) DefaultVal() (Value, bool) {
 }
 
 func (f DateTimeField) Recipient() interface{} {
-	var val Time
+	if f.Null {
+		var val NullTime
+		return &val
+	}
+	var val time.Time
 	return &val
 }
 
 func (f DateTimeField) Value(rec interface{}) Value {
-	if vlr, ok := rec.(driver.Valuer); ok {
-		if val, err := vlr.Value(); err == nil {
-			if t, ok := val.(time.Time); ok {
-				return t
-			}
+	if val, ok := rec.(NullTime); ok {
+		if !val.Valid {
+			return nil
 		}
+		return val.Time
 	}
 	return rec
 }
@@ -315,7 +324,9 @@ func (f DateTimeField) DriverValue(v Value, dvr string) (interface{}, error) {
 			v = val
 		}
 	}
-	if t, ok := v.(time.Time); ok {
+	if v == nil {
+		return v, nil
+	} else if t, ok := v.(time.Time); ok {
 		return t.Format("2006-01-02 15:04:05"), nil
 	} else if s, ok := v.(string); ok {
 		return s, nil
