@@ -342,7 +342,7 @@ func TestDispatcher(t *testing.T) {
 	}
 
 	t.Run("NewInstance", func(t *testing.T) {
-		instance, err := dispatcher.New(Values{"email": "user@test.com"})
+		instance, err := dispatcher.New(Values{"foo": "test"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -352,7 +352,7 @@ func TestDispatcher(t *testing.T) {
 				instance.container,
 			)
 		}
-		if val := instance.container.(Values)["foo"]; val != "bar" {
+		if val := instance.container.(Values)["foo"]; val != "test" {
 			t.Fatalf("expected field value to be bar, got %s", val)
 		}
 	})
@@ -362,7 +362,7 @@ func TestDispatcher(t *testing.T) {
 			email string
 		}
 		model.meta.Container = userContainer{}
-		_, err := dispatcher.New(Values{"username": "alice"})
+		_, err := dispatcher.New(Values{"foo": "test"})
 		if _, ok := err.(*ContainerError); !ok {
 			t.Errorf("expected ContainerError, got %T", err)
 		}

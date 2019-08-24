@@ -81,10 +81,11 @@ func (f CharField) Recipient() interface{} {
 }
 
 func (f CharField) Value(rec interface{}) Value {
-	if vlr, ok := rec.(driver.Valuer); ok {
-		if val, err := vlr.Value(); err == nil {
-			return val
+	if val, ok := rec.(sql.NullString); ok {
+		if !val.Valid {
+			return nil
 		}
+		return val.String
 	}
 	return rec
 }
@@ -164,10 +165,11 @@ func (f BooleanField) Recipient() interface{} {
 }
 
 func (f BooleanField) Value(rec interface{}) Value {
-	if vlr, ok := rec.(driver.Valuer); ok {
-		if val, err := vlr.Value(); err == nil {
-			return val
+	if val, ok := rec.(sql.NullBool); ok {
+		if !val.Valid {
+			return nil
 		}
+		return val.Bool
 	}
 	return rec
 }
@@ -177,6 +179,30 @@ func (f BooleanField) DriverValue(v Value, dvr string) (interface{}, error) {
 		return vlr.Value()
 	}
 	return v, nil
+}
+
+// TODO: remove for Golang 1.13
+type NullInt32 struct {
+	Int32 int32
+	Valid bool // Valid is true if Int32 is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (n *NullInt32) Scan(value interface{}) error {
+	if value == nil {
+		n.Int32, n.Valid = 0, false
+		return nil
+	}
+	n.Valid = true
+	return setContainerField(&n.Int32, value)
+}
+
+// Value implements the driver Valuer interface.
+func (n NullInt32) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return int64(n.Int32), nil
 }
 
 type IntChoice struct {
@@ -190,7 +216,7 @@ type IntegerField struct {
 	Choices     []IntChoice `json:",omitempty"`
 	Column      string      `json:",omitempty"`
 	Index       bool        `json:",omitempty"`
-	Default     int         `json:",omitempty"`
+	Default     int32       `json:",omitempty"`
 	DefaultZero bool        `json:",omitempty"`
 	PrimaryKey  bool        `json:",omitempty"`
 	Unique      bool        `json:",omitempty"`
@@ -250,18 +276,19 @@ func (f IntegerField) DefaultVal() (Value, bool) {
 
 func (f IntegerField) Recipient() interface{} {
 	if f.Null {
-		var val sql.NullInt64
+		var val NullInt32
 		return &val
 	}
-	var val int64
+	var val int32
 	return &val
 }
 
 func (f IntegerField) Value(rec interface{}) Value {
-	if vlr, ok := rec.(driver.Valuer); ok {
-		if val, err := vlr.Value(); err == nil {
-			return val
+	if val, ok := rec.(NullInt32); ok {
+		if !val.Valid {
+			return nil
 		}
+		return val.Int32
 	}
 	return rec
 }
