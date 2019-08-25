@@ -62,7 +62,7 @@ func asString(src interface{}) string {
 	return fmt.Sprintf("%v", src)
 }
 
-func setContainerField(dest, src interface{}) error {
+func setRecipient(dest, src interface{}) error {
 	switch s := src.(type) {
 	case string:
 		switch d := dest.(type) {
@@ -225,7 +225,7 @@ func setContainerField(dest, src interface{}) error {
 			return nil
 		}
 		dv.Set(reflect.New(dv.Type().Elem()))
-		return setContainerField(dv.Interface(), src)
+		return setRecipient(dv.Interface(), src)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		if src == nil {
 			return fmt.Errorf("converting NULL to %s is unsupported", dv.Kind())

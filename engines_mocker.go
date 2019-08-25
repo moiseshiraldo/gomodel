@@ -105,15 +105,13 @@ type MockedEngineArgs struct {
 		Fields      []string
 	}
 	InsertRow struct {
-		Model     *Model
-		Container Container
-		Fields    []string
+		Model  *Model
+		Values Values
 	}
 	UpdateRows struct {
 		Model       *Model
-		Container   Container
+		Values      Values
 		Conditioner Conditioner
-		Fields      []string
 	}
 	DeleteRows struct {
 		Model       *Model
@@ -302,29 +300,22 @@ func (e MockedEngine) GetRows(
 	return e.Results.GetRows.Rows, e.Results.GetRows.Err
 }
 
-func (e MockedEngine) InsertRow(
-	model *Model,
-	container Container,
-	fields ...string,
-) (int64, error) {
+func (e MockedEngine) InsertRow(model *Model, values Values) (int64, error) {
 	e.calls["InsertRow"] += 1
 	e.Args.InsertRow.Model = model
-	e.Args.InsertRow.Container = container
-	e.Args.InsertRow.Fields = fields
+	e.Args.InsertRow.Values = values
 	return e.Results.InsertRow.Id, e.Results.InsertRow.Err
 }
 
 func (e MockedEngine) UpdateRows(
 	model *Model,
-	container Container,
+	values Values,
 	conditioner Conditioner,
-	fields ...string,
 ) (int64, error) {
 	e.calls["UpdateRows"] += 1
 	e.Args.UpdateRows.Model = model
-	e.Args.UpdateRows.Container = container
+	e.Args.UpdateRows.Values = values
 	e.Args.UpdateRows.Conditioner = conditioner
-	e.Args.GetRows.Fields = fields
 	return e.Results.UpdateRows.Number, e.Results.UpdateRows.Err
 }
 

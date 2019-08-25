@@ -37,7 +37,7 @@ func (vals Values) Get(key string) (Value, bool) {
 
 func (vals Values) Set(key string, val Value, field Field) error {
 	recipient := field.Recipient()
-	if err := setContainerField(recipient, val); err != nil {
+	if err := setRecipient(recipient, val); err != nil {
 		return err
 	}
 	vals[key] = reflect.Indirect(reflect.ValueOf(recipient)).Interface()
@@ -46,10 +46,6 @@ func (vals Values) Set(key string, val Value, field Field) error {
 
 func (vals Values) New() Builder {
 	return Values{}
-}
-
-func (vals Values) Recipients(columns []string) []interface{} {
-	return nil
 }
 
 func isValidContainer(container Container) bool {
@@ -82,13 +78,20 @@ func getRecipients(con Container, cols []string, model *Model) []interface{} {
 	return recipients
 }
 
-func getStructField(container Container, field string) (Value, bool) {
-	cv := reflect.Indirect(reflect.ValueOf(container))
-	f := cv.FieldByName(strings.Title(field))
-	if f.IsValid() && f.CanInterface() {
-		val := f.Interface()
-		return val, true
+func getContainerField(container Container, name string) (Value, bool) {
+	if getter, ok := container.(Getter); ok {
+		if val, ok := getter.Get(name); ok {
+			return val, true
+		}
 	} else {
-		return nil, false
+		cv := reflect.Indirect(reflect.ValueOf(container))
+		field := cv.FieldByName(strings.Title(name))
+		if field.IsValid() && field.CanInterface() {
+			val := field.Interface()
+			return val, true
+		} else {
+			return nil, false
+		}
 	}
+	return nil, false
 }

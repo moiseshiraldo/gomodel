@@ -194,7 +194,7 @@ func (n *NullInt32) Scan(value interface{}) error {
 		return nil
 	}
 	n.Valid = true
-	return setContainerField(&n.Int32, value)
+	return setRecipient(&n.Int32, value)
 }
 
 // Value implements the driver Valuer interface.

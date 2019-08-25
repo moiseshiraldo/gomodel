@@ -3,6 +3,7 @@ package gomodels
 import (
 	"fmt"
 	"reflect"
+	"time"
 )
 
 type Query struct {
@@ -235,16 +236,25 @@ func (qs GenericQuerySet) Count() (int64, error) {
 	return count, nil
 }
 
-func (qs GenericQuerySet) Update(values Container) (int64, error) {
+func (qs GenericQuerySet) Update(container Container) (int64, error) {
 	db, ok := databases[qs.database]
 	if !ok {
 		return 0, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
-	if !isValidContainer(values) {
+	if !isValidContainer(container) {
 		err := fmt.Errorf("invalid values container")
 		return 0, qs.containerError(err)
 	}
-	rows, err := db.UpdateRows(qs.model, values, qs.cond)
+	dbValues := Values{}
+	for name, field := range qs.model.fields {
+		if field.IsAutoNow() {
+			dbValues[name] = time.Now()
+		}
+		if val, ok := getContainerField(container, name); ok {
+			dbValues[name] = val
+		}
+	}
+	rows, err := db.UpdateRows(qs.model, dbValues, qs.cond)
 	if err != nil {
 		return 0, qs.dbError(err)
 	}

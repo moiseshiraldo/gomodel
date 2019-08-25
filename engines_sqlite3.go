@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"time"
 )
 
 type SqliteEngine struct {
@@ -358,46 +357,24 @@ func (e SqliteEngine) GetRows(
 	return e.query(query)
 }
 
-func (e SqliteEngine) InsertRow(
-	model *Model,
-	container Container,
-	fields ...string,
-) (int64, error) {
+func (e SqliteEngine) InsertRow(model *Model, values Values) (int64, error) {
 	cols := make([]string, 0, len(model.fields))
 	vals := make([]interface{}, 0, len(model.fields))
 	placeholders := make([]string, 0, len(model.fields))
-	allFields := len(fields) == 0
-	for name, field := range model.fields {
-		if !field.IsAuto() && (allFields || fieldInList(name, fields)) {
-			var value Value
-			var found bool
-			if field.IsAutoNowAdd() {
-				value = time.Now()
-				found = true
-			} else if getter, ok := container.(Getter); ok {
-				if val, ok := getter.Get(name); ok {
-					value = val
-					found = true
-				}
-			} else if val, ok := getStructField(container, name); ok {
-				value = val
-				found = true
-			}
-			if !found {
-				if val, hasDefault := field.DefaultVal(); hasDefault {
-					value = val
-					found = true
-				}
-			}
-			driverVal, err := field.DriverValue(value, "sqlite3")
-			if err != nil {
-				return 0, err
-			}
-			if driverVal != nil {
-				cols = append(cols, fmt.Sprintf("\"%s\"", field.DBColumn(name)))
-				vals = append(vals, driverVal)
-				placeholders = append(placeholders, "?")
-			}
+	fields := model.Fields()
+	for name, val := range values {
+		field, ok := fields[name]
+		if !ok {
+			return 0, fmt.Errorf("unknown field %s", name)
+		}
+		driverVal, err := field.DriverValue(val, "postgres")
+		if err != nil {
+			return 0, err
+		}
+		if driverVal != nil {
+			cols = append(cols, fmt.Sprintf("\"%s\"", field.DBColumn(name)))
+			vals = append(vals, driverVal)
+			placeholders = append(placeholders, "?")
 		}
 	}
 	stmt := fmt.Sprintf(
@@ -419,40 +396,25 @@ func (e SqliteEngine) InsertRow(
 
 func (e SqliteEngine) UpdateRows(
 	model *Model,
-	container Container,
+	values Values,
 	conditioner Conditioner,
-	fields ...string,
 ) (int64, error) {
 	vals := make([]interface{}, 0, len(model.fields))
 	cols := make([]string, 0, len(model.fields))
-	allFields := len(fields) == 0
-	for name, field := range model.fields {
-		if name != model.pk && (allFields || fieldInList(name, fields)) {
-			var value Value
-			var found bool
-			if field.IsAutoNow() {
-				value = time.Now()
-				found = true
-			} else if getter, ok := container.(Getter); ok {
-				if val, ok := getter.Get(name); ok {
-					value = val
-					found = true
-				}
-			} else if val, ok := getStructField(container, name); ok {
-				value = val
-				found = true
-			}
-			if found {
-				driverVal, err := field.DriverValue(value, "sqlite3")
-				if err != nil {
-					return 0, err
-				}
-				cols = append(
-					cols, fmt.Sprintf("\"%s\" = ?", field.DBColumn(name)),
-				)
-				vals = append(vals, driverVal)
-			}
+	fields := model.Fields()
+	for name, val := range values {
+		field, ok := fields[name]
+		if !ok {
+			return 0, fmt.Errorf("unknown field %s", name)
 		}
+		driverVal, err := field.DriverValue(val, "sqlite3")
+		if err != nil {
+			return 0, err
+		}
+		cols = append(
+			cols, fmt.Sprintf("\"%s\" = ?", field.DBColumn(name)),
+		)
+		vals = append(vals, driverVal)
 	}
 	stmt := fmt.Sprintf(
 		"UPDATE \"%s\" SET %s", model.Table(), strings.Join(cols, ", "),

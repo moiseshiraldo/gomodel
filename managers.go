@@ -2,6 +2,7 @@ package gomodels
 
 import (
 	"fmt"
+	"time"
 )
 
 type Manager struct {
@@ -16,30 +17,36 @@ func (m Manager) Create(values Container) (*Instance, error) {
 		err := fmt.Errorf("invalid values container")
 		return nil, &ContainerError{instance.trace(err)}
 	}
-	pk, err := db.InsertRow(m.Model, values)
+	dbValues := Values{}
+	for name, field := range m.Model.fields {
+		if field.IsAuto() {
+			continue
+		}
+		var dbVal Value
+		if field.IsAutoNowAdd() {
+			dbVal = time.Now()
+		}
+		if val, ok := getContainerField(values, name); ok {
+			dbVal = val
+		} else if val, hasDefault := field.DefaultVal(); hasDefault {
+			dbVal = val
+		}
+		if dbVal != nil {
+			dbValues[name] = dbVal
+			if err := instance.Set(name, dbVal); err != nil {
+				return nil, err
+			}
+		}
+	}
+	pk, err := db.InsertRow(m.Model, dbValues)
 	if err != nil {
 		return instance, &DatabaseError{
 			db.name,
 			ErrorTrace{App: m.Model.app, Model: m.Model, Err: err},
 		}
 	}
-	instance.Set(m.Model.pk, pk)
-	for name, field := range m.Model.fields {
-		var value Value
-		if getter, ok := values.(Getter); ok {
-			if val, ok := getter.Get(name); ok {
-				value = val
-			}
-		} else if val, ok := getStructField(values, name); ok {
-			value = val
-		} else if val, hasDefault := field.DefaultVal(); hasDefault {
-			value = val
-		}
-		if value != nil {
-			if err := instance.Set(name, value); err != nil {
-				return nil, err
-			}
-		}
+	if err := instance.Set(m.Model.pk, pk); err != nil {
+		return nil, err
 	}
 	return instance, nil
 }

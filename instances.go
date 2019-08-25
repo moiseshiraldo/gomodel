@@ -1,10 +1,10 @@
 package gomodels
 
 import (
-	"database/sql/driver"
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 )
 
 type Instance struct {
@@ -25,17 +25,14 @@ func (i Instance) Model() *Model {
 }
 
 func (i Instance) GetIf(key string) (Value, bool) {
-	var val Value
-	var exists bool
-	if c, ok := i.container.(Getter); ok {
-		val, exists = c.Get(key)
-	} else {
-		val, exists = getStructField(i.container, key)
+	val, ok := getContainerField(i.container, key)
+	if !ok {
+		return nil, false
 	}
-	if field, ok := i.model.fields[key]; ok && exists {
+	if field, ok := i.model.fields[key]; ok {
 		return field.Value(val), true
 	}
-	return nil, false
+	return val, true
 }
 
 func (i Instance) Get(key string) Value {
@@ -45,11 +42,6 @@ func (i Instance) Get(key string) Value {
 
 func (i Instance) Set(key string, val Value) error {
 	field, _ := i.model.fields[key]
-	if vlr, isVlr := val.(driver.Valuer); isVlr {
-		if v, err := vlr.Value(); err == nil {
-			val = v
-		}
-	}
 	if c, ok := i.container.(Setter); ok {
 		if err := c.Set(key, val, field); err != nil {
 			return &ContainerError{i.trace(err)}
@@ -60,7 +52,7 @@ func (i Instance) Set(key string, val Value) error {
 		if !f.IsValid() || !f.CanSet() || !f.CanAddr() {
 			return &ContainerError{i.trace(fmt.Errorf("Invalid field"))}
 		}
-		if err := setContainerField(f.Addr().Interface(), val); err != nil {
+		if err := setRecipient(f.Addr().Interface(), val); err != nil {
 			return &ContainerError{i.trace(err)}
 		}
 	}
@@ -73,9 +65,25 @@ func (i Instance) Save(fields ...string) error {
 		return &ContainerError{i.trace(fmt.Errorf("container missing pk"))}
 	}
 	db := databases["default"]
+	dbValues := Values{}
+	for _, name := range fields {
+		field, ok := i.model.fields[name]
+		if !ok {
+			err := fmt.Errorf("unknown field: %s", name)
+			return &ContainerError{i.trace(err)}
+		}
+		if field.IsAutoNow() {
+			dbValues[name] = time.Now()
+		}
+		if val, ok := getContainerField(i.container, name); ok {
+			dbValues[name] = val
+		} else if val, hasDefault := field.DefaultVal(); hasDefault {
+			dbValues[name] = val
+		}
+	}
 	autoPk := i.model.fields[i.model.pk].IsAuto()
 	if autoPk && pkVal == reflect.Zero(reflect.TypeOf(pkVal)).Interface() {
-		pk, err := db.InsertRow(i.model, i.container, fields...)
+		pk, err := db.InsertRow(i.model, dbValues)
 		if err != nil {
 			return &DatabaseError{db.name, i.trace(err)}
 		}
@@ -83,14 +91,12 @@ func (i Instance) Save(fields ...string) error {
 			return err
 		}
 	} else {
-		rows, err := db.UpdateRows(
-			i.model, i.container, Q{i.model.pk: pkVal}, fields...,
-		)
+		rows, err := db.UpdateRows(i.model, dbValues, Q{i.model.pk: pkVal})
 		if err != nil {
 			return &DatabaseError{db.name, i.trace(err)}
 		}
 		if rows == 0 {
-			_, err := db.InsertRow(i.model, i.container, fields...)
+			_, err := db.InsertRow(i.model, dbValues)
 			if err != nil {
 				return &DatabaseError{db.name, i.trace(err)}
 			}
