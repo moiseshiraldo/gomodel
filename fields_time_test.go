@@ -136,7 +136,10 @@ func TestDateField(t *testing.T) {
 	})
 
 	t.Run("DriverValueTime", func(t *testing.T) {
-		recipient := time.Date(2019, 8, 24, 0, 0, 0, 0, time.UTC)
+		recipient := NullTime{
+			Time:  time.Date(2019, 8, 24, 0, 0, 0, 0, time.UTC),
+			Valid: true,
+		}
 		value, err := field.DriverValue(recipient, "sqlite3")
 		if err != nil {
 			t.Fatal(err)
@@ -165,6 +168,13 @@ func TestDateField(t *testing.T) {
 		}
 		if value != nil {
 			t.Errorf("expected nil, got %s", value)
+		}
+	})
+
+	t.Run("DriverValueInvalid", func(t *testing.T) {
+		recipient := 42
+		if _, err := field.DriverValue(recipient, "sqlite3"); err == nil {
+			t.Error("expected invalid value error")
 		}
 	})
 }
@@ -329,6 +339,13 @@ func TestTimeField(t *testing.T) {
 		}
 		if value != nil {
 			t.Errorf("expected nil, got %s", value)
+		}
+	})
+
+	t.Run("DriverValueInvalid", func(t *testing.T) {
+		recipient := 42
+		if _, err := field.DriverValue(recipient, "sqlite3"); err == nil {
+			t.Error("expected invalid value error")
 		}
 	})
 }
@@ -496,6 +513,13 @@ func TestDateTimeField(t *testing.T) {
 		}
 		if value != nil {
 			t.Errorf("expected nil, got %s", value)
+		}
+	})
+
+	t.Run("DriverValueInvalid", func(t *testing.T) {
+		recipient := 42
+		if _, err := field.DriverValue(recipient, "sqlite3"); err == nil {
+			t.Error("expected invalid value error")
 		}
 	})
 }

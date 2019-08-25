@@ -486,4 +486,15 @@ func TestIntegerField(t *testing.T) {
 			t.Errorf("expected nil, got %s", value)
 		}
 	})
+
+	t.Run("DriverValueNotNull", func(t *testing.T) {
+		recipient := NullInt32{Int32: 42, Valid: true}
+		value, err := field.DriverValue(recipient, "sqlite3")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v, ok := value.(int64); !ok || v != 42 {
+			t.Errorf("expected 42, got %d", v)
+		}
+	})
 }
