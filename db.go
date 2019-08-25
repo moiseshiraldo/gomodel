@@ -11,7 +11,7 @@ type Database struct {
 	Name     string
 	User     string
 	Password string
-	name     string
+	id       string
 }
 
 func (db Database) Conn() *sql.DB {
@@ -21,13 +21,13 @@ func (db Database) Conn() *sql.DB {
 func (db Database) BeginTx() (*Transaction, error) {
 	engine, err := db.Engine.BeginTx()
 	if err != nil {
-		return nil, &DatabaseError{db.name, ErrorTrace{Err: err}}
+		return nil, &DatabaseError{db.id, ErrorTrace{Err: err}}
 	}
 	return &Transaction{engine, db}, nil
 }
 
 func (db Database) Id() string {
-	return db.name
+	return db.id
 }
 
 type Transaction struct {
@@ -47,21 +47,19 @@ func (tx Transaction) Rollback() error {
 	return tx.RollbackTx()
 }
 
-type DBSettings map[string]Database
+var dbRegistry = map[string]Database{}
 
-var databases = DBSettings{}
-
-func Databases() DBSettings {
-	dbs := DBSettings{}
-	for name, db := range databases {
+func Databases() map[string]Database {
+	dbs := map[string]Database{}
+	for name, db := range dbRegistry {
 		dbs[name] = db
 	}
 	return dbs
 }
 
-func Start(options DBSettings) error {
+func Start(options map[string]Database) error {
 	for name, db := range options {
-		engine, ok := engines[db.Driver]
+		engine, ok := enginesRegistry[db.Driver]
 		if !ok {
 			err := fmt.Errorf("unsupported driver: %s", db.Driver)
 			return &DatabaseError{name, ErrorTrace{Err: err}}
@@ -71,11 +69,11 @@ func Start(options DBSettings) error {
 			return &DatabaseError{name, ErrorTrace{Err: err}}
 		}
 		db.Engine = eng
-		db.name = name
+		db.id = name
 		db.Password = ""
-		databases[name] = db
+		dbRegistry[name] = db
 	}
-	if _, ok := databases["default"]; !ok {
+	if _, ok := dbRegistry["default"]; !ok {
 		err := fmt.Errorf("missing default database")
 		return &DatabaseError{"default", ErrorTrace{Err: err}}
 	}
@@ -84,7 +82,7 @@ func Start(options DBSettings) error {
 
 func Stop() error {
 	var err error
-	for name, db := range databases {
+	for name, db := range dbRegistry {
 		if dbErr := db.Stop(); dbErr != nil {
 			err = &DatabaseError{name, ErrorTrace{Err: dbErr}}
 		}

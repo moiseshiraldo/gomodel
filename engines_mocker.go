@@ -6,6 +6,7 @@ import (
 )
 
 type MockedEngineResults struct {
+	Stop              error
 	BeginTx           error
 	CommitTx          error
 	RollbackTx        error
@@ -146,12 +147,13 @@ func (e MockedEngine) Start(db Database) (Engine, error) {
 	e.calls = make(map[string]int)
 	e.Args = &MockedEngineArgs{}
 	e.Results = &MockedEngineResults{}
+	e.calls["Start"] += 1
 	return e, nil
 }
 
 func (e MockedEngine) Stop() error {
 	e.calls["Stop"] += 1
-	return nil
+	return e.Results.Stop
 }
 
 func (e MockedEngine) Reset() {

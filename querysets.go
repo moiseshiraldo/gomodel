@@ -61,7 +61,7 @@ func (qs GenericQuerySet) addConditioner(c Conditioner) GenericQuerySet {
 }
 
 func (qs GenericQuerySet) Query() (Query, error) {
-	db, ok := databases[qs.database]
+	db, ok := dbRegistry[qs.database]
 	if !ok {
 		return Query{}, qs.dbError(fmt.Errorf("db not found"))
 	}
@@ -111,7 +111,7 @@ func (qs GenericQuerySet) load(start int64, end int64) ([]*Instance, error) {
 		return nil, &QuerySetError{qs.trace(err)}
 	}
 	result := []*Instance{}
-	db, ok := databases[qs.database]
+	db, ok := dbRegistry[qs.database]
 	if !ok {
 		return nil, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
@@ -166,7 +166,7 @@ func (qs GenericQuerySet) Slice(start int64, end int64) ([]*Instance, error) {
 
 func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 	qs = qs.addConditioner(c)
-	db, ok := databases[qs.database]
+	db, ok := dbRegistry[qs.database]
 	if !ok {
 		return nil, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
@@ -213,7 +213,7 @@ func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 }
 
 func (qs GenericQuerySet) Exists() (bool, error) {
-	db, ok := databases[qs.database]
+	db, ok := dbRegistry[qs.database]
 	if !ok {
 		return false, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
@@ -225,7 +225,7 @@ func (qs GenericQuerySet) Exists() (bool, error) {
 }
 
 func (qs GenericQuerySet) Count() (int64, error) {
-	db, ok := databases[qs.database]
+	db, ok := dbRegistry[qs.database]
 	if !ok {
 		return 0, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
@@ -237,7 +237,7 @@ func (qs GenericQuerySet) Count() (int64, error) {
 }
 
 func (qs GenericQuerySet) Update(container Container) (int64, error) {
-	db, ok := databases[qs.database]
+	db, ok := dbRegistry[qs.database]
 	if !ok {
 		return 0, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
@@ -262,7 +262,7 @@ func (qs GenericQuerySet) Update(container Container) (int64, error) {
 }
 
 func (qs GenericQuerySet) Delete() (int64, error) {
-	db, ok := databases[qs.database]
+	db, ok := dbRegistry[qs.database]
 	if !ok {
 		return 0, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}

@@ -144,7 +144,7 @@ func TestFieldOperations(t *testing.T) {
 	history["test"] = appState
 	defer clearHistory()
 	// DB setup
-	err := gomodels.Start(gomodels.DBSettings{
+	err := gomodels.Start(map[string]gomodels.Database{
 		"default": {Driver: "mocker", Name: "test"},
 	})
 	if err != nil {

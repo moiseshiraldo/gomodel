@@ -136,7 +136,7 @@ func TestNodeStorage(t *testing.T) {
 // TestNode tests node Run/Backwards functions
 func TestNode(t *testing.T) {
 	// DB setup
-	err := gomodels.Start(gomodels.DBSettings{
+	err := gomodels.Start(map[string]gomodels.Database{
 		"default": {Driver: "mocker", Name: "test"},
 	})
 	if err != nil {

@@ -42,7 +42,7 @@ func TestAppMigrate(t *testing.T) {
 	gomodels.Register(gomodels.NewApp("test", ""))
 	defer gomodels.ClearRegistry()
 	// DB setup
-	dbSettings := gomodels.DBSettings{
+	dbSettings := map[string]gomodels.Database{
 		"default": {Driver: "mocker", Name: "test"},
 	}
 	if err := gomodels.Start(dbSettings); err != nil {
@@ -685,7 +685,7 @@ func TestLoadAppliedMigrations(t *testing.T) {
 	history["test"] = appState
 	defer clearHistory()
 	// DB Setup
-	err := gomodels.Start(gomodels.DBSettings{
+	err := gomodels.Start(map[string]gomodels.Database{
 		"default": {Driver: "mocker", Name: "test"},
 	})
 	if err != nil {

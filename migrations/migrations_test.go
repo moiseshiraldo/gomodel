@@ -143,7 +143,7 @@ func TestRun(t *testing.T) {
 	gomodels.Register(app)
 	defer gomodels.ClearRegistry()
 	// DB setup
-	err := gomodels.Start(gomodels.DBSettings{
+	err := gomodels.Start(map[string]gomodels.Database{
 		"default": {Driver: "mocker", Name: "test"},
 	})
 	if err != nil {
@@ -266,7 +266,7 @@ func TestMakeAndRun(t *testing.T) {
 	gomodels.Register(app)
 	defer gomodels.ClearRegistry()
 	// DB setup
-	err := gomodels.Start(gomodels.DBSettings{
+	err := gomodels.Start(map[string]gomodels.Database{
 		"default": {Driver: "mocker", Name: "test"},
 	})
 	if err != nil {

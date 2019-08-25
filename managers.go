@@ -10,7 +10,7 @@ type Manager struct {
 }
 
 func (m Manager) Create(values Container) (*Instance, error) {
-	db := databases["default"]
+	db := dbRegistry["default"]
 	container := m.Model.Container()
 	instance := &Instance{m.Model, container}
 	if !isValidContainer(values) {
@@ -40,10 +40,8 @@ func (m Manager) Create(values Container) (*Instance, error) {
 	}
 	pk, err := db.InsertRow(m.Model, dbValues)
 	if err != nil {
-		return instance, &DatabaseError{
-			db.name,
-			ErrorTrace{App: m.Model.app, Model: m.Model, Err: err},
-		}
+		trace := ErrorTrace{App: m.Model.app, Model: m.Model, Err: err}
+		return instance, &DatabaseError{db.id, trace}
 	}
 	if err := instance.Set(m.Model.pk, pk); err != nil {
 		return nil, err

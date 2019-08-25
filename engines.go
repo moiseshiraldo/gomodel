@@ -36,7 +36,7 @@ type Engine interface {
 	Exists(m *Model, cond Conditioner) (bool, error)
 }
 
-var engines = map[string]Engine{
+var enginesRegistry = map[string]Engine{
 	"sqlite3":  SqliteEngine{},
 	"postgres": PostgresEngine{},
 	"mocker":   MockedEngine{},

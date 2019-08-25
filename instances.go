@@ -64,7 +64,7 @@ func (i Instance) Save(fields ...string) error {
 	if !hasPk {
 		return &ContainerError{i.trace(fmt.Errorf("container missing pk"))}
 	}
-	db := databases["default"]
+	db := dbRegistry["default"]
 	dbValues := Values{}
 	for _, name := range fields {
 		field, ok := i.model.fields[name]
@@ -85,7 +85,7 @@ func (i Instance) Save(fields ...string) error {
 	if autoPk && pkVal == reflect.Zero(reflect.TypeOf(pkVal)).Interface() {
 		pk, err := db.InsertRow(i.model, dbValues)
 		if err != nil {
-			return &DatabaseError{db.name, i.trace(err)}
+			return &DatabaseError{db.id, i.trace(err)}
 		}
 		if err := i.Set(i.model.pk, pk); err != nil {
 			return err
@@ -93,12 +93,12 @@ func (i Instance) Save(fields ...string) error {
 	} else {
 		rows, err := db.UpdateRows(i.model, dbValues, Q{i.model.pk: pkVal})
 		if err != nil {
-			return &DatabaseError{db.name, i.trace(err)}
+			return &DatabaseError{db.id, i.trace(err)}
 		}
 		if rows == 0 {
 			_, err := db.InsertRow(i.model, dbValues)
 			if err != nil {
-				return &DatabaseError{db.name, i.trace(err)}
+				return &DatabaseError{db.id, i.trace(err)}
 			}
 		}
 	}
