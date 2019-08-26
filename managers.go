@@ -50,15 +50,15 @@ func (m Manager) Create(values Container) (*Instance, error) {
 }
 
 func (m Manager) GetQuerySet() QuerySet {
-	cols := make([]string, 0, len(m.Model.fields))
+	fields := make([]string, 0, len(m.Model.fields))
 	for name := range m.Model.fields {
-		cols = append(cols, name)
+		fields = append(fields, name)
 	}
 	return GenericQuerySet{
 		model:     m.Model,
 		container: m.Model.meta.Container,
 		database:  "default",
-		columns:   cols,
+		fields:    fields,
 	}
 }
 
