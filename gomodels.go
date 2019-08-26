@@ -15,14 +15,14 @@ func (d Dispatcher) New(values Values) (*Instance, error) {
 	model := d.Model
 	instance := &Instance{model, model.meta.Container}
 	for name, field := range model.fields {
+		var value Value
 		if val, ok := values[name]; ok {
-			if err := instance.Set(name, val); err != nil {
-				return nil, err
-			}
+			value = val
 		} else if val, hasDefault := field.DefaultVal(); hasDefault {
-			if err := instance.Set(name, val); err != nil {
-				return nil, err
-			}
+			value = val
+		}
+		if err := instance.Set(name, value); err != nil {
+			return nil, err
 		}
 	}
 	return instance, nil
