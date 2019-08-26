@@ -7,6 +7,7 @@ import (
 
 type MockedEngineResults struct {
 	Stop              error
+	TxSupport         bool
 	BeginTx           error
 	CommitTx          error
 	RollbackTx        error
@@ -162,6 +163,12 @@ func (e MockedEngine) Reset() {
 	}
 	e.Args.Reset()
 	e.Results.Reset()
+}
+
+func (e MockedEngine) TxSupport() bool {
+	e.calls["TxSupport"] += 1
+	return e.Results.TxSupport
+	return true
 }
 
 func (e MockedEngine) DB() *sql.DB {

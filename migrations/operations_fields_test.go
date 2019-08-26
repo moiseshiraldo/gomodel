@@ -152,24 +152,20 @@ func TestFieldOperations(t *testing.T) {
 	}
 	defer gomodels.Stop()
 	db := gomodels.Databases()["default"]
-	tx, err := db.BeginTx()
-	if err != nil {
-		t.Fatal(err)
-	}
+	engine := db.Engine.(gomodels.MockedEngine)
 	t.Run("AddField", func(t *testing.T) {
-		testAddFieldOperation(t, tx, appState)
+		testAddFieldOperation(t, engine, appState)
 	})
 	t.Run("RemoveField", func(t *testing.T) {
-		testRemoveFieldOperation(t, tx, appState)
+		testRemoveFieldOperation(t, engine, appState)
 	})
 }
 
 func testAddFieldOperation(
 	t *testing.T,
-	tx *gomodels.Transaction,
+	mockedEngine gomodels.MockedEngine,
 	prevState *AppState,
 ) {
-	mockedEngine := tx.Engine.(gomodels.MockedEngine)
 	op := AddFields{
 		Model: "User",
 		Fields: gomodels.Fields{
@@ -191,14 +187,14 @@ func testAddFieldOperation(
 	t.Run("RunError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.AddColumns = fmt.Errorf("db error")
-		if err := op.Run(tx, state, prevState); err == nil {
+		if err := op.Run(mockedEngine, state, prevState); err == nil {
 			t.Errorf("expected db error")
 		}
 	})
 
 	t.Run("RunSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
-		if err := op.Run(tx, state, prevState); err != nil {
+		if err := op.Run(mockedEngine, state, prevState); err != nil {
 			t.Fatal(err)
 		}
 		if mockedEngine.Calls("AddColumns") != 1 {
@@ -209,14 +205,14 @@ func testAddFieldOperation(
 	t.Run("BackwardsError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.DropColumns = fmt.Errorf("db error")
-		if err := op.Backwards(tx, prevState, state); err == nil {
+		if err := op.Backwards(mockedEngine, prevState, state); err == nil {
 			t.Errorf("expected db error")
 		}
 	})
 
 	t.Run("BackwardsSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
-		if err := op.Backwards(tx, prevState, state); err != nil {
+		if err := op.Backwards(mockedEngine, prevState, state); err != nil {
 			t.Fatal(err)
 		}
 		if mockedEngine.Calls("DropColumns") != 1 {
@@ -227,10 +223,9 @@ func testAddFieldOperation(
 
 func testRemoveFieldOperation(
 	t *testing.T,
-	tx *gomodels.Transaction,
+	mockedEngine gomodels.MockedEngine,
 	prevState *AppState,
 ) {
-	mockedEngine := tx.Engine.(gomodels.MockedEngine)
 	op := RemoveFields{
 		Model:  "User",
 		Fields: []string{"email"},
@@ -248,14 +243,14 @@ func testRemoveFieldOperation(
 	t.Run("RunError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.DropColumns = fmt.Errorf("db error")
-		if err := op.Run(tx, state, prevState); err == nil {
+		if err := op.Run(mockedEngine, state, prevState); err == nil {
 			t.Errorf("expected db error")
 		}
 	})
 
 	t.Run("RunSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
-		if err := op.Run(tx, state, prevState); err != nil {
+		if err := op.Run(mockedEngine, state, prevState); err != nil {
 			t.Fatal(err)
 		}
 		if mockedEngine.Calls("DropColumns") != 1 {
@@ -266,14 +261,14 @@ func testRemoveFieldOperation(
 	t.Run("BackwardsError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.AddColumns = fmt.Errorf("db error")
-		if err := op.Backwards(tx, state, prevState); err == nil {
+		if err := op.Backwards(mockedEngine, state, prevState); err == nil {
 			t.Errorf("expected db error")
 		}
 	})
 
 	t.Run("BackwardsSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
-		if err := op.Backwards(tx, state, prevState); err != nil {
+		if err := op.Backwards(mockedEngine, state, prevState); err != nil {
 			t.Fatal(err)
 		}
 		if mockedEngine.Calls("AddColumns") != 1 {

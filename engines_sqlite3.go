@@ -24,6 +24,10 @@ func (e SqliteEngine) Stop() error {
 	return e.db.Close()
 }
 
+func (e SqliteEngine) TxSupport() bool {
+	return true
+}
+
 func (e SqliteEngine) DB() *sql.DB {
 	return e.db
 }

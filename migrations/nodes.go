@@ -116,33 +116,50 @@ func (n Node) runDependencies(db gomodels.Database) error {
 }
 
 func (n Node) runOperations(db gomodels.Database) error {
-	tx, err := db.BeginTx()
-	if err != nil {
-		return &gomodels.DatabaseError{db.Id(), gomodels.ErrorTrace{Err: err}}
+	engine := db.Engine
+	txSupport := db.TxSupport()
+	var tx *gomodels.Transaction
+	if txSupport {
+		var err error
+		tx, err = db.BeginTx()
+		if err != nil {
+			return &gomodels.DatabaseError{
+				db.Id(), gomodels.ErrorTrace{Err: err},
+			}
+		}
+		engine = tx.Engine
 	}
 	prevState := loadPreviousState(n)[n.App]
 	state := loadPreviousState(n)[n.App]
 	for _, op := range n.Operations {
 		op.SetState(state)
-		if err := op.Run(tx, state, prevState); err != nil {
-			if txErr := tx.Rollback(); txErr != nil {
-				return &gomodels.DatabaseError{
-					db.Id(), gomodels.ErrorTrace{Err: txErr},
+		if err := op.Run(engine, state, prevState); err != nil {
+			if txSupport {
+				if txErr := tx.Rollback(); txErr != nil {
+					return &gomodels.DatabaseError{
+						db.Id(), gomodels.ErrorTrace{Err: txErr},
+					}
 				}
 			}
 			return &OperationRunError{ErrorTrace{&n, op, err}}
 		}
 		op.SetState(prevState)
 	}
-	if err := tx.SaveMigration(n.App, n.number, n.Name); err != nil {
-		txErr := tx.Rollback()
-		if txErr != nil {
-			err = txErr
+	if err := engine.SaveMigration(n.App, n.number, n.Name); err != nil {
+		if txSupport {
+			txErr := tx.Rollback()
+			if txErr != nil {
+				err = txErr
+			}
 		}
 		return &gomodels.DatabaseError{db.Id(), gomodels.ErrorTrace{Err: err}}
 	}
-	if err = tx.Commit(); err != nil {
-		return &gomodels.DatabaseError{db.Id(), gomodels.ErrorTrace{Err: err}}
+	if txSupport {
+		if err := tx.Commit(); err != nil {
+			return &gomodels.DatabaseError{
+				db.Id(), gomodels.ErrorTrace{Err: err},
+			}
+		}
 	}
 	return nil
 }
@@ -177,9 +194,18 @@ func (n Node) backwardDependencies(db gomodels.Database) error {
 }
 
 func (n Node) backwardOperations(db gomodels.Database) error {
-	tx, err := db.BeginTx()
-	if err != nil {
-		return &gomodels.DatabaseError{db.Id(), gomodels.ErrorTrace{Err: err}}
+	engine := db.Engine
+	txSupport := db.TxSupport()
+	var tx *gomodels.Transaction
+	if txSupport {
+		var err error
+		tx, err = db.BeginTx()
+		if err != nil {
+			return &gomodels.DatabaseError{
+				db.Id(), gomodels.ErrorTrace{Err: err},
+			}
+		}
+		engine = tx.Engine
 	}
 	states := make([]*AppState, len(n.Operations)+1)
 	states[0] = loadPreviousState(n)[n.App]
@@ -190,24 +216,32 @@ func (n Node) backwardOperations(db gomodels.Database) error {
 	for k := range n.Operations {
 		i := len(n.Operations) - 1 - k
 		op := n.Operations[i]
-		err := op.Backwards(tx, states[i+1], states[i])
+		err := op.Backwards(engine, states[i+1], states[i])
 		if err != nil {
-			if txErr := tx.Rollback(); txErr != nil {
-				return &gomodels.DatabaseError{
-					db.Id(), gomodels.ErrorTrace{Err: txErr},
+			if txSupport {
+				if txErr := tx.Rollback(); txErr != nil {
+					return &gomodels.DatabaseError{
+						db.Id(), gomodels.ErrorTrace{Err: txErr},
+					}
 				}
 			}
 			return &OperationRunError{ErrorTrace{&n, op, err}}
 		}
 	}
-	if err := tx.DeleteMigration(n.App, n.number); err != nil {
-		if txErr := tx.Rollback(); txErr != nil {
-			err = txErr
+	if err := engine.DeleteMigration(n.App, n.number); err != nil {
+		if txSupport {
+			if txErr := tx.Rollback(); txErr != nil {
+				err = txErr
+			}
 		}
 		return &gomodels.DatabaseError{db.Id(), gomodels.ErrorTrace{Err: err}}
 	}
-	if err = tx.Commit(); err != nil {
-		return &gomodels.DatabaseError{db.Id(), gomodels.ErrorTrace{Err: err}}
+	if txSupport {
+		if err := tx.Commit(); err != nil {
+			return &gomodels.DatabaseError{
+				db.Id(), gomodels.ErrorTrace{Err: err},
+			}
+		}
 	}
 	return nil
 }

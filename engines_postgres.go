@@ -28,6 +28,10 @@ func (e PostgresEngine) Stop() error {
 	return e.db.Close()
 }
 
+func (e PostgresEngine) TxSupport() bool {
+	return true
+}
+
 func (e PostgresEngine) DB() *sql.DB {
 	return e.db
 }

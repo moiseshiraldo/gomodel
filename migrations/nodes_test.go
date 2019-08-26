@@ -154,6 +154,7 @@ func testNodeRun(t *testing.T, db gomodels.Database) {
 	setup := func() *Node {
 		op.reset()
 		mockedEngine.Reset()
+		mockedEngine.Results.TxSupport = true
 		return &Node{
 			App:        "test",
 			Name:       "initial",
@@ -310,6 +311,7 @@ func testNodeBackwards(t *testing.T, db gomodels.Database) {
 	setup := func() *Node {
 		op.reset()
 		mockedEngine.Reset()
+		mockedEngine.Results.TxSupport = true
 		return &Node{
 			App:        "test",
 			Name:       "initial",

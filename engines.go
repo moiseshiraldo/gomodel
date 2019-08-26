@@ -22,6 +22,7 @@ type Engine interface {
 	Migrator
 	Start(Database) (Engine, error)
 	Stop() error
+	TxSupport() bool
 	DB() *sql.DB
 	Tx() *sql.Tx
 	BeginTx() (Engine, error)

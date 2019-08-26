@@ -36,7 +36,7 @@ func (op *mockedOperation) SetState(state *AppState) error {
 }
 
 func (op *mockedOperation) Run(
-	tx *gomodels.Transaction,
+	engine gomodels.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
@@ -48,7 +48,7 @@ func (op *mockedOperation) Run(
 }
 
 func (op *mockedOperation) Backwards(
-	tx *gomodels.Transaction,
+	engine gomodels.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {

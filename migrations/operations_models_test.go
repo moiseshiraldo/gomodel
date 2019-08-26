@@ -172,30 +172,26 @@ func TestModelOperations(t *testing.T) {
 	}
 	defer gomodels.Stop()
 	db := gomodels.Databases()["default"]
-	tx, err := db.BeginTx()
-	if err != nil {
-		t.Fatal(err)
-	}
+	engine := db.Engine.(gomodels.MockedEngine)
 	t.Run("AddModel", func(t *testing.T) {
-		testAddModelOperation(t, tx, appState)
+		testAddModelOperation(t, engine, appState)
 	})
 	t.Run("DeleteModel", func(t *testing.T) {
-		testDeleteModelOperation(t, tx, appState)
+		testDeleteModelOperation(t, engine, appState)
 	})
 	t.Run("AddIndex", func(t *testing.T) {
-		testAddIndexOperation(t, tx, appState)
+		testAddIndexOperation(t, engine, appState)
 	})
 	t.Run("RemoveIndex", func(t *testing.T) {
-		testRemoveIndexOperation(t, tx, appState)
+		testRemoveIndexOperation(t, engine, appState)
 	})
 }
 
 func testAddModelOperation(
 	t *testing.T,
-	tx *gomodels.Transaction,
+	mockedEngine gomodels.MockedEngine,
 	prevState *AppState,
 ) {
-	mockedEngine := tx.Engine.(gomodels.MockedEngine)
 	op := CreateModel{Name: "Customer"}
 	model := gomodels.New(
 		"Customer", gomodels.Fields{}, gomodels.Options{},
@@ -211,14 +207,14 @@ func testAddModelOperation(
 	t.Run("RunError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.CreateTable = fmt.Errorf("db error")
-		if err := op.Run(tx, state, prevState); err == nil {
+		if err := op.Run(mockedEngine, state, prevState); err == nil {
 			t.Errorf("expected db error")
 		}
 	})
 
 	t.Run("RunSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
-		if err := op.Run(tx, state, prevState); err != nil {
+		if err := op.Run(mockedEngine, state, prevState); err != nil {
 			t.Fatal(err)
 		}
 		if mockedEngine.Calls("CreateTable") != 1 {
@@ -229,14 +225,14 @@ func testAddModelOperation(
 	t.Run("BackwardsError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.DropTable = fmt.Errorf("db error")
-		if err := op.Backwards(tx, prevState, state); err == nil {
+		if err := op.Backwards(mockedEngine, prevState, state); err == nil {
 			t.Errorf("expected db error")
 		}
 	})
 
 	t.Run("BackwardsSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
-		if err := op.Backwards(tx, prevState, state); err != nil {
+		if err := op.Backwards(mockedEngine, prevState, state); err != nil {
 			t.Fatal(err)
 		}
 		if mockedEngine.Calls("DropTable") != 1 {
@@ -247,10 +243,9 @@ func testAddModelOperation(
 
 func testDeleteModelOperation(
 	t *testing.T,
-	tx *gomodels.Transaction,
+	mockedEngine gomodels.MockedEngine,
 	prevState *AppState,
 ) {
-	mockedEngine := tx.Engine.(gomodels.MockedEngine)
 	op := DeleteModel{Name: "User"}
 	state := &AppState{
 		app:    prevState.app,
@@ -260,14 +255,14 @@ func testDeleteModelOperation(
 	t.Run("RunError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.DropTable = fmt.Errorf("db error")
-		if err := op.Run(tx, state, prevState); err == nil {
+		if err := op.Run(mockedEngine, state, prevState); err == nil {
 			t.Errorf("expected db error")
 		}
 	})
 
 	t.Run("RunSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
-		if err := op.Run(tx, state, prevState); err != nil {
+		if err := op.Run(mockedEngine, state, prevState); err != nil {
 			t.Fatal(err)
 		}
 		if mockedEngine.Calls("DropTable") != 1 {
@@ -278,14 +273,14 @@ func testDeleteModelOperation(
 	t.Run("BackwardsError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.CreateTable = fmt.Errorf("db error")
-		if err := op.Backwards(tx, prevState, state); err == nil {
+		if err := op.Backwards(mockedEngine, prevState, state); err == nil {
 			t.Errorf("expected db error")
 		}
 	})
 
 	t.Run("BackwardsSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
-		if err := op.Backwards(tx, prevState, state); err != nil {
+		if err := op.Backwards(mockedEngine, prevState, state); err != nil {
 			t.Fatal(err)
 		}
 		if mockedEngine.Calls("CreateTable") != 1 {
@@ -296,10 +291,9 @@ func testDeleteModelOperation(
 
 func testAddIndexOperation(
 	t *testing.T,
-	tx *gomodels.Transaction,
+	mockedEngine gomodels.MockedEngine,
 	prevState *AppState,
 ) {
-	mockedEngine := tx.Engine.(gomodels.MockedEngine)
 	op := AddIndex{
 		Model:  "User",
 		Name:   "test_index",
@@ -322,14 +316,14 @@ func testAddIndexOperation(
 	t.Run("RunError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.AddIndex = fmt.Errorf("db error")
-		if err := op.Run(tx, state, prevState); err == nil {
+		if err := op.Run(mockedEngine, state, prevState); err == nil {
 			t.Errorf("expected db error")
 		}
 	})
 
 	t.Run("RunSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
-		if err := op.Run(tx, state, prevState); err != nil {
+		if err := op.Run(mockedEngine, state, prevState); err != nil {
 			t.Fatal(err)
 		}
 		if mockedEngine.Calls("AddIndex") != 1 {
@@ -340,14 +334,14 @@ func testAddIndexOperation(
 	t.Run("BackwardsError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.DropIndex = fmt.Errorf("db error")
-		if err := op.Backwards(tx, prevState, state); err == nil {
+		if err := op.Backwards(mockedEngine, prevState, state); err == nil {
 			t.Errorf("expected db error")
 		}
 	})
 
 	t.Run("BackwardsSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
-		if err := op.Backwards(tx, prevState, state); err != nil {
+		if err := op.Backwards(mockedEngine, prevState, state); err != nil {
 			t.Fatal(err)
 		}
 		if mockedEngine.Calls("DropIndex") != 1 {
@@ -358,10 +352,9 @@ func testAddIndexOperation(
 
 func testRemoveIndexOperation(
 	t *testing.T,
-	tx *gomodels.Transaction,
+	mockedEngine gomodels.MockedEngine,
 	prevState *AppState,
 ) {
-	mockedEngine := tx.Engine.(gomodels.MockedEngine)
 	op := RemoveIndex{
 		Model: "User",
 		Name:  "test_index",
@@ -383,14 +376,14 @@ func testRemoveIndexOperation(
 	t.Run("RunError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.DropIndex = fmt.Errorf("db error")
-		if err := op.Run(tx, state, prevState); err == nil {
+		if err := op.Run(mockedEngine, state, prevState); err == nil {
 			t.Errorf("expected db error")
 		}
 	})
 
 	t.Run("RunSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
-		if err := op.Run(tx, state, prevState); err != nil {
+		if err := op.Run(mockedEngine, state, prevState); err != nil {
 			t.Fatal(err)
 		}
 		if mockedEngine.Calls("DropIndex") != 1 {
@@ -401,14 +394,14 @@ func testRemoveIndexOperation(
 	t.Run("BackwardsError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.AddIndex = fmt.Errorf("db error")
-		if err := op.Backwards(tx, prevState, state); err == nil {
+		if err := op.Backwards(mockedEngine, prevState, state); err == nil {
 			t.Errorf("expected db error")
 		}
 	})
 
 	t.Run("BackwardsSuccess", func(t *testing.T) {
 		mockedEngine.Reset()
-		if err := op.Backwards(tx, prevState, state); err != nil {
+		if err := op.Backwards(mockedEngine, prevState, state); err != nil {
 			t.Fatal(err)
 		}
 		if mockedEngine.Calls("AddIndex") != 1 {

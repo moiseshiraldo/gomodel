@@ -30,19 +30,19 @@ func (op CreateModel) SetState(state *AppState) error {
 }
 
 func (op CreateModel) Run(
-	tx *gomodels.Transaction,
+	engine gomodels.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
-	return tx.CreateTable(state.Models[op.Name])
+	return engine.CreateTable(state.Models[op.Name])
 }
 
 func (op CreateModel) Backwards(
-	tx *gomodels.Transaction,
+	engine gomodels.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
-	return tx.DropTable(state.Models[op.Name])
+	return engine.DropTable(state.Models[op.Name])
 }
 
 type DeleteModel struct {
@@ -62,19 +62,19 @@ func (op DeleteModel) SetState(state *AppState) error {
 }
 
 func (op DeleteModel) Run(
-	tx *gomodels.Transaction,
+	engine gomodels.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
-	return tx.DropTable(prevState.Models[op.Name])
+	return engine.DropTable(prevState.Models[op.Name])
 }
 
 func (op DeleteModel) Backwards(
-	tx *gomodels.Transaction,
+	engine gomodels.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
-	return tx.CreateTable(prevState.Models[op.Name])
+	return engine.CreateTable(prevState.Models[op.Name])
 }
 
 type AddIndex struct {
@@ -96,19 +96,19 @@ func (op AddIndex) SetState(state *AppState) error {
 }
 
 func (op AddIndex) Run(
-	tx *gomodels.Transaction,
+	engine gomodels.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
-	return tx.AddIndex(state.Models[op.Model], op.Name, op.Fields...)
+	return engine.AddIndex(state.Models[op.Model], op.Name, op.Fields...)
 }
 
 func (op AddIndex) Backwards(
-	tx *gomodels.Transaction,
+	engine gomodels.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
-	return tx.DropIndex(state.Models[op.Model], op.Name)
+	return engine.DropIndex(state.Models[op.Model], op.Name)
 }
 
 type RemoveIndex struct {
@@ -129,18 +129,18 @@ func (op RemoveIndex) SetState(state *AppState) error {
 }
 
 func (op RemoveIndex) Run(
-	tx *gomodels.Transaction,
+	engine gomodels.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
-	return tx.DropIndex(state.Models[op.Model], op.Name)
+	return engine.DropIndex(state.Models[op.Model], op.Name)
 }
 
 func (op RemoveIndex) Backwards(
-	tx *gomodels.Transaction,
+	engine gomodels.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
 	model := prevState.Models[op.Model]
-	return tx.AddIndex(model, op.Name, model.Indexes()[op.Name]...)
+	return engine.AddIndex(model, op.Name, model.Indexes()[op.Name]...)
 }

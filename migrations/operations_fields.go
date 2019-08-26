@@ -28,15 +28,15 @@ func (op AddFields) SetState(state *AppState) error {
 }
 
 func (op AddFields) Run(
-	tx *gomodels.Transaction,
+	engine gomodels.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
-	return tx.AddColumns(state.Models[op.Model], op.Fields)
+	return engine.AddColumns(state.Models[op.Model], op.Fields)
 }
 
 func (op AddFields) Backwards(
-	tx *gomodels.Transaction,
+	engine gomodels.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
@@ -44,7 +44,7 @@ func (op AddFields) Backwards(
 	for name := range op.Fields {
 		fields = append(fields, name)
 	}
-	return tx.DropColumns(
+	return engine.DropColumns(
 		state.Models[op.Model], prevState.Models[op.Model], fields...,
 	)
 }
@@ -72,17 +72,17 @@ func (op RemoveFields) SetState(state *AppState) error {
 }
 
 func (op RemoveFields) Run(
-	tx *gomodels.Transaction,
+	engine gomodels.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
-	return tx.DropColumns(
+	return engine.DropColumns(
 		prevState.Models[op.Model], state.Models[op.Model], op.Fields...,
 	)
 }
 
 func (op RemoveFields) Backwards(
-	tx *gomodels.Transaction,
+	engine gomodels.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
@@ -91,5 +91,5 @@ func (op RemoveFields) Backwards(
 	for _, name := range op.Fields {
 		newFields[name] = fields[name]
 	}
-	return tx.AddColumns(state.Models[op.Model], newFields)
+	return engine.AddColumns(state.Models[op.Model], newFields)
 }

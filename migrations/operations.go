@@ -10,8 +10,8 @@ import (
 type Operation interface {
 	OpName() string
 	SetState(state *AppState) error
-	Run(tx *gomodels.Transaction, state *AppState, prevState *AppState) error
-	Backwards(tx *gomodels.Transaction, state *AppState, prevState *AppState) error
+	Run(eng gomodels.Engine, state *AppState, prevState *AppState) error
+	Backwards(eng gomodels.Engine, state *AppState, prevState *AppState) error
 }
 
 type OperationList []Operation
