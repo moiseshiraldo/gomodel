@@ -5,6 +5,36 @@ import (
 	"testing"
 )
 
+type mockedQuerySet struct {
+	GenericQuerySet
+	calls map[string]int
+}
+
+func (qs mockedQuerySet) Wrap(gen GenericQuerySet) QuerySet {
+	qs.GenericQuerySet = gen
+	return qs
+}
+
+func (qs mockedQuerySet) Filter(cond Conditioner) QuerySet {
+	qs.calls["Filter"] += 1
+	return qs
+}
+
+func (qs mockedQuerySet) Exclude(cond Conditioner) QuerySet {
+	qs.calls["Exclude"] += 1
+	return qs
+}
+
+func (qs mockedQuerySet) Get(cond Conditioner) (*Instance, error) {
+	qs.calls["Get"] += 1
+	return &Instance{container: Values{"qs": qs}}, nil
+}
+
+func (qs mockedQuerySet) WithContainer(container Container) QuerySet {
+	qs.calls["WithContainer"] += 1
+	return qs
+}
+
 // TestManager tests the Manager struct methods
 func TestManager(t *testing.T) {
 	// Model setup
@@ -19,7 +49,7 @@ func TestManager(t *testing.T) {
 		},
 		meta: Options{Container: Values{}},
 	}
-	manager := Manager{model, GenericQuerySet{}}
+	manager := Manager{model, mockedQuerySet{calls: map[string]int{}}}
 	// DB setup
 	engine, _ := enginesRegistry["mocker"].Start(Database{})
 	mockedEngine := engine.(MockedEngine)
@@ -79,40 +109,56 @@ func TestManager(t *testing.T) {
 
 	t.Run("All", func(t *testing.T) {
 		qs := manager.All()
-		gqs, ok := qs.(GenericQuerySet)
+		mocked, ok := qs.(mockedQuerySet)
 		if !ok {
-			t.Fatalf("expected GenericQuerySet, got %T", qs)
+			t.Fatalf("expected mockedQuerySet, got %T", qs)
 		}
-		if gqs.model != model {
+		if mocked.GenericQuerySet.model != model {
 			t.Error("expected queryset to be linked to model")
 		}
 	})
 
 	t.Run("Filter", func(t *testing.T) {
 		qs := manager.Filter(Q{"active": true})
-		gqs, ok := qs.(GenericQuerySet)
+		mocked, ok := qs.(mockedQuerySet)
 		if !ok {
-			t.Fatalf("expected GenericQuerySet, got %T", qs)
+			t.Fatalf("expected mockedQuerySet, got %T", qs)
 		}
-		filter := gqs.cond.Predicate()
-		if _, ok := filter["active"]; !ok {
-			t.Error("filter is missing active condition")
+		if mocked.calls["Filter"] != 1 {
+			t.Error("expected  queryset Filter method to be called")
 		}
 	})
 
 	t.Run("Exclude", func(t *testing.T) {
 		qs := manager.Exclude(Q{"email": "user@test.com"})
-		gqs, ok := qs.(GenericQuerySet)
+		mocked, ok := qs.(mockedQuerySet)
 		if !ok {
-			t.Fatalf("expected GenericQuerySet, got %T", qs)
+			t.Fatalf("expected mockedQuerySet, got %T", qs)
 		}
-		cond, _, isNot := gqs.cond.Next()
-		if !isNot {
-			t.Error("expected filter to be NOT")
+		if mocked.calls["Exclude"] != 1 {
+			t.Error("expected queryset Exclude method to be called")
 		}
-		filter := cond.Predicate()
-		if _, ok := filter["email"]; !ok {
-			t.Error("filter is missing email condition")
+	})
+
+	t.Run("Get", func(t *testing.T) {
+		instance, _ := manager.Get(Q{"pk": 42})
+		mocked, ok := instance.container.(Values)["qs"].(mockedQuerySet)
+		if !ok {
+			t.Fatal("expected mockedQuerySet")
+		}
+		if mocked.calls["Get"] != 1 {
+			t.Error("expected queryset Exclude method to be called")
+		}
+	})
+
+	t.Run("WithContainer", func(t *testing.T) {
+		qs := manager.WithContainer(Values{})
+		mocked, ok := qs.(mockedQuerySet)
+		if !ok {
+			t.Fatalf("expected mockedQuerySet, got %T", qs)
+		}
+		if mocked.calls["WithContainer"] != 1 {
+			t.Error("expected queryset WithContainer method to be called")
 		}
 	})
 

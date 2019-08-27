@@ -15,7 +15,6 @@ type QuerySet interface {
 	New(m *Model, base QuerySet) QuerySet
 	Wrap(qs GenericQuerySet) QuerySet
 	Model() *Model
-	Container() Container
 	WithContainer(c Container) QuerySet
 	Filter(c Conditioner) QuerySet
 	Exclude(c Conditioner) QuerySet
@@ -80,28 +79,8 @@ func (qs GenericQuerySet) addConditioner(c Conditioner) GenericQuerySet {
 	return qs
 }
 
-func (qs GenericQuerySet) Query() (Query, error) {
-	db, ok := dbRegistry[qs.database]
-	if !ok {
-		return Query{}, qs.dbError(fmt.Errorf("db not found"))
-	}
-	return db.SelectQuery(qs.model, qs.cond, qs.fields...)
-}
-
 func (qs GenericQuerySet) Model() *Model {
 	return qs.model
-}
-
-func (qs GenericQuerySet) Container() Container {
-	if b, ok := qs.container.(Builder); ok {
-		return b.New()
-	} else {
-		ct := reflect.TypeOf(qs.container)
-		if ct.Kind() == reflect.Ptr {
-			ct = ct.Elem()
-		}
-		return reflect.New(ct).Interface()
-	}
 }
 
 func (qs GenericQuerySet) WithContainer(container Container) QuerySet {
@@ -125,6 +104,14 @@ func (qs GenericQuerySet) Exclude(c Conditioner) QuerySet {
 	return qs.base.Wrap(qs)
 }
 
+func (qs GenericQuerySet) Query() (Query, error) {
+	db, ok := dbRegistry[qs.database]
+	if !ok {
+		return Query{}, qs.dbError(fmt.Errorf("db not found"))
+	}
+	return db.SelectQuery(qs.model, qs.cond, qs.fields...)
+}
+
 func (qs GenericQuerySet) load(start int64, end int64) ([]*Instance, error) {
 	if start < 0 || end != -1 && start >= end || end < -1 {
 		err := fmt.Errorf("invalid slice indexes: %d %d", start, end)
@@ -138,7 +125,7 @@ func (qs GenericQuerySet) load(start int64, end int64) ([]*Instance, error) {
 	if qs.container == nil {
 		return nil, qs.containerError(fmt.Errorf("invalid container"))
 	}
-	container := qs.Container()
+	container := newContainer(qs.container)
 	recipients := getRecipients(container, qs.fields, qs.model)
 	if len(recipients) != len(qs.fields) {
 		err := fmt.Errorf("invalid container recipients")
@@ -150,7 +137,7 @@ func (qs GenericQuerySet) load(start int64, end int64) ([]*Instance, error) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		container = qs.Container()
+		container = newContainer(qs.container)
 		if _, ok := container.(Setter); !ok {
 			recipients = getRecipients(container, qs.fields, qs.model)
 		}
@@ -190,7 +177,10 @@ func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 	if !ok {
 		return nil, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
-	container := qs.Container()
+	if qs.container == nil {
+		return nil, qs.containerError(fmt.Errorf("invalid container"))
+	}
+	container := newContainer(qs.container)
 	recipients := getRecipients(container, qs.fields, qs.model)
 	if len(recipients) != len(qs.fields) {
 		err := fmt.Errorf("invalid container recipients")
@@ -201,9 +191,6 @@ func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 		return nil, qs.dbError(err)
 	}
 	defer rows.Close()
-	if err != nil {
-		return nil, qs.dbError(err)
-	}
 	n := 0
 	for rows.Next() {
 		if n > 0 {

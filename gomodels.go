@@ -2,7 +2,6 @@ package gomodels
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 )
 
@@ -81,15 +80,7 @@ func (m Model) Indexes() Indexes {
 }
 
 func (m Model) Container() Container {
-	if b, ok := m.meta.Container.(Builder); ok {
-		return b.New()
-	} else {
-		ct := reflect.TypeOf(m.meta.Container)
-		if ct.Kind() == reflect.Ptr {
-			ct = ct.Elem()
-		}
-		return reflect.New(ct).Interface()
-	}
+	return newContainer(m.meta.Container)
 }
 
 func (m *Model) Register(app *Application) error {
