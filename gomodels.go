@@ -8,7 +8,7 @@ import (
 
 type Dispatcher struct {
 	*Model
-	Objects *Manager
+	Objects Manager
 }
 
 func (d Dispatcher) New(values Values) (*Instance, error) {
@@ -218,5 +218,5 @@ func New(name string, fields Fields, options Options) *Dispatcher {
 		options.Indexes = Indexes{}
 	}
 	model := &Model{name: name, fields: fields, meta: options}
-	return &Dispatcher{model, &Manager{model}}
+	return &Dispatcher{model, Manager{model, GenericQuerySet{}}}
 }

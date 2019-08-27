@@ -20,7 +20,7 @@ func loadMapInstance(b *testing.B) {
 }
 
 func loadStructInstance(b *testing.B) {
-	qs := User.Objects.SetContainer(userContainer{})
+	qs := User.Objects.WithContainer(userContainer{})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		user, err := qs.Get(gomodels.Q{"firstName": "Anakin"})
@@ -32,7 +32,7 @@ func loadStructInstance(b *testing.B) {
 }
 
 func loadBuilderInstance(b *testing.B) {
-	qs := User.Objects.SetContainer(&userBuilder{})
+	qs := User.Objects.WithContainer(&userBuilder{})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		user, err := qs.Get(gomodels.Q{"firstName": "Anakin"})

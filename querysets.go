@@ -12,9 +12,11 @@ type Query struct {
 }
 
 type QuerySet interface {
+	New(m *Model, base QuerySet) QuerySet
+	Wrap(qs GenericQuerySet) QuerySet
 	Model() *Model
 	Container() Container
-	SetContainer(c Container) QuerySet
+	WithContainer(c Container) QuerySet
 	Filter(c Conditioner) QuerySet
 	Exclude(c Conditioner) QuerySet
 	Query() (Query, error)
@@ -30,9 +32,27 @@ type QuerySet interface {
 type GenericQuerySet struct {
 	model     *Model
 	container Container
+	base      QuerySet
 	database  string
 	fields    []string
 	cond      Conditioner
+}
+
+func (qs GenericQuerySet) New(m *Model, base QuerySet) QuerySet {
+	fields := make([]string, 0, len(m.fields))
+	for name := range m.fields {
+		fields = append(fields, name)
+	}
+	qs.model = m
+	qs.container = m.meta.Container
+	qs.base = base
+	qs.database = "default"
+	qs.fields = fields
+	return base.Wrap(qs)
+}
+
+func (qs GenericQuerySet) Wrap(child GenericQuerySet) QuerySet {
+	return child
 }
 
 func (qs GenericQuerySet) trace(err error) ErrorTrace {
@@ -84,17 +104,17 @@ func (qs GenericQuerySet) Container() Container {
 	}
 }
 
-func (qs GenericQuerySet) SetContainer(container Container) QuerySet {
+func (qs GenericQuerySet) WithContainer(container Container) QuerySet {
 	if isValidContainer(container) {
 		qs.container = container
 	} else {
 		qs.container = nil
 	}
-	return qs
+	return qs.base.Wrap(qs)
 }
 
 func (qs GenericQuerySet) Filter(c Conditioner) QuerySet {
-	return qs.addConditioner(c)
+	return qs.base.Wrap(qs.addConditioner(c))
 }
 
 func (qs GenericQuerySet) Exclude(c Conditioner) QuerySet {
@@ -102,7 +122,7 @@ func (qs GenericQuerySet) Exclude(c Conditioner) QuerySet {
 		qs.cond = Q{}
 	}
 	qs.cond = qs.cond.AndNot(c)
-	return qs
+	return qs.base.Wrap(qs)
 }
 
 func (qs GenericQuerySet) load(start int64, end int64) ([]*Instance, error) {
@@ -203,9 +223,7 @@ func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 	instance := &Instance{qs.model, container}
 	if _, ok := container.(Setter); ok {
 		for i, name := range qs.fields {
-			val := reflect.Indirect(
-				reflect.ValueOf(recipients[i]),
-			).Interface()
+			val := reflect.Indirect(reflect.ValueOf(recipients[i])).Interface()
 			instance.Set(name, val)
 		}
 	}

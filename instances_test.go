@@ -144,6 +144,7 @@ func TestInstance(t *testing.T) {
 
 // TestInstanceSave tests the Instance save method
 func TestInstanceSave(t *testing.T) {
+	// Model setup
 	model := &Model{
 		name: "User",
 		pk:   "id",
@@ -156,6 +157,7 @@ func TestInstanceSave(t *testing.T) {
 		},
 	}
 	instance := Instance{model, Values{}}
+	// DB Setup
 	engine, _ := enginesRegistry["mocker"].Start(Database{})
 	mockedEngine := engine.(MockedEngine)
 	dbRegistry["default"] = Database{id: "default", Engine: engine}

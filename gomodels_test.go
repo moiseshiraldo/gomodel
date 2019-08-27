@@ -338,7 +338,7 @@ func TestDispatcher(t *testing.T) {
 	}
 	dispatcher := Dispatcher{
 		Model:   model,
-		Objects: &Manager{model},
+		Objects: Manager{model, GenericQuerySet{}},
 	}
 
 	t.Run("NewInstance", func(t *testing.T) {
@@ -398,7 +398,7 @@ func TestDispatcher(t *testing.T) {
 			t.Error("model is missing username field")
 		}
 		manager := dispatcher.Objects
-		if manager == nil || manager.Model != dispatcher.Model {
+		if manager.Model != dispatcher.Model {
 			t.Error("manager was not set up correctly")
 		}
 	})

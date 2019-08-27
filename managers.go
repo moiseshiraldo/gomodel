@@ -6,7 +6,8 @@ import (
 )
 
 type Manager struct {
-	Model *Model
+	Model    *Model
+	QuerySet QuerySet
 }
 
 func (m Manager) Create(values Container) (*Instance, error) {
@@ -43,23 +44,16 @@ func (m Manager) Create(values Container) (*Instance, error) {
 		trace := ErrorTrace{App: m.Model.app, Model: m.Model, Err: err}
 		return instance, &DatabaseError{db.id, trace}
 	}
-	if err := instance.Set(m.Model.pk, pk); err != nil {
-		return nil, err
+	if m.Model.fields[m.Model.pk].IsAuto() {
+		if err := instance.Set(m.Model.pk, pk); err != nil {
+			return nil, err
+		}
 	}
 	return instance, nil
 }
 
 func (m Manager) GetQuerySet() QuerySet {
-	fields := make([]string, 0, len(m.Model.fields))
-	for name := range m.Model.fields {
-		fields = append(fields, name)
-	}
-	return GenericQuerySet{
-		model:     m.Model,
-		container: m.Model.meta.Container,
-		database:  "default",
-		fields:    fields,
-	}
+	return m.QuerySet.New(m.Model, m.QuerySet)
 }
 
 func (m Manager) All() QuerySet {
@@ -67,17 +61,17 @@ func (m Manager) All() QuerySet {
 }
 
 func (m Manager) Filter(c Conditioner) QuerySet {
-	return m.GetQuerySet().Filter(c)
+	return m.All().Filter(c)
 }
 
 func (m Manager) Exclude(c Conditioner) QuerySet {
-	return m.GetQuerySet().Exclude(c)
+	return m.All().Exclude(c)
 }
 
 func (m Manager) Get(c Conditioner) (*Instance, error) {
-	return m.GetQuerySet().Get(c)
+	return m.All().Get(c)
 }
 
-func (m Manager) SetContainer(container Container) QuerySet {
-	return m.GetQuerySet().SetContainer(container)
+func (m Manager) WithContainer(container Container) QuerySet {
+	return m.All().WithContainer(container)
 }

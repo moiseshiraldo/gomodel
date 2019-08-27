@@ -25,7 +25,7 @@ func loadMapQuerySet(b *testing.B) {
 }
 
 func loadStructQuerySet(b *testing.B) {
-	qs := User.Objects.SetContainer(userContainer{})
+	qs := User.Objects.WithContainer(userContainer{})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		users, err := qs.Filter(gomodels.Q{"firstName": "Anakin"}).Load()
@@ -39,7 +39,7 @@ func loadStructQuerySet(b *testing.B) {
 }
 
 func loadBuilderQuerySet(b *testing.B) {
-	qs := User.Objects.SetContainer(&userBuilder{})
+	qs := User.Objects.WithContainer(&userBuilder{})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		users, err := qs.Filter(gomodels.Q{"firstName": "Anakin"}).Load()
