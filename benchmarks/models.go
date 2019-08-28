@@ -30,13 +30,13 @@ type userContainer struct {
 }
 
 type userBuilder struct {
-	Id            int64
+	Id            int32
 	FirstName     string
 	LastName      string
 	Email         string
 	Active        bool
 	Superuser     bool
-	LoginAttempts int64
+	LoginAttempts int32
 }
 
 func (u userBuilder) Get(key string) (gomodels.Value, bool) {
@@ -66,7 +66,7 @@ func (u *userBuilder) Set(
 	var err error
 	switch key {
 	case "id":
-		u.Id = val.(int64)
+		u.Id = val.(int32)
 	case "firstName":
 		u.FirstName = val.(string)
 	case "lastName":
@@ -78,7 +78,7 @@ func (u *userBuilder) Set(
 	case "superuser":
 		u.Superuser = val.(bool)
 	case "loginAttempts":
-		u.LoginAttempts = val.(int64)
+		u.LoginAttempts = val.(int32)
 	default:
 		err = fmt.Errorf("Field not found")
 	}
