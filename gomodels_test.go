@@ -338,7 +338,7 @@ func TestDispatcher(t *testing.T) {
 	}
 	dispatcher := Dispatcher{
 		Model:   model,
-		Objects: Manager{model, GenericQuerySet{}},
+		Objects: Manager{Model: model, QuerySet: GenericQuerySet{}},
 	}
 
 	t.Run("NewInstance", func(t *testing.T) {

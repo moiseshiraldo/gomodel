@@ -175,7 +175,7 @@ func testNodeRun(t *testing.T, db gomodels.Database) {
 
 	t.Run("MigrationDbError", func(t *testing.T) {
 		node := setup()
-		mockedEngine.Results.SaveMigration = fmt.Errorf("db error")
+		mockedEngine.Results.InsertRow.Err = fmt.Errorf("db error")
 		err := node.Run(db)
 		if _, ok := err.(*gomodels.DatabaseError); !ok {
 			t.Errorf("expected gomodels.DatabaseError, got %T", err)
@@ -232,12 +232,12 @@ func testNodeRun(t *testing.T, db gomodels.Database) {
 		if !node.applied {
 			t.Errorf("node was not applied")
 		}
-		if mockedEngine.Calls("SaveMigration") != 1 {
+		if mockedEngine.Calls("InsertRow") != 1 {
 			t.Errorf("migration was not saved on db")
 		}
-		args := mockedEngine.Args.SaveMigration
-		if args.App != "test" || args.Number != 1 || args.Name != "initial" {
-			t.Errorf("SaveMigration called with wrong arguments")
+		args := mockedEngine.Args.InsertRow.Values
+		if args["app"].(string) != "test" || args["number"].(int) != 1 {
+			t.Errorf("InsertRow called with wrong arguments")
 		}
 	})
 
@@ -295,12 +295,12 @@ func testNodeRun(t *testing.T, db gomodels.Database) {
 		if !node.applied {
 			t.Errorf("node was not applied")
 		}
-		if mockedEngine.Calls("SaveMigration") != 3 {
+		if mockedEngine.Calls("InsertRow") != 3 {
 			t.Errorf("migrations were not saved on db")
 		}
-		args := mockedEngine.Args.SaveMigration
-		if args.App != "test" || args.Number != 3 {
-			t.Errorf("SaveMigration called with wrong arguments")
+		args := mockedEngine.Args.InsertRow.Values
+		if args["app"].(string) != "test" || args["number"].(int) != 3 {
+			t.Errorf("InsertRow called with wrong arguments")
 		}
 	})
 }
@@ -333,7 +333,7 @@ func testNodeBackwards(t *testing.T, db gomodels.Database) {
 
 	t.Run("MigrationDbError", func(t *testing.T) {
 		node := setup()
-		mockedEngine.Results.DeleteMigration = fmt.Errorf("db error")
+		mockedEngine.Results.DeleteRows.Err = fmt.Errorf("db error")
 		err := node.Backwards(db)
 		if _, ok := err.(*gomodels.DatabaseError); !ok {
 			t.Errorf("expected gomodels.DatabaseError, got %T", err)
@@ -390,12 +390,12 @@ func testNodeBackwards(t *testing.T, db gomodels.Database) {
 		if node.applied {
 			t.Errorf("node is still applied")
 		}
-		if mockedEngine.Calls("DeleteMigration") != 1 {
+		if mockedEngine.Calls("DeleteRows") != 1 {
 			t.Errorf("migration was not deleted from db")
 		}
-		args := mockedEngine.Args.DeleteMigration
-		if args.App != "test" || args.Number != 1 {
-			t.Errorf("DeleteMigration called with wrong arguments")
+		args := mockedEngine.Args.DeleteRows.Conditioner.Predicate()
+		if args["app"].(string) != "test" || args["number"].(int) != 1 {
+			t.Errorf("DeleteRows called with wrong arguments")
 		}
 	})
 
@@ -452,12 +452,12 @@ func testNodeBackwards(t *testing.T, db gomodels.Database) {
 		if secondNode.applied {
 			t.Errorf("node is still applied")
 		}
-		if mockedEngine.Calls("DeleteMigration") != 2 {
+		if mockedEngine.Calls("DeleteRows") != 2 {
 			t.Errorf("migrations were not deleted from db")
 		}
-		args := mockedEngine.Args.DeleteMigration
-		if args.App != "test" || args.Number != 1 {
-			t.Errorf("DeleteMigration called with wrong arguments")
+		args := mockedEngine.Args.DeleteRows.Conditioner.Predicate()
+		if args["app"].(string) != "test" || args["number"].(int) != 1 {
+			t.Errorf("DeleteRows called with wrong arguments")
 		}
 	})
 }

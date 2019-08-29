@@ -145,7 +145,12 @@ func (n Node) runOperations(db gomodels.Database) error {
 		}
 		op.SetState(prevState)
 	}
-	if err := engine.SaveMigration(n.App, n.number, n.Name); err != nil {
+	manager := Migration.Objects
+	if txSupport {
+		manager = Migration.Objects.WithTx(tx)
+	}
+	values := gomodels.Values{"app": n.App, "number": n.number, "name": n.Name}
+	if _, err := manager.Create(values); err != nil {
 		if txSupport {
 			txErr := tx.Rollback()
 			if txErr != nil {
@@ -228,7 +233,14 @@ func (n Node) backwardOperations(db gomodels.Database) error {
 			return &OperationRunError{ErrorTrace{&n, op, err}}
 		}
 	}
-	if err := engine.DeleteMigration(n.App, n.number); err != nil {
+	manager := Migration.Objects
+	if txSupport {
+		manager = Migration.Objects.WithTx(tx)
+	}
+	_, err := manager.Filter(
+		gomodels.Q{"app": n.App, "number": n.number},
+	).Delete()
+	if err != nil {
 		if txSupport {
 			if txErr := tx.Rollback(); txErr != nil {
 				err = txErr

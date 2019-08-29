@@ -8,10 +8,20 @@ import (
 type Manager struct {
 	Model    *Model
 	QuerySet QuerySet
+	tx       *Transaction
+}
+
+func (m Manager) WithTx(tx *Transaction) Manager {
+	m.tx = tx
+	return m
 }
 
 func (m Manager) Create(values Container) (*Instance, error) {
 	db := dbRegistry["default"]
+	engine := db.Engine
+	if m.tx != nil {
+		engine = m.tx.Engine
+	}
 	container := m.Model.Container()
 	instance := &Instance{m.Model, container}
 	if !isValidContainer(values) {
@@ -39,8 +49,11 @@ func (m Manager) Create(values Container) (*Instance, error) {
 			}
 		}
 	}
-	pk, err := db.InsertRow(m.Model, dbValues)
+	pk, err := engine.InsertRow(m.Model, dbValues)
 	if err != nil {
+		if m.tx != nil {
+			db = m.tx.DB
+		}
 		trace := ErrorTrace{App: m.Model.app, Model: m.Model, Err: err}
 		return instance, &DatabaseError{db.id, trace}
 	}

@@ -34,7 +34,7 @@ func (op CreateModel) Run(
 	state *AppState,
 	prevState *AppState,
 ) error {
-	return engine.CreateTable(state.Models[op.Name])
+	return engine.CreateTable(state.Models[op.Name], true)
 }
 
 func (op CreateModel) Backwards(
@@ -74,7 +74,7 @@ func (op DeleteModel) Backwards(
 	state *AppState,
 	prevState *AppState,
 ) error {
-	return engine.CreateTable(prevState.Models[op.Name])
+	return engine.CreateTable(prevState.Models[op.Name], true)
 }
 
 type AddIndex struct {

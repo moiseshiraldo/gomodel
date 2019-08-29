@@ -49,7 +49,9 @@ func TestManager(t *testing.T) {
 		},
 		meta: Options{Container: Values{}},
 	}
-	manager := Manager{model, mockedQuerySet{calls: map[string]int{}}}
+	manager := Manager{
+		Model: model, QuerySet: mockedQuerySet{calls: map[string]int{}},
+	}
 	// DB setup
 	engine, _ := enginesRegistry["mocker"].Start(Database{})
 	mockedEngine := engine.(MockedEngine)

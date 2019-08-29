@@ -309,7 +309,7 @@ func TestMakeAndRun(t *testing.T) {
 		if !loadAppliedCalled {
 			t.Fatal("expected load applied migrations to be called")
 		}
-		if mockedEngine.Calls("SaveMigration") != 1 {
+		if mockedEngine.Calls("InsertRow") != 1 {
 			t.Fatal("migration was not applied")
 		}
 	})

@@ -209,5 +209,7 @@ func New(name string, fields Fields, options Options) *Dispatcher {
 		options.Indexes = Indexes{}
 	}
 	model := &Model{name: name, fields: fields, meta: options}
-	return &Dispatcher{model, Manager{model, GenericQuerySet{}}}
+	return &Dispatcher{
+		model, Manager{Model: model, QuerySet: GenericQuerySet{}},
+	}
 }

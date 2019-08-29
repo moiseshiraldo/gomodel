@@ -159,6 +159,9 @@ func (state AppState) Migrate(database string, nodeName string) error {
 
 var loadHistory = func() error {
 	for _, app := range gomodels.Registry() {
+		if app.Name() == "gomodels" {
+			continue
+		}
 		if err := loadApp(app); err != nil {
 			return err
 		}
@@ -226,6 +229,9 @@ func loadPreviousState(node Node) map[string]*AppState {
 	prevState := map[string]*AppState{}
 	registry := gomodels.Registry()
 	for name := range history {
+		if name == "gomodels" {
+			continue
+		}
 		prevState[name] = &AppState{
 			app:    registry[node.App],
 			Models: map[string]*gomodels.Model{},
@@ -239,31 +245,31 @@ func loadPreviousState(node Node) map[string]*AppState {
 }
 
 var loadAppliedMigrations = func(db gomodels.Database) error {
-	if err := db.PrepareMigrations(); err != nil {
-		return err
-	}
-	rows, err := db.GetMigrations()
-	defer rows.Close()
-	for rows.Next() {
-		var appName string
-		var number int
-		err := rows.Scan(&appName, &number)
-		if err != nil {
+	if Migration.Model.App() == nil {
+		app := gomodels.Registry()["gomodels"]
+		if err := Migration.Model.Register(app); err != nil {
 			return err
 		}
+	}
+	if err := db.CreateTable(Migration.Model, false); err != nil {
+		return err
+	}
+	migrations, err := Migration.Objects.All().Load()
+	if err != nil {
+		return err
+	}
+	for _, migration := range migrations {
+		appName := migration.Get("name").(string)
+		number := migration.Get("number").(int32)
 		if app, ok := history[appName]; ok {
-			if number > len(app.migrations) {
+			if int(number) > len(app.migrations) {
 				return fmt.Errorf("missing node for applied migration")
 			}
 			app.migrations[number-1].applied = true
-			if number > app.lastApplied {
-				app.lastApplied = number
+			if int(number) > app.lastApplied {
+				app.lastApplied = int(number)
 			}
 		}
-	}
-	err = rows.Err()
-	if err != nil {
-		return err
 	}
 	return nil
 }

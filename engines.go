@@ -7,11 +7,7 @@ import (
 )
 
 type Migrator interface {
-	PrepareMigrations() error
-	GetMigrations() (Rows, error)
-	SaveMigration(app string, number int, name string) error
-	DeleteMigration(app string, number int) error
-	CreateTable(model *Model) error
+	CreateTable(model *Model, force bool) error
 	RenameTable(old *Model, new *Model) error
 	DropTable(model *Model) error
 	AddIndex(model *Model, name string, fields ...string) error
@@ -143,7 +139,7 @@ func (e baseSQLEngine) escape(s string) string {
 	return fmt.Sprintf("%[1]s%[2]s%[1]s", e.escapeChar, s)
 }
 
-func (e baseSQLEngine) CreateTable(model *Model) error {
+func (e baseSQLEngine) CreateTable(model *Model, force bool) error {
 	fields := model.Fields()
 	columns := make([]string, 0, len(fields))
 	for name, field := range fields {
@@ -155,9 +151,13 @@ func (e baseSQLEngine) CreateTable(model *Model) error {
 		)
 		columns = append(columns, sqlColumn)
 	}
+	skip := ""
+	if !force {
+		skip = "IF NOT EXISTS "
+	}
 	stmt := fmt.Sprintf(
-		"CREATE TABLE %s (%s)",
-		e.escape(model.Table()), strings.Join(columns, ", "),
+		"CREATE TABLE %s%s (%s)",
+		skip, e.escape(model.Table()), strings.Join(columns, ", "),
 	)
 	_, err := e.executor().Exec(stmt)
 	return err

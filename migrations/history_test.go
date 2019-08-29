@@ -29,10 +29,14 @@ func (r *rowsMocker) Next() bool {
 }
 
 func (r *rowsMocker) Scan(dest ...interface{}) error {
-	appName := dest[0].(*string)
-	number := dest[1].(*int)
-	*appName = "test"
-	*number = 1
+	for _, d := range dest {
+		if dp, ok := d.(*string); ok {
+			*dp = "test"
+		}
+		if dp, ok := d.(*int32); ok {
+			*dp = 1
+		}
+	}
 	return nil
 }
 
@@ -46,6 +50,10 @@ func TestAppMigrate(t *testing.T) {
 		"default": {Driver: "mocker", Name: "test"},
 	}
 	if err := gomodels.Start(dbSettings); err != nil {
+		t.Fatal(err)
+	}
+	goApp := gomodels.Registry()["gomodels"]
+	if err := Migration.Model.Register(goApp); err != nil {
 		t.Fatal(err)
 	}
 	db := gomodels.Databases()["default"]
@@ -106,14 +114,14 @@ func TestAppMigrate(t *testing.T) {
 		if appState.migrations[1].applied {
 			t.Errorf("second migration was applied")
 		}
-		if mockedEngine.Calls("SaveMigration") != 1 {
-			t.Errorf("expected engine SaveMigration to be called")
+		if mockedEngine.Calls("InsertRow") != 1 {
+			t.Errorf("expected engine InsertRow to be called")
 		}
-		args := mockedEngine.Args.SaveMigration
-		if args.App != "test" || args.Number != 1 {
+		args := mockedEngine.Args.InsertRow.Values
+		if args["app"].(string) != "test" || args["number"].(int) != 1 {
 			t.Errorf(
 				"SaveMigration called with wrong arguments: %s, %d",
-				args.App, args.Number,
+				args["app"], args["number"],
 			)
 		}
 	})
@@ -131,14 +139,14 @@ func TestAppMigrate(t *testing.T) {
 		if !appState.migrations[1].applied {
 			t.Errorf("second migration was not applied")
 		}
-		if mockedEngine.Calls("SaveMigration") != 2 {
-			t.Errorf("expected engine SaveMigration to be called twice")
+		if mockedEngine.Calls("InsertRow") != 2 {
+			t.Errorf("expected engine InsertRow to be called twice")
 		}
-		args := mockedEngine.Args.SaveMigration
-		if args.App != "test" || args.Number != 2 {
+		args := mockedEngine.Args.InsertRow.Values
+		if args["app"].(string) != "test" || args["number"].(int) != 2 {
 			t.Errorf(
-				"SaveMigration called with wrong arguments: %s, %d",
-				args.App, args.Number,
+				"InsertRow called with wrong arguments: %s, %d",
+				args["app"], args["number"],
 			)
 		}
 	})
@@ -157,14 +165,14 @@ func TestAppMigrate(t *testing.T) {
 		if appState.migrations[1].applied {
 			t.Errorf("second migration is still applied")
 		}
-		if mockedEngine.Calls("DeleteMigration") != 1 {
-			t.Errorf("expected engine DeleteMigration to be called")
+		if mockedEngine.Calls("DeleteRows") != 1 {
+			t.Errorf("expected engine DeleteRows to be called")
 		}
-		args := mockedEngine.Args.DeleteMigration
-		if args.App != "test" || args.Number != 2 {
+		args := mockedEngine.Args.DeleteRows.Conditioner.Predicate()
+		if args["app"].(string) != "test" || args["number"].(int) != 2 {
 			t.Errorf(
 				"SaveMigration called with wrong arguments: %s, %d",
-				args.App, args.Number,
+				args["app"], args["number"],
 			)
 		}
 	})
@@ -183,14 +191,14 @@ func TestAppMigrate(t *testing.T) {
 		if appState.migrations[1].applied {
 			t.Errorf("second migration is still applied")
 		}
-		if mockedEngine.Calls("DeleteMigration") != 2 {
-			t.Errorf("expected engine DeleteMigration to be called twice")
+		if mockedEngine.Calls("DeleteRows") != 2 {
+			t.Errorf("expected engine DeleteRows to be called twice")
 		}
-		args := mockedEngine.Args.DeleteMigration
-		if args.App != "test" || args.Number != 1 {
+		args := mockedEngine.Args.DeleteRows.Conditioner.Predicate()
+		if args["app"].(string) != "test" || args["number"].(int) != 1 {
 			t.Errorf(
 				"SaveMigration called with wrong arguments: %s, %d",
-				args.App, args.Number,
+				args["app"], args["number"],
 			)
 		}
 	})
@@ -691,19 +699,23 @@ func TestLoadAppliedMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	goApp := gomodels.Registry()["gomodels"]
+	if err := Migration.Model.Register(goApp); err != nil {
+		t.Fatal(err)
+	}
 	db := gomodels.Databases()["default"]
 	defer gomodels.Stop()
 	mockedEngine := db.Engine.(gomodels.MockedEngine)
 
 	t.Run("Error", func(t *testing.T) {
-		mockedEngine.Results.GetMigrations.Rows = &rowsMocker{}
+		mockedEngine.Results.GetRows.Rows = &rowsMocker{}
 		if err := loadAppliedMigrations(db); err == nil {
 			t.Fatal("expected missing node error, got nil")
 		}
-		if mockedEngine.Calls("PrepareMigrations") != 1 {
-			t.Fatal("expected engine PrepareMigrations to be called")
+		if mockedEngine.Calls("CreateTable") != 1 {
+			t.Fatal("expected engine Create to be called")
 		}
-		if mockedEngine.Calls("GetMigrations") != 1 {
+		if mockedEngine.Calls("GetRows") != 1 {
 			t.Fatal("expected engine GetMigrations to be called")
 		}
 		mockedEngine.Reset()
@@ -716,7 +728,7 @@ func TestLoadAppliedMigrations(t *testing.T) {
 			number: 1,
 		}
 		history["test"].migrations = []*Node{node}
-		mockedEngine.Results.GetMigrations.Rows = &rowsMocker{}
+		mockedEngine.Results.GetRows.Rows = &rowsMocker{}
 		if err := loadAppliedMigrations(db); err != nil {
 			t.Fatal(err)
 		}

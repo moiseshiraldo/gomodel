@@ -88,6 +88,9 @@ func Run(options RunOptions) error {
 
 func MakeAndRun(database string) error {
 	for _, app := range gomodels.Registry() {
+		if app.Name() == "gomodels" {
+			continue
+		}
 		history[app.Name()] = &AppState{
 			app:        app,
 			Models:     map[string]*gomodels.Model{},

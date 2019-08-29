@@ -43,15 +43,3 @@ func (e PostgresEngine) BeginTx() (Engine, error) {
 	e.tx = tx
 	return e, nil
 }
-
-func (e PostgresEngine) PrepareMigrations() error {
-	stmt := `
-		CREATE TABLE IF NOT EXISTS gomodels_migration (
-		  "id" SERIAL,
-		  "app" VARCHAR(50) NOT NULL,
-		  "name" VARCHAR(100) NOT NULL,
-		  "number" VARCHAR NOT NULL
-	)`
-	_, err := e.executor().Exec(stmt)
-	return err
-}

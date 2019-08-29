@@ -6,27 +6,20 @@ import (
 )
 
 type MockedEngineResults struct {
-	Stop              error
-	TxSupport         bool
-	BeginTx           error
-	CommitTx          error
-	RollbackTx        error
-	PrepareMigrations error
-	GetMigrations     struct {
-		Rows Rows
-		Err  error
-	}
-	SaveMigration   error
-	DeleteMigration error
-	CreateTable     error
-	RenameTable     error
-	CopyTable       error
-	DropTable       error
-	AddIndex        error
-	DropIndex       error
-	AddColumns      error
-	DropColumns     error
-	SelectQuery     struct {
+	Stop        error
+	TxSupport   bool
+	BeginTx     error
+	CommitTx    error
+	RollbackTx  error
+	CreateTable error
+	RenameTable error
+	CopyTable   error
+	DropTable   error
+	AddIndex    error
+	DropIndex   error
+	AddColumns  error
+	DropColumns error
+	SelectQuery struct {
 		Query Query
 		Err   error
 	}
@@ -61,15 +54,6 @@ func (r *MockedEngineResults) Reset() {
 }
 
 type MockedEngineArgs struct {
-	SaveMigration struct {
-		App    string
-		Number int
-		Name   string
-	}
-	DeleteMigration struct {
-		App    string
-		Number int
-	}
 	CreateTable *Model
 	RenameTable struct {
 		Old *Model
@@ -203,32 +187,7 @@ func (e MockedEngine) RollbackTx() error {
 	return e.Results.RollbackTx
 }
 
-func (e MockedEngine) PrepareMigrations() error {
-	e.calls["PrepareMigrations"] += 1
-	return e.Results.PrepareMigrations
-}
-
-func (e MockedEngine) GetMigrations() (Rows, error) {
-	e.calls["GetMigrations"] += 1
-	return e.Results.GetMigrations.Rows, e.Results.GetMigrations.Err
-}
-
-func (e MockedEngine) SaveMigration(app string, number int, name string) error {
-	e.calls["SaveMigration"] += 1
-	e.Args.SaveMigration.App = app
-	e.Args.SaveMigration.Number = number
-	e.Args.SaveMigration.Name = name
-	return e.Results.SaveMigration
-}
-
-func (e MockedEngine) DeleteMigration(app string, number int) error {
-	e.calls["DeleteMigration"] += 1
-	e.Args.DeleteMigration.App = app
-	e.Args.DeleteMigration.Number = number
-	return e.Results.DeleteMigration
-}
-
-func (e MockedEngine) CreateTable(model *Model) error {
+func (e MockedEngine) CreateTable(model *Model, force bool) error {
 	e.calls["CreateTable"] += 1
 	e.Args.CreateTable = model
 	return e.Results.CreateTable

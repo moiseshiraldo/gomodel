@@ -41,18 +41,6 @@ func (e SqliteEngine) BeginTx() (Engine, error) {
 	return e, nil
 }
 
-func (e SqliteEngine) PrepareMigrations() error {
-	stmt := `
-		CREATE TABLE IF NOT EXISTS gomodels_migration (
-		  "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-		  "app" VARCHAR(50) NOT NULL,
-		  "name" VARCHAR(100) NOT NULL,
-		  "number" VARCHAR NOT NULL
-	)`
-	_, err := e.executor().Exec(stmt)
-	return err
-}
-
 func (e SqliteEngine) copyTable(m *Model, name string, cols ...string) error {
 	columns := make([]string, 0, len(cols))
 	for _, col := range cols {
