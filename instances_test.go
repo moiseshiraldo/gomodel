@@ -140,6 +140,25 @@ func TestInstance(t *testing.T) {
 			t.Errorf("expected true, got %t", a)
 		}
 	})
+	
+	t.Run("SetValues", func(t *testing.T) {
+		instance.container = Values{"email": "user@test.com", "active": false}
+		newValues := struct{
+			Email string
+			Active bool
+			Dob string
+		}{"new@test.com", true, "1972-04-12"}
+		if err := instance.SetValues(newValues); err != nil {
+			t.Fatal(err)
+		}
+		values := instance.container.(Values)
+		if s, ok := values["email"].(string); !ok || s != "new@test.com" {
+			t.Errorf("expected new@test.com, got %s", s)
+		}
+		if a, ok := values["active"].(bool); !ok || !a {
+			t.Errorf("expected true, got %t", a)
+		}
+	})
 }
 
 // TestInstanceSave tests the Instance save method
