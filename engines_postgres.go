@@ -27,14 +27,6 @@ func (e PostgresEngine) Start(db Database) (Engine, error) {
 	return e, nil
 }
 
-func (e PostgresEngine) Stop() error {
-	return e.db.Close()
-}
-
-func (e PostgresEngine) TxSupport() bool {
-	return true
-}
-
 func (e PostgresEngine) BeginTx() (Engine, error) {
 	tx, err := e.db.Begin()
 	if err != nil {

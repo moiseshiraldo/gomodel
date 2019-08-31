@@ -84,11 +84,7 @@ func (qs GenericQuerySet) Model() *Model {
 }
 
 func (qs GenericQuerySet) WithContainer(container Container) QuerySet {
-	if isValidContainer(container) {
-		qs.container = container
-	} else {
-		qs.container = nil
-	}
+	qs.container = container
 	return qs.base.Wrap(qs)
 }
 
@@ -122,7 +118,7 @@ func (qs GenericQuerySet) load(start int64, end int64) ([]*Instance, error) {
 	if !ok {
 		return nil, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
-	if qs.container == nil {
+	if !isValidContainer(qs.container) {
 		return nil, qs.containerError(fmt.Errorf("invalid container"))
 	}
 	container := newContainer(qs.container)
@@ -177,7 +173,7 @@ func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 	if !ok {
 		return nil, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
-	if qs.container == nil {
+	if !isValidContainer(qs.container) {
 		return nil, qs.containerError(fmt.Errorf("invalid container"))
 	}
 	container := newContainer(qs.container)

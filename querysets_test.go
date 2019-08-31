@@ -89,17 +89,6 @@ func TestGenericQuerySet(t *testing.T) {
 		}
 	})
 
-	t.Run("WithContainerInvalid", func(t *testing.T) {
-		qs := GenericQuerySet{base: GenericQuerySet{}}.WithContainer("invalid")
-		gqs, ok := qs.(GenericQuerySet)
-		if !ok {
-			t.Fatalf("expected GenericQuerySet, got %T", qs)
-		}
-		if gqs.container != nil {
-			t.Error("expected queryset container to be nil")
-		}
-	})
-
 	t.Run("WithContainer", func(t *testing.T) {
 		qs := GenericQuerySet{base: GenericQuerySet{}}.WithContainer(Values{})
 		gqs, ok := qs.(GenericQuerySet)
@@ -382,12 +371,12 @@ func TestGenericQuerySet(t *testing.T) {
 			t.Errorf("expected email to be user@test.com, got %s", e)
 		}
 	})
-	
+
 	t.Run("GetStruct", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.GetRows.Rows = &rowsMocker{1}
 		type userContainer struct {
-			Id int32
+			Id    int32
 			Email string
 		}
 		qs := GenericQuerySet{

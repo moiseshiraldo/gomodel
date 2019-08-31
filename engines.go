@@ -13,7 +13,7 @@ type Migrator interface {
 	AddIndex(model *Model, name string, fields ...string) error
 	DropIndex(model *Model, name string) error
 	AddColumns(model *Model, fields Fields) error
-	DropColumns(old *Model, new *Model, fields ...string) error
+	DropColumns(model *Model, fields ...string) error
 }
 
 type Engine interface {
@@ -75,6 +75,14 @@ func (e baseSQLEngine) Tx() *sql.Tx {
 	return e.tx.(*sql.Tx)
 }
 
+func (e baseSQLEngine) Stop() error {
+	return e.db.Close()
+}
+
+func (e baseSQLEngine) TxSupport() bool {
+	return true
+}
+
 func (e baseSQLEngine) CommitTx() error {
 	if e.tx == nil {
 		return fmt.Errorf("no transaction to commit")
@@ -119,20 +127,20 @@ func (e baseSQLEngine) DeleteMigration(app string, number int) error {
 }
 
 func (e baseSQLEngine) sqlColumnOptions(field Field) string {
-	options := ""
+	options := []string{""}
 	if !field.IsAuto() {
 		if field.IsNull() {
-			options += " NULL"
+			options = append(options, "NULL")
 		} else {
-			options += " NOT NULL"
+			options = append(options, "NOT NULL")
 		}
 	}
 	if field.IsPK() {
-		options += " PRIMARY KEY"
+		options = append(options, "PRIMARY KEY")
 	} else if field.IsUnique() {
-		options += " UNIQUE"
+		options = append(options, "UNIQUE")
 	}
-	return options
+	return strings.Join(options, " ")
 }
 
 func (e baseSQLEngine) escape(s string) string {
@@ -144,7 +152,7 @@ func (e baseSQLEngine) CreateTable(model *Model, force bool) error {
 	columns := make([]string, 0, len(fields))
 	for name, field := range fields {
 		sqlColumn := fmt.Sprintf(
-			"%s %s %s",
+			"%s %s%s",
 			e.escape(field.DBColumn(name)),
 			field.DataType(e.driver),
 			e.sqlColumnOptions(field),
@@ -222,24 +230,20 @@ func (e baseSQLEngine) AddColumns(model *Model, fields Fields) error {
 	return err
 }
 
-func (e baseSQLEngine) DropColumns(
-	old *Model,
-	new *Model,
-	columns ...string,
-) error {
-	fields := old.Fields()
-	dropColumns := make([]string, 0, len(columns))
-	for _, name := range columns {
+func (e baseSQLEngine) DropColumns(model *Model, fields ...string) error {
+	oldFields := model.Fields()
+	dropColumns := make([]string, 0, len(fields))
+	for _, name := range fields {
 		dropColumns = append(
 			dropColumns,
 			fmt.Sprintf(
-				"DROP COLUMN %s", e.escape(fields[name].DBColumn(name)),
+				"DROP COLUMN %s", e.escape(oldFields[name].DBColumn(name)),
 			),
 		)
 	}
 	stmt := fmt.Sprintf(
 		"ALTER TABLE %s %s",
-		e.escape(old.Table()), strings.Join(dropColumns, ", "),
+		e.escape(model.Table()), strings.Join(dropColumns, ", "),
 	)
 	_, err := e.executor().Exec(stmt)
 	return err

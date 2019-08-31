@@ -140,13 +140,13 @@ func TestInstance(t *testing.T) {
 			t.Errorf("expected true, got %t", a)
 		}
 	})
-	
+
 	t.Run("SetValues", func(t *testing.T) {
 		instance.container = Values{"email": "user@test.com", "active": false}
-		newValues := struct{
-			Email string
+		newValues := struct {
+			Email  string
 			Active bool
-			Dob string
+			Dob    string
 		}{"new@test.com", true, "1972-04-12"}
 		if err := instance.SetValues(newValues); err != nil {
 			t.Fatal(err)

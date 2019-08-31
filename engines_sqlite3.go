@@ -24,14 +24,6 @@ func (e SqliteEngine) Start(db Database) (Engine, error) {
 	return e, nil
 }
 
-func (e SqliteEngine) Stop() error {
-	return e.db.Close()
-}
-
-func (e SqliteEngine) TxSupport() bool {
-	return true
-}
-
 func (e SqliteEngine) BeginTx() (Engine, error) {
 	tx, err := e.db.Begin()
 	if err != nil {
@@ -70,30 +62,29 @@ func (e SqliteEngine) AddColumns(model *Model, fields Fields) error {
 	return nil
 }
 
-func (e SqliteEngine) DropColumns(
-	old *Model,
-	new *Model,
-	fields ...string,
-) error {
-	newFields := new.Fields()
-	oldFields := old.Fields()
+func (e SqliteEngine) DropColumns(model *Model, fields ...string) error {
+	oldFields := model.Fields()
 	keepCols := make([]string, 0, len(oldFields)-len(fields))
-	for name, field := range newFields {
+	for _, name := range fields {
+		delete(oldFields, name)
+	}
+	for name, field := range oldFields {
 		keepCols = append(keepCols, field.DBColumn(name))
 	}
-	name := old.Table() + "__new"
-	if err := e.copyTable(old, name, keepCols...); err != nil {
+	table := model.Table()
+	copyTable := table + "__new"
+	if err := e.copyTable(model, copyTable, keepCols...); err != nil {
 		return err
 	}
-	if err := e.DropTable(old); err != nil {
+	if err := e.DropTable(model); err != nil {
 		return err
 	}
-	old.meta.Table = name
-	if err := e.RenameTable(old, new); err != nil {
+	copyModel := &Model{meta: Options{Table: copyTable}}
+	if err := e.RenameTable(copyModel, model); err != nil {
 		return err
 	}
-	for idxName, fields := range new.Indexes() {
-		if err := e.AddIndex(new, idxName, fields...); err != nil {
+	for idxName, fields := range model.Indexes() {
+		if err := e.AddIndex(model, idxName, fields...); err != nil {
 			return err
 		}
 	}

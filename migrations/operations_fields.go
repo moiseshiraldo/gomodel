@@ -44,9 +44,7 @@ func (op AddFields) Backwards(
 	for name := range op.Fields {
 		fields = append(fields, name)
 	}
-	return engine.DropColumns(
-		state.Models[op.Model], prevState.Models[op.Model], fields...,
-	)
+	return engine.DropColumns(state.Models[op.Model], fields...)
 }
 
 type RemoveFields struct {
@@ -76,9 +74,7 @@ func (op RemoveFields) Run(
 	state *AppState,
 	prevState *AppState,
 ) error {
-	return engine.DropColumns(
-		prevState.Models[op.Model], state.Models[op.Model], op.Fields...,
-	)
+	return engine.DropColumns(prevState.Models[op.Model], op.Fields...)
 }
 
 func (op RemoveFields) Backwards(

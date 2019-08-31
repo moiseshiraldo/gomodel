@@ -74,8 +74,7 @@ type MockedEngineArgs struct {
 		Fields Fields
 	}
 	DropColumns struct {
-		Old    *Model
-		New    *Model
+		Model  *Model
 		Fields []string
 	}
 	SelectQuery struct {
@@ -228,14 +227,9 @@ func (e MockedEngine) AddColumns(model *Model, fields Fields) error {
 	return e.Results.AddColumns
 }
 
-func (e MockedEngine) DropColumns(
-	old *Model,
-	new *Model,
-	fields ...string,
-) error {
+func (e MockedEngine) DropColumns(model *Model, fields ...string) error {
 	e.calls["DropColumns"] += 1
-	e.Args.DropColumns.Old = old
-	e.Args.DropColumns.New = new
+	e.Args.DropColumns.Model = model
 	e.Args.DropColumns.Fields = fields
 	return e.Results.DropColumns
 }
