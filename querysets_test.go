@@ -106,7 +106,7 @@ func TestGenericQuerySet(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected GenericQuerySet, got %T", qs)
 		}
-		if _, ok := gqs.cond.Predicate()["active"]; !ok {
+		if _, ok := gqs.cond.Conditions()["active"]; !ok {
 			t.Error("filter is missing active condition")
 		}
 	})
@@ -118,7 +118,7 @@ func TestGenericQuerySet(t *testing.T) {
 			t.Fatalf("expected GenericQuerySet, got %T", qs)
 		}
 		filter, _, isNot := gqs.cond.Next()
-		if _, ok := filter.Predicate()["id"]; !ok {
+		if _, ok := filter.Conditions()["id"]; !ok {
 			t.Error("filter is missing id condition")
 		}
 		if !isNot {

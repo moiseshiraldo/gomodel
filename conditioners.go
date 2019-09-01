@@ -1,7 +1,8 @@
 package gomodels
 
 type Conditioner interface {
-	Predicate() map[string]Value
+	Conditions() map[string]Value
+	Root() (c Conditioner, isChain bool)
 	Next() (c Conditioner, isOr bool, isNot bool)
 	And(q Conditioner) Conditioner
 	AndNot(q Conditioner) Conditioner
@@ -10,14 +11,22 @@ type Conditioner interface {
 }
 
 type condChain struct {
-	root Q
+	root Conditioner
 	next Conditioner
 	or   bool
 	not  bool
 }
 
-func (c condChain) Predicate() map[string]Value {
-	return c.root.Predicate()
+func (c condChain) Conditions() map[string]Value {
+	if conditions, ok := c.root.(Q); ok {
+		return conditions
+	}
+	return nil
+}
+
+func (c condChain) Root() (Conditioner, bool) {
+	_, ok := c.root.(Q)
+	return c.root, !ok
 }
 
 func (c condChain) Next() (Conditioner, bool, bool) {
@@ -25,33 +34,29 @@ func (c condChain) Next() (Conditioner, bool, bool) {
 }
 
 func (c condChain) And(next Conditioner) Conditioner {
-	c.next = next
-	return c
+	return condChain{root: c, next: next}
 }
 
 func (c condChain) AndNot(next Conditioner) Conditioner {
-	c.next = next
-	c.not = true
-	return c
+	return condChain{root: c, next: next, not: true}
 }
 
 func (c condChain) Or(next Conditioner) Conditioner {
-	c.next = next
-	c.or = true
-	return c
+	return condChain{root: c, next: next, or: true}
 }
 
 func (c condChain) OrNot(next Conditioner) Conditioner {
-	c.next = next
-	c.or = true
-	c.not = true
-	return c
+	return condChain{root: c, next: next, or: true, not: true}
 }
 
 type Q map[string]Value
 
-func (q Q) Predicate() map[string]Value {
+func (q Q) Conditions() map[string]Value {
 	return q
+}
+
+func (q Q) Root() (Conditioner, bool) {
+	return q, false
 }
 
 func (q Q) Next() (Conditioner, bool, bool) {

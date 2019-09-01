@@ -59,6 +59,11 @@ type sqlTx interface {
 	Rollback() error
 }
 
+var scanRow = func(ex sqlExecutor, dest interface{}, query Query) error {
+	row := ex.QueryRow(query.Stmt, query.Args...)
+	return row.Scan(dest)
+}
+
 type baseSQLEngine struct {
 	driver      string
 	escapeChar  string
@@ -102,28 +107,6 @@ func (e baseSQLEngine) executor() sqlExecutor {
 		return e.tx
 	}
 	return e.db
-}
-
-func (e baseSQLEngine) GetMigrations() (Rows, error) {
-	return e.executor().Query("SELECT app, number FROM gomodels_migration")
-}
-
-func (e baseSQLEngine) SaveMigration(
-	app string,
-	number int,
-	name string,
-) error {
-	stmt := `
-		INSERT INTO gomodels_migration(app, number, name) VALUES($1, $2, $3)
-	`
-	_, err := e.executor().Exec(stmt, app, number, name)
-	return err
-}
-
-func (e baseSQLEngine) DeleteMigration(app string, number int) error {
-	stmt := "DELETE FROM gomodels_migration WHERE app = $1 and number = $2"
-	_, err := e.executor().Exec(stmt, app, number)
-	return err
 }
 
 func (e baseSQLEngine) sqlColumnOptions(field Field) string {
@@ -256,37 +239,60 @@ func (e baseSQLEngine) predicate(
 ) (Query, error) {
 	conditions := make([]string, 0)
 	values := make([]interface{}, 0)
-	for condition, value := range cond.Predicate() {
-		args := strings.Split(condition, " ")
-		name := args[0]
-		operator := "="
-		if len(args) > 1 {
-			operator = args[1]
-		}
-		if _, ok := model.fields[name]; !ok {
-			return Query{}, fmt.Errorf("unknown field %s", name)
-		}
-		column := model.fields[name].DBColumn(name)
-		driverVal, err := model.fields[name].DriverValue(value, e.driver)
+	operators := map[string]string{
+		"=":  "=",
+		">":  ">",
+		">=": ">=",
+		"<":  "<",
+		"<=": "<=",
+	}
+	root, isChain := cond.Root()
+	pred := ""
+	if isChain {
+		rootPred, err := e.predicate(model, root, pIndex)
 		if err != nil {
 			return Query{}, err
 		}
-		if operator == "=" && driverVal == nil {
-			condition = fmt.Sprintf("%s IS NULL", e.escape(column))
-		} else {
-			placeholder := e.placeholder
-			if placeholder == "$" {
-				placeholder = fmt.Sprintf("%s%d", placeholder, pIndex)
+		pred = rootPred.Stmt
+		pIndex += len(rootPred.Args)
+		values = append(values, rootPred.Args...)
+	} else {
+		for condition, value := range cond.Conditions() {
+			args := strings.Split(condition, " ")
+			name := args[0]
+			operator := "="
+			if len(args) > 1 {
+				op, ok := operators[args[1]]
+				if !ok {
+					return Query{}, fmt.Errorf("invalid operator: %s", args[1])
+				}
+				operator = op
 			}
-			condition = fmt.Sprintf(
-				"%s %s %s", e.escape(column), operator, placeholder,
-			)
-			values = append(values, driverVal)
-			pIndex += 1
+			if _, ok := model.fields[name]; !ok {
+				return Query{}, fmt.Errorf("unknown field %s", name)
+			}
+			column := model.fields[name].DBColumn(name)
+			driverVal, err := model.fields[name].DriverValue(value, e.driver)
+			if err != nil {
+				return Query{}, err
+			}
+			if operator == "=" && driverVal == nil {
+				condition = fmt.Sprintf("%s IS NULL", e.escape(column))
+			} else {
+				placeholder := e.placeholder
+				if placeholder == "$" {
+					placeholder = fmt.Sprintf("%s%d", placeholder, pIndex)
+				}
+				condition = fmt.Sprintf(
+					"%s %s %s", e.escape(column), operator, placeholder,
+				)
+				values = append(values, driverVal)
+				pIndex += 1
+			}
+			conditions = append(conditions, condition)
 		}
-		conditions = append(conditions, condition)
+		pred = strings.Join(conditions, " AND ")
 	}
-	pred := strings.Join(conditions, " AND ")
 	next, isOr, isNot := cond.Next()
 	if next != nil {
 		operator := "AND"
@@ -318,12 +324,16 @@ func (e baseSQLEngine) SelectQuery(
 			columns = append(columns, e.escape(field.DBColumn(name)))
 		}
 	} else {
+		columns = append(columns, e.escape(m.fields[m.pk].DBColumn(m.pk)))
 		for _, name := range fields {
-			col := name
-			if field, ok := m.fields[name]; ok {
-				col = field.DBColumn(name)
+			if name == m.pk {
+				continue
 			}
-			columns = append(columns, e.escape(col))
+			field, ok := m.fields[name]
+			if !ok {
+				return query, fmt.Errorf("unknown field: %s", name)
+			}
+			columns = append(columns, e.escape(field.DBColumn(name)))
 		}
 	}
 	query.Stmt = fmt.Sprintf(
@@ -478,7 +488,7 @@ func (e baseSQLEngine) DeleteRows(model *Model, c Conditioner) (int64, error) {
 			return 0, err
 		}
 		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred.Stmt)
-		args = args
+		args = pred.Args
 	}
 	result, err := e.executor().Exec(stmt, args...)
 	if err != nil {
@@ -500,34 +510,23 @@ func (e baseSQLEngine) CountRows(model *Model, c Conditioner) (int64, error) {
 			return 0, err
 		}
 		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred.Stmt)
-		args = args
+		args = pred.Args
 	}
 	var count int64
-	row := e.executor().QueryRow(stmt, args...)
-	err := row.Scan(&count)
-	if err != nil {
+	if err := scanRow(e.executor(), &count, Query{stmt, args}); err != nil {
 		return 0, err
 	}
 	return count, nil
 }
 
 func (e baseSQLEngine) Exists(model *Model, c Conditioner) (bool, error) {
-	stmt := fmt.Sprintf(
-		"SELECT EXISTS (SELECT %s FROM %s)", model.pk, e.escape(model.Table()),
-	)
-	args := make([]interface{}, 0)
-	if c != nil {
-		pred, err := e.predicate(model, c, 1)
-		if err != nil {
-			return false, err
-		}
-		stmt = fmt.Sprintf("%s WHERE %s", stmt, pred.Stmt)
-		args = pred.Args
-	}
-	var exists bool
-	row := e.executor().QueryRow(stmt, args...)
-	err := row.Scan(&exists)
+	query, err := e.SelectQuery(model, c, model.pk)
 	if err != nil {
+		return false, err
+	}
+	query.Stmt = fmt.Sprintf("SELECT EXISTS (%s)", query.Stmt)
+	var exists bool
+	if err = scanRow(e.executor(), &exists, query); err != nil {
 		return false, err
 	}
 	return exists, nil
