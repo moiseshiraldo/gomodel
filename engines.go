@@ -410,9 +410,7 @@ func (e baseSQLEngine) InsertRow(model *Model, values Values) (int64, error) {
 			stmt, e.escape(model.fields[model.pk].DBColumn(model.pk)),
 		)
 		var pk int64
-		row := e.executor().QueryRow(stmt, vals...)
-		err := row.Scan(&pk)
-		if err != nil {
+		if err := scanRow(e.executor(), &pk, Query{stmt, vals}); err != nil {
 			return pk, err
 		}
 		return pk, nil
