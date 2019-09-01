@@ -1,7 +1,6 @@
 package gomodels
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 )
@@ -11,7 +10,7 @@ type SqliteEngine struct {
 }
 
 func (e SqliteEngine) Start(db Database) (Engine, error) {
-	conn, err := sql.Open(db.Driver, db.Name)
+	conn, err := openDB(db.Driver, db.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -89,4 +88,26 @@ func (e SqliteEngine) DropColumns(model *Model, fields ...string) error {
 		}
 	}
 	return nil
+}
+
+func (e SqliteEngine) GetRows(
+	m *Model,
+	c Conditioner,
+	start int64,
+	end int64,
+	fields ...string,
+) (Rows, error) {
+	query, err := e.SelectQuery(m, c, fields...)
+	if err != nil {
+		return nil, err
+	}
+	if end > 0 {
+		query.Stmt = fmt.Sprintf("%s LIMIT %d", query.Stmt, end-start)
+	} else if start > 0 {
+		query.Stmt += " LIMIT -1"
+	}
+	if start > 0 {
+		query.Stmt = fmt.Sprintf("%s OFFSET %d", query.Stmt, start)
+	}
+	return e.executor().Query(query.Stmt, query.Args...)
 }

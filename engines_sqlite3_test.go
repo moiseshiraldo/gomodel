@@ -2,41 +2,44 @@ package gomodels
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
 	"testing"
 )
 
 type dbMocker struct {
 	queries []Query
+	err     error
 }
 
 func (db *dbMocker) Reset() {
 	db.queries = make([]Query, 0)
+	db.err = nil
 }
 
 func (db *dbMocker) Begin() (*sql.Tx, error) {
-	return nil, nil
+	return nil, db.err
 }
 
 func (db *dbMocker) Close() error {
-	return nil
+	return db.err
 }
 
 func (db *dbMocker) Commit() error {
-	return nil
+	return db.err
 }
 func (db *dbMocker) Rollback() error {
-	return nil
+	return db.err
 }
 
 func (db *dbMocker) Exec(stmt string, args ...interface{}) (sql.Result, error) {
 	db.queries = append(db.queries, Query{stmt, args})
-	return resultMocker{}, nil
+	return resultMocker{}, db.err
 }
 
 func (db *dbMocker) Query(stmt string, args ...interface{}) (*sql.Rows, error) {
 	db.queries = append(db.queries, Query{stmt, args})
-	return nil, nil
+	return nil, db.err
 }
 
 func (db *dbMocker) QueryRow(stmt string, args ...interface{}) *sql.Row {
@@ -78,12 +81,110 @@ func TestSqliteEngine(t *testing.T) {
 		placeholder: "?",
 	}}
 	origScanRow := scanRow
-	defer func() { scanRow = origScanRow }()
+	origOpenDB := openDB
+	defer func() {
+		scanRow = origScanRow
+		openDB = origOpenDB
+	}()
 	scanRow = func(ex sqlExecutor, dest interface{}, query Query) error {
 		db := ex.(*dbMocker)
 		db.queries = append(db.queries, query)
 		return nil
 	}
+
+	t.Run("StartErr", func(t *testing.T) {
+		openDB = func(driver string, credentials string) (*sql.DB, error) {
+			return nil, fmt.Errorf("db error")
+		}
+		engine := SqliteEngine{}
+		if _, err := engine.Start(Database{}); err == nil {
+			t.Error("expected error, got nil")
+		}
+	})
+
+	t.Run("Start", func(t *testing.T) {
+		openDB = func(driver string, credentials string) (*sql.DB, error) {
+			return nil, nil
+		}
+		engine, err := SqliteEngine{}.Start(Database{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		eng := engine.(SqliteEngine)
+		if eng.baseSQLEngine.driver != "sqlite3" {
+			t.Errorf("expected sqlite3, got %s", eng.baseSQLEngine.driver)
+		}
+		if eng.baseSQLEngine.escapeChar != "\"" {
+			t.Errorf("expected \", got %s", eng.baseSQLEngine.escapeChar)
+		}
+		if eng.baseSQLEngine.placeholder != "?" {
+			t.Errorf("expected ?, got %s", eng.baseSQLEngine.placeholder)
+		}
+	})
+
+	t.Run("BeginTxErr", func(t *testing.T) {
+		mockedDB.Reset()
+		mockedDB.err = fmt.Errorf("db error")
+		if _, err := engine.BeginTx(); err == nil {
+			t.Error("expected error, got nil")
+		}
+	})
+
+	t.Run("BeginTx", func(t *testing.T) {
+		mockedDB.Reset()
+		if _, err := engine.BeginTx(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("TxSupport", func(t *testing.T) {
+		mockedDB.Reset()
+		if !engine.TxSupport() {
+			t.Fatalf("expected true, got false")
+		}
+	})
+
+	t.Run("StopErr", func(t *testing.T) {
+		mockedDB.Reset()
+		mockedDB.err = fmt.Errorf("db error")
+		if err := engine.Stop(); err == nil {
+			t.Error("expected error, got nil")
+		}
+	})
+
+	t.Run("CommitTxErr", func(t *testing.T) {
+		mockedDB.Reset()
+		if err := engine.CommitTx(); err == nil {
+			t.Error("expected error, got nil")
+		}
+	})
+
+	t.Run("CommitTxDBErr", func(t *testing.T) {
+		mockedDB.Reset()
+		mockedDB.err = fmt.Errorf("db error")
+		engine.baseSQLEngine.tx = mockedDB
+		if err := engine.CommitTx(); err == nil {
+			t.Error("expected error, got nil")
+		}
+		engine.baseSQLEngine.tx = nil
+	})
+
+	t.Run("RollbackTxErr", func(t *testing.T) {
+		mockedDB.Reset()
+		if err := engine.CommitTx(); err == nil {
+			t.Error("expected error, got nil")
+		}
+	})
+
+	t.Run("RollbackTxDBErr", func(t *testing.T) {
+		mockedDB.Reset()
+		mockedDB.err = fmt.Errorf("db error")
+		engine.baseSQLEngine.tx = mockedDB
+		if err := engine.RollbackTx(); err == nil {
+			t.Error("expected error, got nil")
+		}
+		engine.baseSQLEngine.tx = nil
+	})
 
 	t.Run("CreateTable", func(t *testing.T) {
 		mockedDB.Reset()
@@ -272,6 +373,24 @@ func TestSqliteEngine(t *testing.T) {
 		}
 	})
 
+	t.Run("GetRowsNoLimit", func(t *testing.T) {
+		mockedDB.Reset()
+		cond := Q{"active": true}
+		_, err := engine.GetRows(model, cond, 10, -1, "id", "updated")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(mockedDB.queries) != 1 {
+			t.Fatalf("expected one query, got %d", len(mockedDB.queries))
+		}
+		expected := `SELECT "id", "updated" FROM "users_user" ` +
+			`WHERE "active" = ? LIMIT -1 OFFSET 10`
+		stmt := mockedDB.queries[0].Stmt
+		if stmt != expected {
+			t.Fatalf("expected:\n\n%s\n\ngot:\n\n%s", expected, stmt)
+		}
+	})
+
 	t.Run("InsertRow", func(t *testing.T) {
 		mockedDB.Reset()
 		values := Values{"email": "user@test.com", "active": true}
@@ -289,6 +408,16 @@ func TestSqliteEngine(t *testing.T) {
 		args := mockedDB.queries[0].Args
 		if len(args) != 2 {
 			t.Fatalf("expected 2 query args, got %d", len(args))
+		}
+	})
+
+	t.Run("InsertRowDBError", func(t *testing.T) {
+		mockedDB.Reset()
+		mockedDB.err = fmt.Errorf("db error")
+		values := Values{"email": "user@test.com", "active": true}
+		_, err := engine.InsertRow(model, values)
+		if err == nil {
+			t.Fatal("expected db error")
 		}
 	})
 
@@ -362,6 +491,27 @@ func TestSqliteEngine(t *testing.T) {
 		}
 	})
 
+	t.Run("CountInvalidCondition", func(t *testing.T) {
+		mockedDB.Reset()
+		_, err := engine.CountRows(model, Q{"username": "user@test.com"})
+		if err == nil {
+			t.Fatal("expected unknown field error")
+		}
+	})
+
+	t.Run("CountDBError", func(t *testing.T) {
+		mockedDB.Reset()
+		origScanRow := scanRow
+		defer func() { scanRow = origScanRow }()
+		scanRow = func(ex sqlExecutor, dest interface{}, query Query) error {
+			return fmt.Errorf("db error")
+		}
+		_, err := engine.CountRows(model, Q{"email": "user@test.com"})
+		if err == nil {
+			t.Fatal("expected db error")
+		}
+	})
+
 	t.Run("Exists", func(t *testing.T) {
 		mockedDB.Reset()
 		_, err := engine.Exists(model, Q{"email": "user@test.com"})
@@ -383,6 +533,27 @@ func TestSqliteEngine(t *testing.T) {
 		}
 		if val, ok := args[0].(string); !ok || val != "user@test.com" {
 			t.Errorf("expected user@test.com, got %s", args[0])
+		}
+	})
+
+	t.Run("ExistsInvalidCondition", func(t *testing.T) {
+		mockedDB.Reset()
+		_, err := engine.Exists(model, Q{"username": "user@test.com"})
+		if err == nil {
+			t.Fatal("expected unknown field error")
+		}
+	})
+
+	t.Run("ExistsDBError", func(t *testing.T) {
+		mockedDB.Reset()
+		origScanRow := scanRow
+		defer func() { scanRow = origScanRow }()
+		scanRow = func(ex sqlExecutor, dest interface{}, query Query) error {
+			return fmt.Errorf("db error")
+		}
+		_, err := engine.Exists(model, Q{"email": "user@test.com"})
+		if err == nil {
+			t.Fatal("expected db error")
 		}
 	})
 }

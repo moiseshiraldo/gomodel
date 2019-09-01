@@ -1,7 +1,6 @@
 package gomodels
 
 import (
-	"database/sql"
 	"fmt"
 )
 
@@ -14,7 +13,7 @@ func (e PostgresEngine) Start(db Database) (Engine, error) {
 		"dbname=%s user=%s password=%s sslmode=disable",
 		db.Name, db.User, db.Password,
 	)
-	conn, err := sql.Open(db.Driver, credentials)
+	conn, err := openDB(db.Driver, credentials)
 	if err != nil {
 		return nil, err
 	}

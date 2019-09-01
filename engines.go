@@ -59,6 +59,10 @@ type sqlTx interface {
 	Rollback() error
 }
 
+var openDB = func(driver string, credentials string) (*sql.DB, error) {
+	return sql.Open(driver, credentials)
+}
+
 var scanRow = func(ex sqlExecutor, dest interface{}, query Query) error {
 	row := ex.QueryRow(query.Stmt, query.Args...)
 	return row.Scan(dest)
