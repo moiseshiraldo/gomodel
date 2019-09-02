@@ -1,9 +1,19 @@
 package gomodels
 
 import (
+	"database/sql"
 	"testing"
 	"time"
 )
+
+type mockedField struct {
+	CharField
+	recipient interface{}
+}
+
+func (f mockedField) Recipient() interface{} {
+	return f.recipient
+}
 
 // TestValues tests the Values type methods
 func TestValues(t *testing.T) {
@@ -70,6 +80,153 @@ func TestValues(t *testing.T) {
 		}
 		if _, ok := values["created"].(NullTime); !ok {
 			t.Errorf("expected gomodels.NullTime, got %T", values["created"])
+		}
+	})
+}
+
+// TestRecipients tests value conversions when setting recipients
+func TestRecipients(t *testing.T) {
+	field := mockedField{}
+	values := Values{}
+
+	t.Run("NilRecipient", func(t *testing.T) {
+		field.recipient = nil
+		if err := values.Set("test", "value", field); err == nil {
+			t.Fatal("expected nil pointer error")
+		}
+	})
+
+	t.Run("StringValue", func(t *testing.T) {
+		var s string
+		var b []byte
+		var r sql.RawBytes
+		recipients := []interface{}{&s, &b, &r}
+		for _, recipient := range recipients {
+			field.recipient = recipient
+			if err := values.Set("test", "value", field); err != nil {
+				t.Fatal(err)
+			}
+		}
+	})
+
+	t.Run("ByteSliceValue", func(t *testing.T) {
+		var s string
+		var i interface{}
+		var b []byte
+		var r sql.RawBytes
+		recipients := []interface{}{&s, &i, &b, &r}
+		for _, recipient := range recipients {
+			field.recipient = recipient
+			if err := values.Set("test", []byte("value"), field); err != nil {
+				t.Fatal(err)
+			}
+		}
+	})
+
+	t.Run("TimeValue", func(t *testing.T) {
+		var tm time.Time
+		var s string
+		var b []byte
+		var r sql.RawBytes
+		recipients := []interface{}{&tm, &s, &b, &r}
+		for _, recipient := range recipients {
+			field.recipient = recipient
+			if err := values.Set("test", time.Now(), field); err != nil {
+				t.Fatal(err)
+			}
+		}
+	})
+
+	t.Run("NilValue", func(t *testing.T) {
+		var i interface{}
+		var b []byte
+		var r sql.RawBytes
+		recipients := []interface{}{&i, &b, &r}
+		for _, recipient := range recipients {
+			field.recipient = recipient
+			if err := values.Set("test", nil, field); err != nil {
+				t.Fatal(err)
+			}
+		}
+	})
+
+	t.Run("StringRecipient", func(t *testing.T) {
+		var s string
+		field.recipient = &s
+		source := []interface{}{
+			int(7), int8(7), int16(7), int32(7), int64(7), uint(7), uint8(7),
+			uint16(7), uint32(7), uint64(7), float32(7), float64(7), true,
+		}
+		for _, val := range source {
+			if err := values.Set("test", val, field); err != nil {
+				t.Fatal(err)
+			}
+		}
+	})
+
+	t.Run("ByteSliceRecipient", func(t *testing.T) {
+		var b []byte
+		field.recipient = &b
+		source := []interface{}{
+			int(7), int8(7), int16(7), int32(7), int64(7), uint(7), uint8(7),
+			uint16(7), uint32(7), uint64(7), float32(7), float64(7), true, "s",
+		}
+		for _, val := range source {
+			if err := values.Set("test", val, field); err != nil {
+				t.Fatal(err)
+			}
+		}
+	})
+
+	t.Run("RawSqlBytesRecipient", func(t *testing.T) {
+		var r sql.RawBytes
+		field.recipient = &r
+		source := []interface{}{
+			int(7), int8(7), int16(7), int32(7), int64(7), uint(7), uint8(7),
+			uint16(7), uint32(7), uint64(7), float32(7), float64(7), true, "s",
+		}
+		for _, val := range source {
+			if err := values.Set("test", val, field); err != nil {
+				t.Fatal(err)
+			}
+		}
+	})
+
+	t.Run("BoolRecipient", func(t *testing.T) {
+		var b bool
+		field.recipient = &b
+		if err := values.Set("test", 1, field); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("InterfaceRecipient", func(t *testing.T) {
+		var i interface{}
+		field.recipient = &i
+		if err := values.Set("test", 1, field); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("ReflectValue", func(t *testing.T) {
+		var i IntegerField
+		field.recipient = &i
+		if err := values.Set("test", IntegerField{}, field); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("NilConversionError", func(t *testing.T) {
+		var i IntegerField
+		var u uint
+		var f float32
+		var s string
+		recipients := []interface{}{&i, &u, &f, &s}
+		for _, recipient := range recipients {
+			field.recipient = recipient
+			if err := values.Set("test", nil, field); err == nil {
+				t.Fatal("expected unsupported conversion error")
+			}
 		}
 	})
 }
