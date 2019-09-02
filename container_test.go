@@ -229,4 +229,69 @@ func TestRecipients(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("PointerRecipientNilValue", func(t *testing.T) {
+		var p *string
+		field.recipient = &p
+		if err := values.Set("test", nil, field); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("PointerRecipient", func(t *testing.T) {
+		var p *string
+		field.recipient = &p
+		if err := values.Set("test", "value", field); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("PointerIntRecipient", func(t *testing.T) {
+		var p *int
+		field.recipient = &p
+		if err := values.Set("test", "42", field); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("PointerIntRecipientInvalidValue", func(t *testing.T) {
+		var p *int
+		field.recipient = &p
+		if err := values.Set("test", "42s", field); err == nil {
+			t.Fatal("expected conversion error")
+		}
+	})
+
+	t.Run("PointerUIntRecipient", func(t *testing.T) {
+		var p *uint
+		field.recipient = &p
+		if err := values.Set("test", "42", field); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("PointerUIntRecipientInvalidValue", func(t *testing.T) {
+		var p *uint
+		field.recipient = &p
+		if err := values.Set("test", "42s", field); err == nil {
+			t.Fatal("expected conversion error")
+		}
+	})
+
+	t.Run("PointerFloatRecipient", func(t *testing.T) {
+		var f *float64
+		field.recipient = &f
+		if err := values.Set("test", "42.0", field); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("PointerFloatRecipientInvalidValue", func(t *testing.T) {
+		var f *float64
+		field.recipient = &f
+		if err := values.Set("test", "42s", field); err == nil {
+			t.Fatal("expected conversion error")
+		}
+	})
+
 }
