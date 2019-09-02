@@ -161,52 +161,34 @@ func asString(src interface{}) string {
 }
 
 func setRecipient(dest, src interface{}) error {
+	if dest == nil {
+		return fmt.Errorf("nil pointer recipient")
+	}
 	switch s := src.(type) {
 	case string:
 		switch d := dest.(type) {
 		case *string:
-			if d == nil {
-				return fmt.Errorf("nil pointer")
-			}
 			*d = s
 			return nil
 		case *[]byte:
-			if d == nil {
-				return fmt.Errorf("nil pointer")
-			}
 			*d = []byte(s)
 			return nil
 		case *sql.RawBytes:
-			if d == nil {
-				return fmt.Errorf("nil pointer")
-			}
 			*d = append((*d)[:0], s...)
 			return nil
 		}
 	case []byte:
 		switch d := dest.(type) {
 		case *string:
-			if d == nil {
-				return fmt.Errorf("nil pointer")
-			}
 			*d = string(s)
 			return nil
 		case *interface{}:
-			if d == nil {
-				return fmt.Errorf("nil pointer")
-			}
 			*d = cloneBytes(s)
 			return nil
 		case *[]byte:
-			if d == nil {
-				return fmt.Errorf("nil pointer")
-			}
 			*d = cloneBytes(s)
 			return nil
 		case *sql.RawBytes:
-			if d == nil {
-				return fmt.Errorf("nil pointer")
-			}
 			*d = s
 			return nil
 		}
@@ -219,36 +201,21 @@ func setRecipient(dest, src interface{}) error {
 			*d = s.Format(time.RFC3339Nano)
 			return nil
 		case *[]byte:
-			if d == nil {
-				return fmt.Errorf("nil pointer")
-			}
 			*d = []byte(s.Format(time.RFC3339Nano))
 			return nil
 		case *sql.RawBytes:
-			if d == nil {
-				return fmt.Errorf("nil pointer")
-			}
 			*d = s.AppendFormat((*d)[:0], time.RFC3339Nano)
 			return nil
 		}
 	case nil:
 		switch d := dest.(type) {
 		case *interface{}:
-			if d == nil {
-				return fmt.Errorf("nil pointer")
-			}
 			*d = nil
 			return nil
 		case *[]byte:
-			if d == nil {
-				return fmt.Errorf("nil pointer")
-			}
 			*d = nil
 			return nil
 		case *sql.RawBytes:
-			if d == nil {
-				return fmt.Errorf("nil pointer")
-			}
 			*d = nil
 			return nil
 		}
@@ -331,9 +298,7 @@ func setRecipient(dest, src interface{}) error {
 		s := asString(src)
 		i64, err := strconv.ParseInt(s, 10, dv.Type().Bits())
 		if err != nil {
-			return fmt.Errorf(
-				"converting driver.Value type %T to a %s", src, dv.Kind(),
-			)
+			return fmt.Errorf("converting type %T to a %s", src, dv.Kind())
 		}
 		dv.SetInt(i64)
 		return nil
@@ -345,9 +310,7 @@ func setRecipient(dest, src interface{}) error {
 		s := asString(src)
 		u64, err := strconv.ParseUint(s, 10, dv.Type().Bits())
 		if err != nil {
-			return fmt.Errorf(
-				"converting driver.Value type %T to a %s", src, dv.Kind(),
-			)
+			return fmt.Errorf("converting type %T to a %s", src, dv.Kind())
 		}
 		dv.SetUint(u64)
 		return nil
@@ -358,9 +321,7 @@ func setRecipient(dest, src interface{}) error {
 		s := asString(src)
 		f64, err := strconv.ParseFloat(s, dv.Type().Bits())
 		if err != nil {
-			return fmt.Errorf(
-				"converting driver.Value type %T to a %s", src, dv.Kind(),
-			)
+			return fmt.Errorf("converting type %T to a %s", src, dv.Kind())
 		}
 		dv.SetFloat(f64)
 		return nil

@@ -321,6 +321,15 @@ func TestPostgresEngine(t *testing.T) {
 		}
 	})
 
+	t.Run("GetRowsInvalidCondition", func(t *testing.T) {
+		mockedDB.Reset()
+		cond := Q{"username": "test"}
+		_, err := engine.GetRows(model, cond, 10, 20, "id", "updated")
+		if err == nil {
+			t.Fatal("expected unknown field error")
+		}
+	})
+
 	t.Run("InsertRow", func(t *testing.T) {
 		mockedDB.Reset()
 		values := Values{"email": "user@test.com", "active": true}
@@ -499,6 +508,7 @@ func TestPostgresEngine(t *testing.T) {
 
 	t.Run("Exists", func(t *testing.T) {
 		mockedDB.Reset()
+		engine.baseSQLEngine.tx = mockedDB
 		_, err := engine.Exists(model, Q{"email": "user@test.com"})
 		if err != nil {
 			t.Fatal(err)

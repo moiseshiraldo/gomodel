@@ -171,7 +171,7 @@ func TestSqliteEngine(t *testing.T) {
 
 	t.Run("RollbackTxErr", func(t *testing.T) {
 		mockedDB.Reset()
-		if err := engine.CommitTx(); err == nil {
+		if err := engine.RollbackTx(); err == nil {
 			t.Error("expected error, got nil")
 		}
 	})
@@ -388,6 +388,15 @@ func TestSqliteEngine(t *testing.T) {
 		stmt := mockedDB.queries[0].Stmt
 		if stmt != expected {
 			t.Fatalf("expected:\n\n%s\n\ngot:\n\n%s", expected, stmt)
+		}
+	})
+
+	t.Run("GetRowsInvalidCondition", func(t *testing.T) {
+		mockedDB.Reset()
+		cond := Q{"username": "test"}
+		_, err := engine.GetRows(model, cond, 10, 20, "id", "updated")
+		if err == nil {
+			t.Fatal("expected unknown field error")
 		}
 	})
 
