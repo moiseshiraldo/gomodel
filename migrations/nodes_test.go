@@ -3,13 +3,44 @@ package migrations
 import (
 	"fmt"
 	"github.com/moiseshiraldo/gomodels"
+	"os"
 	"testing"
+	"time"
 )
 
 // invalidOperationType mocks non-JSON-serializable operation
 type invalidOperationType struct {
 	InvalidField func() string
 	mockedOperation
+}
+
+type fileMocker struct {
+	name string
+	dir  bool
+}
+
+func (f fileMocker) Name() string {
+	return f.name
+}
+
+func (f fileMocker) Size() int64 {
+	return 0
+}
+
+func (f fileMocker) Mode() os.FileMode {
+	return 0644
+}
+
+func (f fileMocker) ModTime() time.Time {
+	return time.Now()
+}
+
+func (f fileMocker) IsDir() bool {
+	return f.dir
+}
+
+func (f fileMocker) Sys() interface{} {
+	return nil
 }
 
 // TestNodeStorage tests node Load/Save methods
@@ -133,6 +164,38 @@ func TestNodeStorage(t *testing.T) {
 	})
 }
 
+// TestReadAppNodes tests the read app nodes function
+func TestReadAppNodes(t *testing.T) {
+	origReadDir := readDir
+	defer func() { readDir = origReadDir }()
+
+	t.Run("Error", func(t *testing.T) {
+		readDir = func(name string) ([]os.FileInfo, error) {
+			return nil, fmt.Errorf("dir not found")
+		}
+		if _, err := readAppNodes("/app/migrations"); err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+
+	t.Run("List", func(t *testing.T) {
+		readDir = func(name string) ([]os.FileInfo, error) {
+			files := []os.FileInfo{
+				fileMocker{name: "0001_initial.json", dir: false},
+				fileMocker{name: "subdir", dir: true},
+			}
+			return files, nil
+		}
+		nodes, err := readAppNodes("/app/migrations")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(nodes) != 1 {
+			t.Fatalf("expected 1 node, got %d", len(nodes))
+		}
+	})
+}
+
 // TestNode tests node Run/Backwards functions
 func TestNode(t *testing.T) {
 	// DB setup
@@ -176,6 +239,16 @@ func testNodeRun(t *testing.T, db gomodels.Database) {
 	t.Run("MigrationDbError", func(t *testing.T) {
 		node := setup()
 		mockedEngine.Results.InsertRow.Err = fmt.Errorf("db error")
+		err := node.Run(db)
+		if _, ok := err.(*gomodels.DatabaseError); !ok {
+			t.Errorf("expected gomodels.DatabaseError, got %T", err)
+		}
+	})
+
+	t.Run("MigrationDbRollbackError", func(t *testing.T) {
+		node := setup()
+		mockedEngine.Results.InsertRow.Err = fmt.Errorf("db error")
+		mockedEngine.Results.RollbackTx = fmt.Errorf("db error")
 		err := node.Run(db)
 		if _, ok := err.(*gomodels.DatabaseError); !ok {
 			t.Errorf("expected gomodels.DatabaseError, got %T", err)
@@ -334,6 +407,16 @@ func testNodeBackwards(t *testing.T, db gomodels.Database) {
 	t.Run("MigrationDbError", func(t *testing.T) {
 		node := setup()
 		mockedEngine.Results.DeleteRows.Err = fmt.Errorf("db error")
+		err := node.Backwards(db)
+		if _, ok := err.(*gomodels.DatabaseError); !ok {
+			t.Errorf("expected gomodels.DatabaseError, got %T", err)
+		}
+	})
+
+	t.Run("MigrationDbRollbackError", func(t *testing.T) {
+		node := setup()
+		mockedEngine.Results.DeleteRows.Err = fmt.Errorf("db error")
+		mockedEngine.Results.RollbackTx = fmt.Errorf("db error")
 		err := node.Backwards(db)
 		if _, ok := err.(*gomodels.DatabaseError); !ok {
 			t.Errorf("expected gomodels.DatabaseError, got %T", err)

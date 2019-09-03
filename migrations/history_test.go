@@ -519,6 +519,14 @@ func TestLoadHistory(t *testing.T) {
 	if _, ok := operationsRegistry["MockedOperation"]; !ok {
 		operationsRegistry["MockedOperation"] = &mockedOperation{}
 	}
+	// DB Setup
+	err := gomodels.Start(map[string]gomodels.Database{
+		"default": {Driver: "mocker", Name: "test"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gomodels.Stop()
 
 	t.Run("WrongPath", func(t *testing.T) {
 		readAppNodes = func(path string) ([]string, error) {
@@ -664,7 +672,12 @@ func TestLoadHistory(t *testing.T) {
 			return []string{"0001_initial.json"}, nil
 		}
 		readNode = func(path string) ([]byte, error) {
-			return []byte(`{"App": "test", "Dependencies": []}`), nil
+			data := []byte(`{
+			  "App": "test",
+			  "Dependencies": [],
+			  "Operations": [{"MockedOperation": {"StateErr": false}}]
+			}`)
+			return data, nil
 		}
 		if err := loadHistory(); err != nil {
 			t.Fatal(err)
@@ -675,6 +688,10 @@ func TestLoadHistory(t *testing.T) {
 		}
 		if !migrations[0].processed {
 			t.Errorf("expected node state to be processed")
+		}
+		op := migrations[0].Operations[0].(*mockedOperation)
+		if !op.state {
+			t.Errorf("expected node SetState to be called")
 		}
 	})
 }
@@ -699,15 +716,28 @@ func TestLoadAppliedMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	goApp := gomodels.Registry()["gomodels"]
-	if err := Migration.Model.Register(goApp); err != nil {
-		t.Fatal(err)
-	}
 	db := gomodels.Databases()["default"]
 	defer gomodels.Stop()
 	mockedEngine := db.Engine.(gomodels.MockedEngine)
 
+	t.Run("CreateTableError", func(t *testing.T) {
+		mockedEngine.Reset()
+		mockedEngine.Results.CreateTable = fmt.Errorf("db error")
+		if err := loadAppliedMigrations(db); err == nil {
+			t.Fatal("expected db error, got nil")
+		}
+	})
+
+	t.Run("GetRowsError", func(t *testing.T) {
+		mockedEngine.Reset()
+		mockedEngine.Results.GetRows.Err = fmt.Errorf("db error")
+		if err := loadAppliedMigrations(db); err == nil {
+			t.Fatal("expected db error, got nil")
+		}
+	})
+
 	t.Run("Error", func(t *testing.T) {
+		mockedEngine.Reset()
 		mockedEngine.Results.GetRows.Rows = &rowsMocker{}
 		if err := loadAppliedMigrations(db); err == nil {
 			t.Fatal("expected missing node error, got nil")
@@ -718,10 +748,10 @@ func TestLoadAppliedMigrations(t *testing.T) {
 		if mockedEngine.Calls("GetRows") != 1 {
 			t.Fatal("expected engine GetMigrations to be called")
 		}
-		mockedEngine.Reset()
 	})
 
 	t.Run("Success", func(t *testing.T) {
+		mockedEngine.Reset()
 		node := &Node{
 			App:    "test",
 			Name:   "initial",
@@ -735,6 +765,5 @@ func TestLoadAppliedMigrations(t *testing.T) {
 		if !history["test"].migrations[0].applied {
 			t.Fatal("expected migration to be applied")
 		}
-		mockedEngine.Reset()
 	})
 }

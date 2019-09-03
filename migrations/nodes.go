@@ -13,13 +13,11 @@ import (
 var writeNode = func(path string, data []byte) error {
 	return ioutil.WriteFile(path, data, 0644)
 }
-
-var readNode = func(path string) ([]byte, error) {
-	return ioutil.ReadFile(path)
-}
+var readNode = ioutil.ReadFile
+var readDir = ioutil.ReadDir
 
 var readAppNodes = func(path string) ([]string, error) {
-	files, err := ioutil.ReadDir(path)
+	files, err := readDir(path)
 	if err != nil {
 		return nil, err
 	}

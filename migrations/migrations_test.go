@@ -149,6 +149,8 @@ func TestRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	db := gomodels.Databases()["default"]
+	mockedEngine := db.Engine.(gomodels.MockedEngine)
 	defer gomodels.Stop()
 	// Mocks loadHistory and loadAppliedMigrations functions
 	origLoadHistory := loadHistory
@@ -238,6 +240,23 @@ func TestRun(t *testing.T) {
 		}
 	})
 
+	t.Run("AppDBError", func(t *testing.T) {
+		loadHistory = func() error {
+			state = &AppState{
+				app:        gomodels.Registry()["users"],
+				Models:     make(map[string]*gomodels.Model),
+				migrations: []*Node{},
+			}
+			history["users"] = state
+			return nil
+		}
+		loadAppliedMigrations = func(db gomodels.Database) error { return nil }
+		err := Run(RunOptions{App: "users"})
+		if _, ok := err.(*NoAppMigrationsError); !ok {
+			t.Fatalf("expected NoAppMigrationsError, got %T", err)
+		}
+	})
+
 	t.Run("All", func(t *testing.T) {
 		loadHistory = mockedLoadHistory
 		loadAppliedMigrations = func(db gomodels.Database) error { return nil }
@@ -247,6 +266,17 @@ func TestRun(t *testing.T) {
 		}
 		if state.migrations == nil || !state.migrations[0].applied {
 			t.Fatal("migration was not applied")
+		}
+	})
+
+	t.Run("AllDBError", func(t *testing.T) {
+		mockedEngine.Reset()
+		mockedEngine.Results.InsertRow.Err = fmt.Errorf("db error")
+		loadHistory = mockedLoadHistory
+		loadAppliedMigrations = func(db gomodels.Database) error { return nil }
+		err := Run(RunOptions{})
+		if _, ok := err.(*gomodels.DatabaseError); !ok {
+			t.Fatalf("expected gomodels.DatabaseError, got %T", err)
 		}
 	})
 }
@@ -272,6 +302,8 @@ func TestMakeAndRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	db := gomodels.Databases()["default"]
+	mockedEngine := db.Engine.(gomodels.MockedEngine)
 	defer gomodels.Stop()
 	// Mocks loadAppliedMigrations function
 	origLoadApplied := loadAppliedMigrations
@@ -295,9 +327,18 @@ func TestMakeAndRun(t *testing.T) {
 		}
 	})
 
+	t.Run("DBError", func(t *testing.T) {
+		mockedEngine.Reset()
+		mockedEngine.Results.InsertRow.Err = fmt.Errorf("db error")
+		loadAppliedMigrations = func(db gomodels.Database) error { return nil }
+		err := MakeAndRun("default")
+		if _, ok := err.(*gomodels.DatabaseError); !ok {
+			t.Fatalf("expected gomodels.DatabaseError, got %T", err)
+		}
+	})
+
 	t.Run("Success", func(t *testing.T) {
-		db := gomodels.Databases()["default"]
-		mockedEngine := db.Engine.(gomodels.MockedEngine)
+		mockedEngine.Reset()
 		loadAppliedMigrations = func(db gomodels.Database) error {
 			loadAppliedCalled = true
 			return nil
