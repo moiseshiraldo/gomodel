@@ -47,10 +47,10 @@ func TestFields(t *testing.T) {
 		if _, ok := fields["foo"]; !ok {
 			t.Fatal("expected map to contain foo field")
 		}
-		if _, ok := fields["foo"].(CharField); !ok {
-			t.Fatalf("expected CharField, got %T", fields["foo"])
+		if _, ok := fields["foo"].(*CharField); !ok {
+			t.Fatalf("expected *CharField, got %T", fields["foo"])
 		}
-		field := fields["foo"].(CharField)
+		field := fields["foo"].(*CharField)
 		if field.MaxLength != 100 {
 			t.Errorf("expected MaxLength to be 100, got %d", field.MaxLength)
 		}

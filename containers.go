@@ -63,10 +63,7 @@ func newContainer(container Container) Container {
 	if b, ok := container.(Builder); ok {
 		return b.New()
 	} else {
-		ct := reflect.TypeOf(container)
-		if ct.Kind() == reflect.Ptr {
-			ct = ct.Elem()
-		}
+		ct := reflect.Indirect(reflect.ValueOf(container)).Type()
 		return reflect.New(ct).Interface()
 	}
 }

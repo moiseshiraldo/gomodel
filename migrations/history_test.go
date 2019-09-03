@@ -40,6 +40,78 @@ func (r *rowsMocker) Scan(dest ...interface{}) error {
 	return nil
 }
 
+// TestLoadAppliedMigrations test the loadAppliedMigrations function
+func TestLoadAppliedMigrations(t *testing.T) {
+	// App setup
+	app := gomodels.NewApp("test", "")
+	gomodels.Register(app)
+	defer gomodels.ClearRegistry()
+	// App state setup
+	appState := &AppState{
+		app:        gomodels.Registry()["test"],
+		migrations: []*Node{},
+	}
+	history["test"] = appState
+	defer clearHistory()
+	// DB Setup
+	err := gomodels.Start(map[string]gomodels.Database{
+		"default": {Driver: "mocker", Name: "test"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	db := gomodels.Databases()["default"]
+	defer gomodels.Stop()
+	mockedEngine := db.Engine.(gomodels.MockedEngine)
+
+	t.Run("CreateTableError", func(t *testing.T) {
+		mockedEngine.Reset()
+		mockedEngine.Results.CreateTable = fmt.Errorf("db error")
+		if err := loadAppliedMigrations(db); err == nil {
+			t.Fatal("expected db error, got nil")
+		}
+	})
+
+	t.Run("GetRowsError", func(t *testing.T) {
+		mockedEngine.Reset()
+		mockedEngine.Results.GetRows.Err = fmt.Errorf("db error")
+		if err := loadAppliedMigrations(db); err == nil {
+			t.Fatal("expected db error, got nil")
+		}
+	})
+
+	t.Run("Error", func(t *testing.T) {
+		mockedEngine.Reset()
+		mockedEngine.Results.GetRows.Rows = &rowsMocker{}
+		if err := loadAppliedMigrations(db); err == nil {
+			t.Fatal("expected missing node error, got nil")
+		}
+		if mockedEngine.Calls("CreateTable") != 1 {
+			t.Fatal("expected engine Create to be called")
+		}
+		if mockedEngine.Calls("GetRows") != 1 {
+			t.Fatal("expected engine GetMigrations to be called")
+		}
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		mockedEngine.Reset()
+		node := &Node{
+			App:    "test",
+			Name:   "initial",
+			number: 1,
+		}
+		history["test"].migrations = []*Node{node}
+		mockedEngine.Results.GetRows.Rows = &rowsMocker{}
+		if err := loadAppliedMigrations(db); err != nil {
+			t.Fatal(err)
+		}
+		if !history["test"].migrations[0].applied {
+			t.Fatal("expected migration to be applied")
+		}
+	})
+}
+
 // TestAppMigrate tests the Migrate method of the app state
 func TestAppMigrate(t *testing.T) {
 	// App setup
@@ -692,78 +764,6 @@ func TestLoadHistory(t *testing.T) {
 		op := migrations[0].Operations[0].(*mockedOperation)
 		if !op.state {
 			t.Errorf("expected node SetState to be called")
-		}
-	})
-}
-
-// TestLoadAppliedMigrations test the loadAppliedMigrations function
-func TestLoadAppliedMigrations(t *testing.T) {
-	// App setup
-	app := gomodels.NewApp("test", "")
-	gomodels.Register(app)
-	defer gomodels.ClearRegistry()
-	// App state setup
-	appState := &AppState{
-		app:        gomodels.Registry()["test"],
-		migrations: []*Node{},
-	}
-	history["test"] = appState
-	defer clearHistory()
-	// DB Setup
-	err := gomodels.Start(map[string]gomodels.Database{
-		"default": {Driver: "mocker", Name: "test"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	db := gomodels.Databases()["default"]
-	defer gomodels.Stop()
-	mockedEngine := db.Engine.(gomodels.MockedEngine)
-
-	t.Run("CreateTableError", func(t *testing.T) {
-		mockedEngine.Reset()
-		mockedEngine.Results.CreateTable = fmt.Errorf("db error")
-		if err := loadAppliedMigrations(db); err == nil {
-			t.Fatal("expected db error, got nil")
-		}
-	})
-
-	t.Run("GetRowsError", func(t *testing.T) {
-		mockedEngine.Reset()
-		mockedEngine.Results.GetRows.Err = fmt.Errorf("db error")
-		if err := loadAppliedMigrations(db); err == nil {
-			t.Fatal("expected db error, got nil")
-		}
-	})
-
-	t.Run("Error", func(t *testing.T) {
-		mockedEngine.Reset()
-		mockedEngine.Results.GetRows.Rows = &rowsMocker{}
-		if err := loadAppliedMigrations(db); err == nil {
-			t.Fatal("expected missing node error, got nil")
-		}
-		if mockedEngine.Calls("CreateTable") != 1 {
-			t.Fatal("expected engine Create to be called")
-		}
-		if mockedEngine.Calls("GetRows") != 1 {
-			t.Fatal("expected engine GetMigrations to be called")
-		}
-	})
-
-	t.Run("Success", func(t *testing.T) {
-		mockedEngine.Reset()
-		node := &Node{
-			App:    "test",
-			Name:   "initial",
-			number: 1,
-		}
-		history["test"].migrations = []*Node{node}
-		mockedEngine.Results.GetRows.Rows = &rowsMocker{}
-		if err := loadAppliedMigrations(db); err != nil {
-			t.Fatal(err)
-		}
-		if !history["test"].migrations[0].applied {
-			t.Fatal("expected migration to be applied")
 		}
 	})
 }

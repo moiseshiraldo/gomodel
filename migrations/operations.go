@@ -39,16 +39,12 @@ func (op *OperationList) UnmarshalJSON(data []byte) error {
 			if !ok {
 				return fmt.Errorf("invalid operation: %s", name)
 			}
-			if err := json.Unmarshal(rawOp, operation); err != nil {
+			ot := reflect.Indirect(reflect.ValueOf(operation)).Type()
+			op := reflect.New(ot).Interface()
+			if err := json.Unmarshal(rawOp, op); err != nil {
 				return err
 			}
-			opVal := reflect.ValueOf(operation).Interface()
-			if op, ok := opVal.(Operation); ok {
-				opList = append(opList, op)
-			} else {
-				op := reflect.Indirect(reflect.ValueOf(operation)).Interface()
-				opList = append(opList, op.(Operation))
-			}
+			opList = append(opList, op.(Operation))
 		}
 	}
 	*op = opList
@@ -56,12 +52,12 @@ func (op *OperationList) UnmarshalJSON(data []byte) error {
 }
 
 var operationsRegistry = map[string]Operation{
-	"CreateModel":  &CreateModel{},
-	"DeleteModel":  &DeleteModel{},
-	"AddFields":    &AddFields{},
-	"RemoveFields": &RemoveFields{},
-	"AddIndex":     &AddIndex{},
-	"RemoveIndex":  &RemoveIndex{},
+	"CreateModel":  CreateModel{},
+	"DeleteModel":  DeleteModel{},
+	"AddFields":    AddFields{},
+	"RemoveFields": RemoveFields{},
+	"AddIndex":     AddIndex{},
+	"RemoveIndex":  RemoveIndex{},
 }
 
 func RegisterOperation(name string, op Operation) error {

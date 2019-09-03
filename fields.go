@@ -48,11 +48,12 @@ func (fp *Fields) UnmarshalJSON(data []byte) error {
 			if !ok {
 				return fmt.Errorf("invalid field type: %s", fType)
 			}
-			if err := json.Unmarshal(raw, field); err != nil {
+			ft := reflect.Indirect(reflect.ValueOf(field)).Type()
+			fp := reflect.New(ft).Interface()
+			if err := json.Unmarshal(raw, fp); err != nil {
 				return err
 			}
-			fVal := reflect.Indirect(reflect.ValueOf(field)).Interface()
-			fields[name] = fVal.(Field)
+			fields[name] = fp.(Field)
 		}
 	}
 	*fp = fields
@@ -60,11 +61,11 @@ func (fp *Fields) UnmarshalJSON(data []byte) error {
 }
 
 var fieldsRegistry = Fields{
-	"IntegerField": &IntegerField{},
-	"BooleanField": &BooleanField{},
-	"CharField":    &CharField{},
-	"DateField":    &DateField{},
-	"TimeField":    &TimeField{},
+	"IntegerField": IntegerField{},
+	"BooleanField": BooleanField{},
+	"CharField":    CharField{},
+	"DateField":    DateField{},
+	"TimeField":    TimeField{},
 }
 
 func fieldInList(name string, fields []string) bool {
