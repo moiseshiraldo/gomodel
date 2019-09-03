@@ -100,6 +100,11 @@ func (qs GenericQuerySet) Exclude(c Conditioner) QuerySet {
 	return qs.base.Wrap(qs)
 }
 
+func (qs GenericQuerySet) Only(fields ...string) QuerySet {
+	qs.fields = fields
+	return qs.base.Wrap(qs)
+}
+
 func (qs GenericQuerySet) Query() (Query, error) {
 	db, ok := dbRegistry[qs.database]
 	if !ok {

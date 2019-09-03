@@ -126,6 +126,20 @@ func TestGenericQuerySet(t *testing.T) {
 		}
 	})
 
+	t.Run("Only", func(t *testing.T) {
+		qs := GenericQuerySet{base: GenericQuerySet{}}.Only("id", "email")
+		gqs := qs.(GenericQuerySet)
+		if len(gqs.fields) != 2 {
+			t.Fatalf("expected qs fields len to be 2, got %d", len(gqs.fields))
+		}
+		if gqs.fields[0] != "id" || gqs.fields[1] != "email" {
+			t.Errorf(
+				"expected fields (id, email), got: (%s, %s)",
+				gqs.fields[0], gqs.fields[1],
+			)
+		}
+	})
+
 	t.Run("QueryInvalidDB", func(t *testing.T) {
 		mockedEngine.Reset()
 		qs := GenericQuerySet{model: model, database: "slave"}
