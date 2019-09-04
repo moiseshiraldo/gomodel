@@ -89,7 +89,7 @@ func (n *Node) Run(db gomodel.Database) error {
 	if n.applied {
 		return nil
 	}
-	if err := n.runDependencies(db); err != nil {
+	if err := n.runDependencies(db, false); err != nil {
 		return err
 	}
 	if err := n.runOperations(db); err != nil {
@@ -99,13 +99,32 @@ func (n *Node) Run(db gomodel.Database) error {
 	return nil
 }
 
-func (n Node) runDependencies(db gomodel.Database) error {
+func (n *Node) Fake(db gomodel.Database) error {
+	if n.applied {
+		return nil
+	}
+	if err := n.runDependencies(db, true); err != nil {
+		return err
+	}
+	values := gomodel.Values{"app": n.App, "number": n.number, "name": n.Name}
+	if _, err := Migration.Objects.Create(values); err != nil {
+		return err
+	}
+	n.applied = true
+	return nil
+}
+
+func (n Node) runDependencies(db gomodel.Database, fake bool) error {
 	for _, dep := range n.Dependencies {
 		app, name := dep[0], dep[1]
 		number, _ := strconv.Atoi(name[:4])
 		depNode := history[app].migrations[number-1]
 		if !depNode.applied {
-			if err := depNode.Run(db); err != nil {
+			run := depNode.Run
+			if fake {
+				run = depNode.Fake
+			}
+			if err := run(db); err != nil {
 				return err
 			}
 		}
@@ -152,10 +171,12 @@ func (n Node) runOperations(db gomodel.Database) error {
 		if txSupport {
 			txErr := tx.Rollback()
 			if txErr != nil {
-				err = txErr
+				return &gomodel.DatabaseError{
+					db.Id(), gomodel.ErrorTrace{Err: txErr},
+				}
 			}
 		}
-		return &gomodel.DatabaseError{db.Id(), gomodel.ErrorTrace{Err: err}}
+		return err
 	}
 	if txSupport {
 		if err := tx.Commit(); err != nil {
@@ -171,7 +192,7 @@ func (n *Node) Backwards(db gomodel.Database) error {
 	if !n.applied {
 		return nil
 	}
-	if err := n.backwardDependencies(db); err != nil {
+	if err := n.backwardDependencies(db, false); err != nil {
 		return err
 	}
 	if err := n.backwardOperations(db); err != nil {
@@ -181,12 +202,31 @@ func (n *Node) Backwards(db gomodel.Database) error {
 	return nil
 }
 
-func (n Node) backwardDependencies(db gomodel.Database) error {
+func (n *Node) FakeBackwards(db gomodel.Database) error {
+	if !n.applied {
+		return nil
+	}
+	if err := n.backwardDependencies(db, true); err != nil {
+		return err
+	}
+	cond := gomodel.Q{"app": n.App, "number": n.number}
+	if _, err := Migration.Objects.Filter(cond).Delete(); err != nil {
+		return err
+	}
+	n.applied = false
+	return nil
+}
+
+func (n Node) backwardDependencies(db gomodel.Database, fake bool) error {
 	for _, state := range history {
 		for _, node := range state.migrations {
 			for _, dep := range node.Dependencies {
 				if dep[0] == n.App && dep[1] == n.fullname() {
-					if err := node.Backwards(db); err != nil {
+					goBack := node.Backwards
+					if fake {
+						goBack = node.FakeBackwards
+					}
+					if err := goBack(db); err != nil {
 						return err
 					}
 				}
@@ -241,10 +281,12 @@ func (n Node) backwardOperations(db gomodel.Database) error {
 	if err != nil {
 		if txSupport {
 			if txErr := tx.Rollback(); txErr != nil {
-				err = txErr
+				return &gomodel.DatabaseError{
+					db.Id(), gomodel.ErrorTrace{Err: txErr},
+				}
 			}
 		}
-		return &gomodel.DatabaseError{db.Id(), gomodel.ErrorTrace{Err: err}}
+		return err
 	}
 	if txSupport {
 		if err := tx.Commit(); err != nil {

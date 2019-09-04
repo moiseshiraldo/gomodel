@@ -198,6 +198,31 @@ func TestAppMigrate(t *testing.T) {
 		}
 	})
 
+	t.Run("FakeFirstNode", func(t *testing.T) {
+		firstNode.applied = false
+		secondNode.applied = false
+		mockedEngine.Reset()
+		if err := appState.Fake("default", "0001"); err != nil {
+			t.Fatal(err)
+		}
+		if !appState.migrations[0].applied {
+			t.Errorf("first migration was not applied")
+		}
+		if appState.migrations[1].applied {
+			t.Errorf("second migration was applied")
+		}
+		if mockedEngine.Calls("InsertRow") != 1 {
+			t.Errorf("expected engine InsertRow to be called")
+		}
+		args := mockedEngine.Args.InsertRow.Values
+		if args["app"].(string) != "test" || args["number"].(int) != 1 {
+			t.Errorf(
+				"SaveMigration called with wrong arguments: %s, %d",
+				args["app"], args["number"],
+			)
+		}
+	})
+
 	t.Run("MigrateAll", func(t *testing.T) {
 		firstNode.applied = false
 		secondNode.applied = false
@@ -229,6 +254,32 @@ func TestAppMigrate(t *testing.T) {
 		appState.lastApplied = 2
 		mockedEngine.Reset()
 		if err := appState.Migrate("default", "0001"); err != nil {
+			t.Fatal(err)
+		}
+		if !appState.migrations[0].applied {
+			t.Errorf("first migration is not applied")
+		}
+		if appState.migrations[1].applied {
+			t.Errorf("second migration is still applied")
+		}
+		if mockedEngine.Calls("DeleteRows") != 1 {
+			t.Errorf("expected engine DeleteRows to be called")
+		}
+		args := mockedEngine.Args.DeleteRows.Conditioner.Conditions()
+		if args["app"].(string) != "test" || args["number"].(int) != 2 {
+			t.Errorf(
+				"SaveMigration called with wrong arguments: %s, %d",
+				args["app"], args["number"],
+			)
+		}
+	})
+
+	t.Run("FakeBackwardsFirst", func(t *testing.T) {
+		firstNode.applied = true
+		secondNode.applied = true
+		appState.lastApplied = 2
+		mockedEngine.Reset()
+		if err := appState.Fake("default", "0001"); err != nil {
 			t.Fatal(err)
 		}
 		if !appState.migrations[0].applied {

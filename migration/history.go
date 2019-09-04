@@ -129,6 +129,14 @@ func (state *AppState) makeMigrations(stash map[string]bool) ([]*Node, error) {
 }
 
 func (state AppState) Migrate(database string, nodeName string) error {
+	return state.migrate(database, nodeName, false)
+}
+
+func (state AppState) Fake(database string, nodeName string) error {
+	return state.migrate(database, nodeName, true)
+}
+
+func (state AppState) migrate(database string, name string, fake bool) error {
 	if len(state.migrations) == 0 {
 		return &NoAppMigrationsError{state.app.Name(), ErrorTrace{}}
 	}
@@ -137,24 +145,31 @@ func (state AppState) Migrate(database string, nodeName string) error {
 		return &gomodel.DatabaseError{database, gomodel.ErrorTrace{}}
 	}
 	var node *Node
-	if nodeName == "" {
+	var backwards bool
+	if name == "" {
 		node = state.migrations[len(state.migrations)-1]
 	} else {
-		number, err := strconv.Atoi(nodeName[:4])
+		number, err := strconv.Atoi(name[:4])
 		if err != nil || number > len(state.migrations) {
-			return &NameError{nodeName, ErrorTrace{}}
+			return &NameError{name, ErrorTrace{}}
 		}
-		if number > 0 {
+		node = state.migrations[0]
+		if number < state.lastApplied {
+			backwards = true
+			node = state.migrations[number]
+		} else if number > 0 {
 			node = state.migrations[number-1]
 		}
 	}
-	if node == nil {
-		return state.migrations[0].Backwards(db)
-	} else if node.number < state.lastApplied {
-		return state.migrations[node.number].Backwards(db)
-	} else {
-		return node.Run(db)
+	run := node.Run
+	if backwards && fake {
+		run = node.FakeBackwards
+	} else if backwards {
+		run = node.Backwards
+	} else if fake {
+		run = node.Fake
 	}
+	return run(db)
 }
 
 var loadHistory = func() error {

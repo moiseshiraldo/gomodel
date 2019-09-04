@@ -208,7 +208,9 @@ func TestNode(t *testing.T) {
 	db := gomodel.Databases()["default"]
 	defer gomodel.Stop()
 	t.Run("Run", func(t *testing.T) { testNodeRun(t, db) })
+	t.Run("Fake", func(t *testing.T) { testNodeFake(t, db) })
 	t.Run("Backwards", func(t *testing.T) { testNodeBackwards(t, db) })
+	t.Run("FakeBackwards", func(t *testing.T) { testNodeFakeBackwards(t, db) })
 }
 
 func testNodeRun(t *testing.T, db gomodel.Database) {
@@ -378,6 +380,99 @@ func testNodeRun(t *testing.T, db gomodel.Database) {
 	})
 }
 
+func testNodeFake(t *testing.T, db gomodel.Database) {
+	mockedEngine := db.Engine.(gomodel.MockedEngine)
+	op := &mockedOperation{}
+	setup := func() *Node {
+		op.reset()
+		mockedEngine.Reset()
+		return &Node{
+			App:        "test",
+			Name:       "initial",
+			number:     1,
+			Operations: OperationList{op},
+		}
+	}
+	defer mockedEngine.Reset()
+
+	t.Run("MigrationDbError", func(t *testing.T) {
+		node := setup()
+		mockedEngine.Results.InsertRow.Err = fmt.Errorf("db error")
+		err := node.Fake(db)
+		if _, ok := err.(*gomodel.DatabaseError); !ok {
+			t.Errorf("expected gomodel.DatabaseError, got %T", err)
+		}
+	})
+
+	t.Run("Skip", func(t *testing.T) {
+		node := setup()
+		node.applied = true
+		if err := node.Fake(db); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		node := setup()
+		if err := node.Fake(db); err != nil {
+			t.Fatal(err)
+		}
+		if !node.applied {
+			t.Errorf("node was not applied")
+		}
+		if op.run {
+			t.Errorf("node did run operation")
+		}
+		if mockedEngine.Calls("InsertRow") != 1 {
+			t.Errorf("migration was not saved on db")
+		}
+		args := mockedEngine.Args.InsertRow.Values
+		if args["app"].(string) != "test" || args["number"].(int) != 1 {
+			t.Errorf("InsertRow called with wrong arguments")
+		}
+	})
+
+	t.Run("Dependencies", func(t *testing.T) {
+		node := setup()
+		secondNode := &Node{
+			App:          "test",
+			Name:         "second",
+			number:       2,
+			Dependencies: [][]string{{"test", "0001_initial"}},
+		}
+		thirdNode := &Node{
+			App:          "test",
+			Name:         "third",
+			number:       3,
+			Dependencies: [][]string{{"test", "0002_second"}},
+		}
+		gomodel.Register(gomodel.NewApp("test", ""))
+		appState := &AppState{
+			app:        gomodel.Registry()["test"],
+			migrations: []*Node{node, secondNode, thirdNode},
+		}
+		history["test"] = appState
+		defer clearHistory()
+		defer gomodel.ClearRegistry()
+		if err := thirdNode.Fake(db); err != nil {
+			t.Fatal(err)
+		}
+		if op.run {
+			t.Errorf("node did run operation")
+		}
+		if !node.applied {
+			t.Errorf("node was not applied")
+		}
+		if mockedEngine.Calls("InsertRow") != 3 {
+			t.Errorf("migrations were not saved on db")
+		}
+		args := mockedEngine.Args.InsertRow.Values
+		if args["app"].(string) != "test" || args["number"].(int) != 3 {
+			t.Errorf("InsertRow called with wrong arguments")
+		}
+	})
+}
+
 func testNodeBackwards(t *testing.T, db gomodel.Database) {
 	mockedEngine := db.Engine.(gomodel.MockedEngine)
 	op := &mockedOperation{}
@@ -531,6 +626,96 @@ func testNodeBackwards(t *testing.T, db gomodel.Database) {
 		}
 		if !op.back {
 			t.Errorf("node did not run backward operation")
+		}
+		if secondNode.applied {
+			t.Errorf("node is still applied")
+		}
+		if mockedEngine.Calls("DeleteRows") != 2 {
+			t.Errorf("migrations were not deleted from db")
+		}
+		args := mockedEngine.Args.DeleteRows.Conditioner.Conditions()
+		if args["app"].(string) != "test" || args["number"].(int) != 1 {
+			t.Errorf("DeleteRows called with wrong arguments")
+		}
+	})
+}
+
+func testNodeFakeBackwards(t *testing.T, db gomodel.Database) {
+	mockedEngine := db.Engine.(gomodel.MockedEngine)
+	op := &mockedOperation{}
+	setup := func() *Node {
+		op.reset()
+		mockedEngine.Reset()
+		return &Node{
+			App:        "test",
+			Name:       "initial",
+			number:     1,
+			Operations: OperationList{op},
+			applied:    true,
+		}
+	}
+	defer mockedEngine.Reset()
+
+	t.Run("MigrationDbError", func(t *testing.T) {
+		node := setup()
+		mockedEngine.Results.DeleteRows.Err = fmt.Errorf("db error")
+		err := node.FakeBackwards(db)
+		if _, ok := err.(*gomodel.DatabaseError); !ok {
+			t.Errorf("expected gomodel.DatabaseError, got %T", err)
+		}
+	})
+
+	t.Run("Skip", func(t *testing.T) {
+		node := setup()
+		node.applied = false
+		if err := node.FakeBackwards(db); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		node := setup()
+		if err := node.FakeBackwards(db); err != nil {
+			t.Fatal(err)
+		}
+		if op.back {
+			t.Errorf("node did run backward operation")
+		}
+		if node.applied {
+			t.Errorf("node is still applied")
+		}
+		if mockedEngine.Calls("DeleteRows") != 1 {
+			t.Errorf("migration was not deleted from db")
+		}
+		args := mockedEngine.Args.DeleteRows.Conditioner.Conditions()
+		if args["app"].(string) != "test" || args["number"].(int) != 1 {
+			t.Errorf("DeleteRows called with wrong arguments")
+		}
+	})
+
+	t.Run("Dependencies", func(t *testing.T) {
+		node := setup()
+		secondNode := &Node{
+			App:          "test",
+			Name:         "test_migrations",
+			number:       2,
+			Dependencies: [][]string{{"test", "0001_initial"}},
+			Operations:   OperationList{op},
+			applied:      true,
+		}
+		gomodel.Register(gomodel.NewApp("test", ""))
+		appState := &AppState{
+			app:        gomodel.Registry()["test"],
+			migrations: []*Node{node, secondNode},
+		}
+		history["test"] = appState
+		defer clearHistory()
+		defer gomodel.ClearRegistry()
+		if err := node.FakeBackwards(db); err != nil {
+			t.Fatal(err)
+		}
+		if op.back {
+			t.Errorf("node did run backward operation")
 		}
 		if secondNode.applied {
 			t.Errorf("node is still applied")

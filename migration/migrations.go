@@ -71,13 +71,21 @@ func Run(options RunOptions) error {
 		if !ok {
 			return &AppNotFoundError{options.App, ErrorTrace{}}
 		}
-		if err := state.Migrate(dbName, options.Node); err != nil {
+		migrate := state.Migrate
+		if options.Fake {
+			migrate = state.Fake
+		}
+		if err := migrate(dbName, options.Node); err != nil {
 			return err
 		}
 	} else {
 		for _, state := range history {
 			if len(state.migrations) > 0 {
-				if err := state.Migrate(dbName, ""); err != nil {
+				migrate := state.Migrate
+				if options.Fake {
+					migrate = state.Fake
+				}
+				if err := migrate(dbName, ""); err != nil {
 					return err
 				}
 			}

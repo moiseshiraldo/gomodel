@@ -240,6 +240,24 @@ func TestRun(t *testing.T) {
 		}
 	})
 
+	t.Run("AppFake", func(t *testing.T) {
+		loadHistory = mockedLoadHistory
+		loadAppliedMigrations = func(db gomodel.Database) error {
+			loadAppliedCalled = true
+			return nil
+		}
+		err := Run(RunOptions{App: "users", Fake: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !loadAppliedCalled {
+			t.Fatal("expected load applied migrations to be called")
+		}
+		if state.migrations == nil || !state.migrations[0].applied {
+			t.Fatal("migration was not applied")
+		}
+	})
+
 	t.Run("AppDBError", func(t *testing.T) {
 		loadHistory = func() error {
 			state = &AppState{
@@ -261,6 +279,18 @@ func TestRun(t *testing.T) {
 		loadHistory = mockedLoadHistory
 		loadAppliedMigrations = func(db gomodel.Database) error { return nil }
 		err := Run(RunOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if state.migrations == nil || !state.migrations[0].applied {
+			t.Fatal("migration was not applied")
+		}
+	})
+
+	t.Run("AllFake", func(t *testing.T) {
+		loadHistory = mockedLoadHistory
+		loadAppliedMigrations = func(db gomodel.Database) error { return nil }
+		err := Run(RunOptions{Fake: true})
 		if err != nil {
 			t.Fatal(err)
 		}
