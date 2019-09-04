@@ -51,7 +51,8 @@ func (n Node) filename() string {
 
 func (n Node) Save() error {
 	if n.Path == "" {
-		return fmt.Errorf("no path")
+		err := fmt.Errorf("no path")
+		return &PathError{n.App, ErrorTrace{Node: &n, Err: err}}
 	}
 	data, err := json.MarshalIndent(n, "", "  ")
 	if err != nil {
@@ -69,7 +70,8 @@ func (n Node) Save() error {
 
 func (n *Node) Load() error {
 	if n.Path == "" {
-		return fmt.Errorf("no path")
+		err := fmt.Errorf("no path")
+		return &PathError{n.App, ErrorTrace{Node: n, Err: err}}
 	}
 	fp := filepath.Join(n.Path, n.filename())
 	if !filepath.IsAbs(fp) {
@@ -308,7 +310,7 @@ func (n *Node) setState(stash map[string]map[string]bool) error {
 		invalidDep := &InvalidDependencyError{
 			ErrorTrace{Node: n, Err: fmt.Errorf("invalid dependency")},
 		}
-		if !mNameRe.MatchString(depName) {
+		if !NodeNameRegex.MatchString(depName) {
 			return invalidDep
 		}
 		if _, ok := history[app]; !ok {

@@ -39,10 +39,10 @@ func (app Application) Path() string {
 }
 
 func (app Application) FullPath() string {
-	if !filepath.IsAbs(app.path) {
-		return filepath.Join(build.Default.GOPATH, "src", app.path)
+	if app.path == "" || filepath.IsAbs(app.path) {
+		return app.path
 	}
-	return app.path
+	return filepath.Join(build.Default.GOPATH, "src", app.path)
 }
 
 var registry = map[string]*Application{}

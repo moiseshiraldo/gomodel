@@ -204,12 +204,11 @@ func TestRun(t *testing.T) {
 			loadAppliedCalled = true
 			return fmt.Errorf("load applied migrations error")
 		}
-		err := Run(RunOptions{App: "users"})
+		if err := Run(RunOptions{App: "users"}); err == nil {
+			t.Fatal("expected error, got nil")
+		}
 		if !loadAppliedCalled {
 			t.Fatal("expected load history to be called")
-		}
-		if _, ok := err.(*gomodel.DatabaseError); !ok {
-			t.Errorf("expected DatabaseError, got %T", err)
 		}
 	})
 
