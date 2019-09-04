@@ -1,9 +1,9 @@
-package migrations
+package migration
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/moiseshiraldo/gomodels"
+	"github.com/moiseshiraldo/gomodel"
 	"testing"
 )
 
@@ -36,7 +36,7 @@ func (op *mockedOperation) SetState(state *AppState) error {
 }
 
 func (op *mockedOperation) Run(
-	engine gomodels.Engine,
+	engine gomodel.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
@@ -48,7 +48,7 @@ func (op *mockedOperation) Run(
 }
 
 func (op *mockedOperation) Backwards(
-	engine gomodels.Engine,
+	engine gomodel.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {

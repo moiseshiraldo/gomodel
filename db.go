@@ -1,4 +1,4 @@
-package gomodels
+package gomodel
 
 import (
 	"database/sql"
@@ -77,8 +77,8 @@ func Start(options map[string]Database) error {
 		err := fmt.Errorf("missing default database")
 		return &DatabaseError{"default", ErrorTrace{Err: err}}
 	}
-	registry["gomodels"] = &Application{
-		name:   "gomodels",
+	registry["gomodel"] = &Application{
+		name:   "gomodel",
 		models: map[string]*Model{},
 	}
 	return nil

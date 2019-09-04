@@ -1,9 +1,9 @@
-package migrations
+package migration
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/moiseshiraldo/gomodels"
+	"github.com/moiseshiraldo/gomodel"
 	"go/build"
 	"io/ioutil"
 	"path/filepath"
@@ -85,7 +85,7 @@ func (n *Node) Load() error {
 	return nil
 }
 
-func (n *Node) Run(db gomodels.Database) error {
+func (n *Node) Run(db gomodel.Database) error {
 	if n.applied {
 		return nil
 	}
@@ -99,7 +99,7 @@ func (n *Node) Run(db gomodels.Database) error {
 	return nil
 }
 
-func (n Node) runDependencies(db gomodels.Database) error {
+func (n Node) runDependencies(db gomodel.Database) error {
 	for _, dep := range n.Dependencies {
 		app, name := dep[0], dep[1]
 		number, _ := strconv.Atoi(name[:4])
@@ -113,16 +113,16 @@ func (n Node) runDependencies(db gomodels.Database) error {
 	return nil
 }
 
-func (n Node) runOperations(db gomodels.Database) error {
+func (n Node) runOperations(db gomodel.Database) error {
 	engine := db.Engine
 	txSupport := db.TxSupport()
-	var tx *gomodels.Transaction
+	var tx *gomodel.Transaction
 	if txSupport {
 		var err error
 		tx, err = db.BeginTx()
 		if err != nil {
-			return &gomodels.DatabaseError{
-				db.Id(), gomodels.ErrorTrace{Err: err},
+			return &gomodel.DatabaseError{
+				db.Id(), gomodel.ErrorTrace{Err: err},
 			}
 		}
 		engine = tx.Engine
@@ -134,8 +134,8 @@ func (n Node) runOperations(db gomodels.Database) error {
 		if err := op.Run(engine, state, prevState); err != nil {
 			if txSupport {
 				if txErr := tx.Rollback(); txErr != nil {
-					return &gomodels.DatabaseError{
-						db.Id(), gomodels.ErrorTrace{Err: txErr},
+					return &gomodel.DatabaseError{
+						db.Id(), gomodel.ErrorTrace{Err: txErr},
 					}
 				}
 			}
@@ -147,7 +147,7 @@ func (n Node) runOperations(db gomodels.Database) error {
 	if txSupport {
 		manager = Migration.Objects.WithTx(tx)
 	}
-	values := gomodels.Values{"app": n.App, "number": n.number, "name": n.Name}
+	values := gomodel.Values{"app": n.App, "number": n.number, "name": n.Name}
 	if _, err := manager.Create(values); err != nil {
 		if txSupport {
 			txErr := tx.Rollback()
@@ -155,19 +155,19 @@ func (n Node) runOperations(db gomodels.Database) error {
 				err = txErr
 			}
 		}
-		return &gomodels.DatabaseError{db.Id(), gomodels.ErrorTrace{Err: err}}
+		return &gomodel.DatabaseError{db.Id(), gomodel.ErrorTrace{Err: err}}
 	}
 	if txSupport {
 		if err := tx.Commit(); err != nil {
-			return &gomodels.DatabaseError{
-				db.Id(), gomodels.ErrorTrace{Err: err},
+			return &gomodel.DatabaseError{
+				db.Id(), gomodel.ErrorTrace{Err: err},
 			}
 		}
 	}
 	return nil
 }
 
-func (n *Node) Backwards(db gomodels.Database) error {
+func (n *Node) Backwards(db gomodel.Database) error {
 	if !n.applied {
 		return nil
 	}
@@ -181,7 +181,7 @@ func (n *Node) Backwards(db gomodels.Database) error {
 	return nil
 }
 
-func (n Node) backwardDependencies(db gomodels.Database) error {
+func (n Node) backwardDependencies(db gomodel.Database) error {
 	for _, state := range history {
 		for _, node := range state.migrations {
 			for _, dep := range node.Dependencies {
@@ -196,16 +196,16 @@ func (n Node) backwardDependencies(db gomodels.Database) error {
 	return nil
 }
 
-func (n Node) backwardOperations(db gomodels.Database) error {
+func (n Node) backwardOperations(db gomodel.Database) error {
 	engine := db.Engine
 	txSupport := db.TxSupport()
-	var tx *gomodels.Transaction
+	var tx *gomodel.Transaction
 	if txSupport {
 		var err error
 		tx, err = db.BeginTx()
 		if err != nil {
-			return &gomodels.DatabaseError{
-				db.Id(), gomodels.ErrorTrace{Err: err},
+			return &gomodel.DatabaseError{
+				db.Id(), gomodel.ErrorTrace{Err: err},
 			}
 		}
 		engine = tx.Engine
@@ -223,8 +223,8 @@ func (n Node) backwardOperations(db gomodels.Database) error {
 		if err != nil {
 			if txSupport {
 				if txErr := tx.Rollback(); txErr != nil {
-					return &gomodels.DatabaseError{
-						db.Id(), gomodels.ErrorTrace{Err: txErr},
+					return &gomodel.DatabaseError{
+						db.Id(), gomodel.ErrorTrace{Err: txErr},
 					}
 				}
 			}
@@ -236,7 +236,7 @@ func (n Node) backwardOperations(db gomodels.Database) error {
 		manager = Migration.Objects.WithTx(tx)
 	}
 	_, err := manager.Filter(
-		gomodels.Q{"app": n.App, "number": n.number},
+		gomodel.Q{"app": n.App, "number": n.number},
 	).Delete()
 	if err != nil {
 		if txSupport {
@@ -244,12 +244,12 @@ func (n Node) backwardOperations(db gomodels.Database) error {
 				err = txErr
 			}
 		}
-		return &gomodels.DatabaseError{db.Id(), gomodels.ErrorTrace{Err: err}}
+		return &gomodel.DatabaseError{db.Id(), gomodel.ErrorTrace{Err: err}}
 	}
 	if txSupport {
 		if err := tx.Commit(); err != nil {
-			return &gomodels.DatabaseError{
-				db.Id(), gomodels.ErrorTrace{Err: err},
+			return &gomodel.DatabaseError{
+				db.Id(), gomodel.ErrorTrace{Err: err},
 			}
 		}
 	}

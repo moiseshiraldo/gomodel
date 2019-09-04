@@ -1,13 +1,13 @@
-package migrations
+package migration
 
 import (
 	"fmt"
-	"github.com/moiseshiraldo/gomodels"
+	"github.com/moiseshiraldo/gomodel"
 )
 
 type AddFields struct {
 	Model  string
-	Fields gomodels.Fields
+	Fields gomodel.Fields
 }
 
 func (op AddFields) OpName() string {
@@ -28,7 +28,7 @@ func (op AddFields) SetState(state *AppState) error {
 }
 
 func (op AddFields) Run(
-	engine gomodels.Engine,
+	engine gomodel.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
@@ -36,7 +36,7 @@ func (op AddFields) Run(
 }
 
 func (op AddFields) Backwards(
-	engine gomodels.Engine,
+	engine gomodel.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
@@ -70,7 +70,7 @@ func (op RemoveFields) SetState(state *AppState) error {
 }
 
 func (op RemoveFields) Run(
-	engine gomodels.Engine,
+	engine gomodel.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
@@ -78,12 +78,12 @@ func (op RemoveFields) Run(
 }
 
 func (op RemoveFields) Backwards(
-	engine gomodels.Engine,
+	engine gomodel.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
 	fields := prevState.Models[op.Model].Fields()
-	newFields := gomodels.Fields{}
+	newFields := gomodel.Fields{}
 	for _, name := range op.Fields {
 		newFields[name] = fields[name]
 	}

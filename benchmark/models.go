@@ -1,22 +1,22 @@
-package benchmarks
+package benchmark
 
 import (
 	"fmt"
 	_ "github.com/gwenn/gosqlite"
-	"github.com/moiseshiraldo/gomodels"
+	"github.com/moiseshiraldo/gomodel"
 )
 
-var User = gomodels.New(
+var User = gomodel.New(
 	"User",
-	gomodels.Fields{
-		"firstName":     gomodels.CharField{MaxLength: 50},
-		"lastName":      gomodels.CharField{MaxLength: 50},
-		"email":         gomodels.CharField{MaxLength: 100},
-		"active":        gomodels.BooleanField{Default: true},
-		"superuser":     gomodels.BooleanField{DefaultFalse: true},
-		"loginAttempts": gomodels.IntegerField{DefaultZero: true},
+	gomodel.Fields{
+		"firstName":     gomodel.CharField{MaxLength: 50},
+		"lastName":      gomodel.CharField{MaxLength: 50},
+		"email":         gomodel.CharField{MaxLength: 100},
+		"active":        gomodel.BooleanField{Default: true},
+		"superuser":     gomodel.BooleanField{DefaultFalse: true},
+		"loginAttempts": gomodel.IntegerField{DefaultZero: true},
 	},
-	gomodels.Options{},
+	gomodel.Options{},
 )
 
 type userContainer struct {
@@ -39,7 +39,7 @@ type userBuilder struct {
 	LoginAttempts int32
 }
 
-func (u userBuilder) Get(key string) (gomodels.Value, bool) {
+func (u userBuilder) Get(key string) (gomodel.Value, bool) {
 	switch key {
 	case "id":
 		return u.Id, true
@@ -61,7 +61,7 @@ func (u userBuilder) Get(key string) (gomodels.Value, bool) {
 }
 
 func (u *userBuilder) Set(
-	key string, val gomodels.Value, field gomodels.Field,
+	key string, val gomodel.Value, field gomodel.Field,
 ) error {
 	var err error
 	switch key {
@@ -85,6 +85,6 @@ func (u *userBuilder) Set(
 	return err
 }
 
-func (u userBuilder) New() gomodels.Builder {
+func (u userBuilder) New() gomodel.Builder {
 	return &userBuilder{}
 }

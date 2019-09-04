@@ -1,4 +1,4 @@
-package gomodels
+package gomodel
 
 import (
 	"testing"
@@ -107,7 +107,7 @@ func TestDateField(t *testing.T) {
 		field.Null = true
 		recipient := field.Recipient()
 		if _, ok := recipient.(*NullTime); !ok {
-			t.Errorf("expected *gomodels.NullTime, got %T", recipient)
+			t.Errorf("expected *gomodel.NullTime, got %T", recipient)
 		}
 	})
 
@@ -281,7 +281,7 @@ func TestTimeField(t *testing.T) {
 		field.Null = true
 		recipient := field.Recipient()
 		if _, ok := recipient.(*NullTime); !ok {
-			t.Errorf("expected *gomodels.NullTime, got %T", recipient)
+			t.Errorf("expected *gomodel.NullTime, got %T", recipient)
 		}
 	})
 
@@ -455,7 +455,7 @@ func TestDateTimeField(t *testing.T) {
 		field.Null = true
 		recipient := field.Recipient()
 		if _, ok := recipient.(*NullTime); !ok {
-			t.Errorf("expected *gomodels.NullTime, got %T", recipient)
+			t.Errorf("expected *gomodel.NullTime, got %T", recipient)
 		}
 	})
 

@@ -1,29 +1,29 @@
-package migrations
+package migration
 
 import (
 	"fmt"
-	"github.com/moiseshiraldo/gomodels"
+	"github.com/moiseshiraldo/gomodel"
 	"testing"
 )
 
 // TestModelOperationsState tests model operations SetState method
 func TestModelOperationsState(t *testing.T) {
 	// Models setup
-	user := gomodels.New(
+	user := gomodel.New(
 		"User",
-		gomodels.Fields{
-			"email": gomodels.CharField{MaxLength: 100, Index: true},
+		gomodel.Fields{
+			"email": gomodel.CharField{MaxLength: 100, Index: true},
 		},
-		gomodels.Options{},
+		gomodel.Options{},
 	)
 	// App setup
-	app := gomodels.NewApp("test", "", user.Model)
-	gomodels.Register(app)
-	defer gomodels.ClearRegistry()
+	app := gomodel.NewApp("test", "", user.Model)
+	gomodel.Register(app)
+	defer gomodel.ClearRegistry()
 	// App state setup
 	appState := &AppState{
-		app: gomodels.Registry()["test"],
-		Models: map[string]*gomodels.Model{
+		app: gomodel.Registry()["test"],
+		Models: map[string]*gomodel.Model{
 			"User": user.Model,
 		},
 	}
@@ -40,8 +40,8 @@ func TestModelOperationsState(t *testing.T) {
 	t.Run("AddModel", func(t *testing.T) {
 		op := CreateModel{
 			Name: "Customer",
-			Fields: gomodels.Fields{
-				"name": gomodels.CharField{MaxLength: 100},
+			Fields: gomodel.Fields{
+				"name": gomodel.CharField{MaxLength: 100},
 			},
 		}
 		if err := op.SetState(appState); err != nil {
@@ -143,36 +143,36 @@ func TestModelOperationsState(t *testing.T) {
 // TestModelOperations tests model operations Run/Backwards methods
 func TestModelOperations(t *testing.T) {
 	// Models setup
-	user := gomodels.New(
+	user := gomodel.New(
 		"User",
-		gomodels.Fields{
-			"email": gomodels.CharField{MaxLength: 100, Index: true},
+		gomodel.Fields{
+			"email": gomodel.CharField{MaxLength: 100, Index: true},
 		},
-		gomodels.Options{},
+		gomodel.Options{},
 	)
 	// App setup
-	app := gomodels.NewApp("test", "", user.Model)
-	gomodels.Register(app)
-	defer gomodels.ClearRegistry()
+	app := gomodel.NewApp("test", "", user.Model)
+	gomodel.Register(app)
+	defer gomodel.ClearRegistry()
 	// App state setup
 	appState := &AppState{
-		app: gomodels.Registry()["test"],
-		Models: map[string]*gomodels.Model{
+		app: gomodel.Registry()["test"],
+		Models: map[string]*gomodel.Model{
 			"User": user.Model,
 		},
 	}
 	history["test"] = appState
 	defer clearHistory()
 	// DB setup
-	err := gomodels.Start(map[string]gomodels.Database{
+	err := gomodel.Start(map[string]gomodel.Database{
 		"default": {Driver: "mocker", Name: "test"},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer gomodels.Stop()
-	db := gomodels.Databases()["default"]
-	engine := db.Engine.(gomodels.MockedEngine)
+	defer gomodel.Stop()
+	db := gomodel.Databases()["default"]
+	engine := db.Engine.(gomodel.MockedEngine)
 	t.Run("AddModel", func(t *testing.T) {
 		testAddModelOperation(t, engine, appState)
 	})
@@ -189,16 +189,16 @@ func TestModelOperations(t *testing.T) {
 
 func testAddModelOperation(
 	t *testing.T,
-	mockedEngine gomodels.MockedEngine,
+	mockedEngine gomodel.MockedEngine,
 	prevState *AppState,
 ) {
 	op := CreateModel{Name: "Customer"}
-	model := gomodels.New(
-		"Customer", gomodels.Fields{}, gomodels.Options{},
+	model := gomodel.New(
+		"Customer", gomodel.Fields{}, gomodel.Options{},
 	).Model
 	state := &AppState{
 		app: prevState.app,
-		Models: map[string]*gomodels.Model{
+		Models: map[string]*gomodel.Model{
 			"User":     prevState.Models["User"],
 			"Customer": model,
 		},
@@ -243,13 +243,13 @@ func testAddModelOperation(
 
 func testDeleteModelOperation(
 	t *testing.T,
-	mockedEngine gomodels.MockedEngine,
+	mockedEngine gomodel.MockedEngine,
 	prevState *AppState,
 ) {
 	op := DeleteModel{Name: "User"}
 	state := &AppState{
 		app:    prevState.app,
-		Models: map[string]*gomodels.Model{},
+		Models: map[string]*gomodel.Model{},
 	}
 
 	t.Run("RunError", func(t *testing.T) {
@@ -291,7 +291,7 @@ func testDeleteModelOperation(
 
 func testAddIndexOperation(
 	t *testing.T,
-	mockedEngine gomodels.MockedEngine,
+	mockedEngine gomodel.MockedEngine,
 	prevState *AppState,
 ) {
 	op := AddIndex{
@@ -301,14 +301,14 @@ func testAddIndexOperation(
 	}
 	indexes := prevState.Models["User"].Indexes()
 	indexes["test_index"] = []string{"email"}
-	model := gomodels.New(
+	model := gomodel.New(
 		"User",
 		prevState.Models["User"].Fields(),
-		gomodels.Options{Indexes: indexes},
+		gomodel.Options{Indexes: indexes},
 	).Model
 	state := &AppState{
 		app: prevState.app,
-		Models: map[string]*gomodels.Model{
+		Models: map[string]*gomodel.Model{
 			"User": model,
 		},
 	}
@@ -352,7 +352,7 @@ func testAddIndexOperation(
 
 func testRemoveIndexOperation(
 	t *testing.T,
-	mockedEngine gomodels.MockedEngine,
+	mockedEngine gomodel.MockedEngine,
 	prevState *AppState,
 ) {
 	op := RemoveIndex{
@@ -361,14 +361,14 @@ func testRemoveIndexOperation(
 	}
 	indexes := prevState.Models["User"].Indexes()
 	delete(indexes, "test_user_email_auto_idx")
-	model := gomodels.New(
+	model := gomodel.New(
 		"User",
 		prevState.Models["User"].Fields(),
-		gomodels.Options{Indexes: indexes},
+		gomodel.Options{Indexes: indexes},
 	).Model
 	state := &AppState{
 		app: prevState.app,
-		Models: map[string]*gomodels.Model{
+		Models: map[string]*gomodel.Model{
 			"User": model,
 		},
 	}

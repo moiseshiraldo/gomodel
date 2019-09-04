@@ -1,14 +1,14 @@
-package migrations
+package migration
 
 import (
 	"fmt"
-	"github.com/moiseshiraldo/gomodels"
+	"github.com/moiseshiraldo/gomodel"
 )
 
 type CreateModel struct {
 	Name   string
 	Table  string `json:",omitempty"`
-	Fields gomodels.Fields
+	Fields gomodel.Fields
 }
 
 func (op CreateModel) OpName() string {
@@ -23,14 +23,14 @@ func (op CreateModel) SetState(state *AppState) error {
 	if table == "" {
 		table = fmt.Sprintf("%s_%s", state.app.Name(), op.Name)
 	}
-	state.Models[op.Name] = gomodels.New(
-		op.Name, op.Fields, gomodels.Options{Table: table},
+	state.Models[op.Name] = gomodel.New(
+		op.Name, op.Fields, gomodel.Options{Table: table},
 	).Model
 	return nil
 }
 
 func (op CreateModel) Run(
-	engine gomodels.Engine,
+	engine gomodel.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
@@ -38,7 +38,7 @@ func (op CreateModel) Run(
 }
 
 func (op CreateModel) Backwards(
-	engine gomodels.Engine,
+	engine gomodel.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
@@ -62,7 +62,7 @@ func (op DeleteModel) SetState(state *AppState) error {
 }
 
 func (op DeleteModel) Run(
-	engine gomodels.Engine,
+	engine gomodel.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
@@ -70,7 +70,7 @@ func (op DeleteModel) Run(
 }
 
 func (op DeleteModel) Backwards(
-	engine gomodels.Engine,
+	engine gomodel.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
@@ -96,7 +96,7 @@ func (op AddIndex) SetState(state *AppState) error {
 }
 
 func (op AddIndex) Run(
-	engine gomodels.Engine,
+	engine gomodel.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
@@ -104,7 +104,7 @@ func (op AddIndex) Run(
 }
 
 func (op AddIndex) Backwards(
-	engine gomodels.Engine,
+	engine gomodel.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
@@ -129,7 +129,7 @@ func (op RemoveIndex) SetState(state *AppState) error {
 }
 
 func (op RemoveIndex) Run(
-	engine gomodels.Engine,
+	engine gomodel.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {
@@ -137,7 +137,7 @@ func (op RemoveIndex) Run(
 }
 
 func (op RemoveIndex) Backwards(
-	engine gomodels.Engine,
+	engine gomodel.Engine,
 	state *AppState,
 	prevState *AppState,
 ) error {

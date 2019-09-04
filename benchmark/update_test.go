@@ -1,16 +1,16 @@
-package benchmarks
+package benchmark
 
 import (
 	_ "github.com/gwenn/gosqlite"
-	"github.com/moiseshiraldo/gomodels"
+	"github.com/moiseshiraldo/gomodel"
 	"testing"
 )
 
 func updateMapContainer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, err := User.Objects.Filter(
-			gomodels.Q{"firstName": "Anakin"},
-		).Update(gomodels.Values{
+			gomodel.Q{"firstName": "Anakin"},
+		).Update(gomodel.Values{
 			"firstName": "Darth",
 			"lastName":  "Vader",
 			"email":     "darth.vader@deathstar.com",
@@ -24,7 +24,7 @@ func updateMapContainer(b *testing.B) {
 func updateStructContainer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, err := User.Objects.Filter(
-			gomodels.Q{"firstName": "Anakin"},
+			gomodel.Q{"firstName": "Anakin"},
 		).Update(userContainer{
 			FirstName: "Darth",
 			LastName:  "Vader",
@@ -39,7 +39,7 @@ func updateStructContainer(b *testing.B) {
 func updateBuilderContainer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, err := User.Objects.Filter(
-			gomodels.Q{"firstName": "Anakin"},
+			gomodel.Q{"firstName": "Anakin"},
 		).Update(userBuilder{
 			FirstName: "Darth",
 			LastName:  "Vader",
@@ -52,7 +52,7 @@ func updateBuilderContainer(b *testing.B) {
 }
 
 func updateRawSqlContainer(b *testing.B) {
-	db := gomodels.Databases()["default"]
+	db := gomodel.Databases()["default"]
 	for i := 0; i < b.N; i++ {
 		query := `
             UPDATE
@@ -72,7 +72,7 @@ func updateRawSqlContainer(b *testing.B) {
 
 func BenchmarkUpdate(b *testing.B) {
 	for i := 0; i < 100; i++ {
-		_, err := User.Objects.Create(gomodels.Values{
+		_, err := User.Objects.Create(gomodel.Values{
 			"firstName": "Anakin",
 			"lastName":  "Skywalker",
 			"email":     "anakin.skywalker@deathstar.com",

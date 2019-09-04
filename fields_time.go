@@ -1,4 +1,4 @@
-package gomodels
+package gomodel
 
 import (
 	"database/sql/driver"
@@ -33,7 +33,7 @@ func (d *NullTime) Scan(value interface{}) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("cannot parse %T into gomodels.NullTime", value)
+	return fmt.Errorf("cannot parse %T into gomodel.NullTime", value)
 }
 
 func (d NullTime) Value() (driver.Value, error) {

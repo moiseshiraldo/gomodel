@@ -1,9 +1,9 @@
-package benchmarks
+package benchmark
 
 import (
 	"fmt"
 	_ "github.com/gwenn/gosqlite"
-	"github.com/moiseshiraldo/gomodels"
+	"github.com/moiseshiraldo/gomodel"
 	"os"
 	"testing"
 )
@@ -13,7 +13,7 @@ func loadMapQuerySet(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		users, err := User.Objects.Filter(
-			gomodels.Q{"firstName": "Anakin"},
+			gomodel.Q{"firstName": "Anakin"},
 		).Load()
 		if err != nil {
 			b.Fatal(err)
@@ -28,7 +28,7 @@ func loadStructQuerySet(b *testing.B) {
 	qs := User.Objects.WithContainer(userContainer{})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		users, err := qs.Filter(gomodels.Q{"firstName": "Anakin"}).Load()
+		users, err := qs.Filter(gomodel.Q{"firstName": "Anakin"}).Load()
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -42,7 +42,7 @@ func loadBuilderQuerySet(b *testing.B) {
 	qs := User.Objects.WithContainer(&userBuilder{})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		users, err := qs.Filter(gomodels.Q{"firstName": "Anakin"}).Load()
+		users, err := qs.Filter(gomodel.Q{"firstName": "Anakin"}).Load()
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -53,7 +53,7 @@ func loadBuilderQuerySet(b *testing.B) {
 }
 
 func loadRawSqlQuerySet(b *testing.B) {
-	db := gomodels.Databases()["default"]
+	db := gomodel.Databases()["default"]
 	for i := 0; i < b.N; i++ {
 		query := `
             SELECT
@@ -90,7 +90,7 @@ func loadRawSqlQuerySet(b *testing.B) {
 
 func BenchmarkMultiRead(b *testing.B) {
 	for i := 0; i < 100; i++ {
-		_, err := User.Objects.Create(gomodels.Values{
+		_, err := User.Objects.Create(gomodel.Values{
 			"firstName": "Anakin",
 			"lastName":  "Skywalker",
 			"email":     "anakin.skywalker@deathstar.com",

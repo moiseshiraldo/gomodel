@@ -1,30 +1,30 @@
-package migrations
+package migration
 
 import (
 	"fmt"
-	"github.com/moiseshiraldo/gomodels"
+	"github.com/moiseshiraldo/gomodel"
 	"testing"
 )
 
 // TestFieldOperationsState tests field operations SetState method
 func TestFieldOperationsState(t *testing.T) {
 	// Models setup
-	user := gomodels.New(
+	user := gomodel.New(
 		"User",
-		gomodels.Fields{
-			"email":         gomodels.CharField{MaxLength: 100, Index: true},
-			"loginAttempts": gomodels.IntegerField{DefaultZero: true},
+		gomodel.Fields{
+			"email":         gomodel.CharField{MaxLength: 100, Index: true},
+			"loginAttempts": gomodel.IntegerField{DefaultZero: true},
 		},
-		gomodels.Options{},
+		gomodel.Options{},
 	)
 	// App setup
-	app := gomodels.NewApp("test", "", user.Model)
-	gomodels.Register(app)
-	defer gomodels.ClearRegistry()
+	app := gomodel.NewApp("test", "", user.Model)
+	gomodel.Register(app)
+	defer gomodel.ClearRegistry()
 	// App state setup
 	appState := &AppState{
-		app: gomodels.Registry()["test"],
-		Models: map[string]*gomodels.Model{
+		app: gomodel.Registry()["test"],
+		Models: map[string]*gomodel.Model{
 			"User": user.Model,
 		},
 	}
@@ -34,8 +34,8 @@ func TestFieldOperationsState(t *testing.T) {
 	t.Run("AddFieldNoModel", func(t *testing.T) {
 		op := AddFields{
 			Model: "Customer",
-			Fields: gomodels.Fields{
-				"name": gomodels.CharField{},
+			Fields: gomodel.Fields{
+				"name": gomodel.CharField{},
 			},
 		}
 		if err := op.SetState(appState); err == nil {
@@ -46,8 +46,8 @@ func TestFieldOperationsState(t *testing.T) {
 	t.Run("DuplicateField", func(t *testing.T) {
 		op := AddFields{
 			Model: "User",
-			Fields: gomodels.Fields{
-				"email": gomodels.CharField{},
+			Fields: gomodel.Fields{
+				"email": gomodel.CharField{},
 			},
 		}
 		if err := op.SetState(appState); err == nil {
@@ -58,9 +58,9 @@ func TestFieldOperationsState(t *testing.T) {
 	t.Run("AddField", func(t *testing.T) {
 		op := AddFields{
 			Model: "User",
-			Fields: gomodels.Fields{
-				"firstName": gomodels.CharField{MaxLength: 50},
-				"dob":       gomodels.DateField{},
+			Fields: gomodel.Fields{
+				"firstName": gomodel.CharField{MaxLength: 50},
+				"dob":       gomodel.DateField{},
 			},
 		}
 		if err := op.SetState(appState); err != nil {
@@ -123,36 +123,36 @@ func TestFieldOperationsState(t *testing.T) {
 // TestFieldOperations tests field operations Run/Backwards methods
 func TestFieldOperations(t *testing.T) {
 	// Models setup
-	user := gomodels.New(
+	user := gomodel.New(
 		"User",
-		gomodels.Fields{
-			"email": gomodels.CharField{MaxLength: 100, Index: true},
+		gomodel.Fields{
+			"email": gomodel.CharField{MaxLength: 100, Index: true},
 		},
-		gomodels.Options{},
+		gomodel.Options{},
 	)
 	// App setup
-	app := gomodels.NewApp("test", "", user.Model)
-	gomodels.Register(app)
-	defer gomodels.ClearRegistry()
+	app := gomodel.NewApp("test", "", user.Model)
+	gomodel.Register(app)
+	defer gomodel.ClearRegistry()
 	// App state setup
 	appState := &AppState{
-		app: gomodels.Registry()["test"],
-		Models: map[string]*gomodels.Model{
+		app: gomodel.Registry()["test"],
+		Models: map[string]*gomodel.Model{
 			"User": user.Model,
 		},
 	}
 	history["test"] = appState
 	defer clearHistory()
 	// DB setup
-	err := gomodels.Start(map[string]gomodels.Database{
+	err := gomodel.Start(map[string]gomodel.Database{
 		"default": {Driver: "mocker", Name: "test"},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer gomodels.Stop()
-	db := gomodels.Databases()["default"]
-	engine := db.Engine.(gomodels.MockedEngine)
+	defer gomodel.Stop()
+	db := gomodel.Databases()["default"]
+	engine := db.Engine.(gomodel.MockedEngine)
 	t.Run("AddField", func(t *testing.T) {
 		testAddFieldOperation(t, engine, appState)
 	})
@@ -163,23 +163,23 @@ func TestFieldOperations(t *testing.T) {
 
 func testAddFieldOperation(
 	t *testing.T,
-	mockedEngine gomodels.MockedEngine,
+	mockedEngine gomodel.MockedEngine,
 	prevState *AppState,
 ) {
 	op := AddFields{
 		Model: "User",
-		Fields: gomodels.Fields{
-			"firstName": gomodels.CharField{},
+		Fields: gomodel.Fields{
+			"firstName": gomodel.CharField{},
 		},
 	}
 	fields := prevState.Models["User"].Fields()
-	fields["firstName"] = gomodels.CharField{}
-	model := gomodels.New(
-		"User", fields, gomodels.Options{},
+	fields["firstName"] = gomodel.CharField{}
+	model := gomodel.New(
+		"User", fields, gomodel.Options{},
 	).Model
 	state := &AppState{
 		app: prevState.app,
-		Models: map[string]*gomodels.Model{
+		Models: map[string]*gomodel.Model{
 			"User": model,
 		},
 	}
@@ -223,19 +223,19 @@ func testAddFieldOperation(
 
 func testRemoveFieldOperation(
 	t *testing.T,
-	mockedEngine gomodels.MockedEngine,
+	mockedEngine gomodel.MockedEngine,
 	prevState *AppState,
 ) {
 	op := RemoveFields{
 		Model:  "User",
 		Fields: []string{"email"},
 	}
-	model := gomodels.New(
-		"User", gomodels.Fields{}, gomodels.Options{},
+	model := gomodel.New(
+		"User", gomodel.Fields{}, gomodel.Options{},
 	).Model
 	state := &AppState{
 		app: prevState.app,
-		Models: map[string]*gomodels.Model{
+		Models: map[string]*gomodel.Model{
 			"User": model,
 		},
 	}

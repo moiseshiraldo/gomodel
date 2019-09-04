@@ -1,4 +1,4 @@
-package gomodels
+package gomodel
 
 import (
 	"database/sql"
@@ -68,7 +68,7 @@ func TestValues(t *testing.T) {
 		}
 		if _, ok := values["loginAttempts"].(NullInt32); !ok {
 			t.Errorf(
-				"expected gomodels.NullInt32, got %T", values["loginAttempts"],
+				"expected gomodel.NullInt32, got %T", values["loginAttempts"],
 			)
 		}
 	})
@@ -79,7 +79,7 @@ func TestValues(t *testing.T) {
 			t.Fatal(err)
 		}
 		if _, ok := values["created"].(NullTime); !ok {
-			t.Errorf("expected gomodels.NullTime, got %T", values["created"])
+			t.Errorf("expected gomodel.NullTime, got %T", values["created"])
 		}
 	})
 }

@@ -1,22 +1,22 @@
-package benchmarks
+package benchmark
 
 import (
 	"fmt"
 	_ "github.com/gwenn/gosqlite"
-	"github.com/moiseshiraldo/gomodels"
-	"github.com/moiseshiraldo/gomodels/migrations"
+	"github.com/moiseshiraldo/gomodel"
+	"github.com/moiseshiraldo/gomodel/migration"
 	"os"
 	"testing"
 )
 
 func TestMain(m *testing.M) {
-	app := gomodels.NewApp("main", "", User.Model)
-	gomodels.Register(app)
-	gomodels.Start(map[string]gomodels.Database{
+	app := gomodel.NewApp("main", "", User.Model)
+	gomodel.Register(app)
+	gomodel.Start(map[string]gomodel.Database{
 		"default": {Driver: "sqlite3", Name: ":memory:"},
 	})
-	defer gomodels.Stop()
-	err := migrations.MakeAndRun("default")
+	defer gomodel.Stop()
+	err := migration.MakeAndRun("default")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		os.Exit(1)

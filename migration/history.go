@@ -1,8 +1,8 @@
-package migrations
+package migration
 
 import (
 	"fmt"
-	"github.com/moiseshiraldo/gomodels"
+	"github.com/moiseshiraldo/gomodel"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -16,8 +16,8 @@ var mNameRe = regexp.MustCompile(`^([0-9]{4})_\w+$`)
 var history = map[string]*AppState{}
 
 type AppState struct {
-	app         *gomodels.Application
-	Models      map[string]*gomodels.Model
+	app         *gomodel.Application
+	Models      map[string]*gomodel.Model
 	migrations  []*Node
 	lastApplied int
 }
@@ -85,7 +85,7 @@ func (state *AppState) makeMigrations(stash map[string]bool) ([]*Node, error) {
 					node.Operations = append(node.Operations, operation)
 				}
 			}
-			newFields := gomodels.Fields{}
+			newFields := gomodel.Fields{}
 			removedFields := []string{}
 			for name := range modelState.Fields() {
 				if _, ok := model.Fields()[name]; !ok {
@@ -132,9 +132,9 @@ func (state AppState) Migrate(database string, nodeName string) error {
 	if len(state.migrations) == 0 {
 		return &NoAppMigrationsError{state.app.Name(), ErrorTrace{}}
 	}
-	db, ok := gomodels.Databases()[database]
+	db, ok := gomodel.Databases()[database]
 	if !ok {
-		return &gomodels.DatabaseError{database, gomodels.ErrorTrace{}}
+		return &gomodel.DatabaseError{database, gomodel.ErrorTrace{}}
 	}
 	var node *Node
 	if nodeName == "" {
@@ -158,8 +158,8 @@ func (state AppState) Migrate(database string, nodeName string) error {
 }
 
 var loadHistory = func() error {
-	for _, app := range gomodels.Registry() {
-		if app.Name() == "gomodels" {
+	for _, app := range gomodel.Registry() {
+		if app.Name() == "gomodel" {
 			continue
 		}
 		if err := loadApp(app); err != nil {
@@ -184,10 +184,10 @@ func clearHistory() {
 	history = map[string]*AppState{}
 }
 
-func loadApp(app *gomodels.Application) error {
+func loadApp(app *gomodel.Application) error {
 	state := &AppState{
 		app:        app,
-		Models:     map[string]*gomodels.Model{},
+		Models:     map[string]*gomodel.Model{},
 		migrations: []*Node{},
 	}
 	history[app.Name()] = state
@@ -227,14 +227,14 @@ func loadApp(app *gomodels.Application) error {
 
 func loadPreviousState(node Node) map[string]*AppState {
 	prevState := map[string]*AppState{}
-	registry := gomodels.Registry()
+	registry := gomodel.Registry()
 	for name := range history {
-		if name == "gomodels" {
+		if name == "gomodel" {
 			continue
 		}
 		prevState[name] = &AppState{
 			app:    registry[node.App],
-			Models: map[string]*gomodels.Model{},
+			Models: map[string]*gomodel.Model{},
 		}
 	}
 	if node.number > 1 {
@@ -244,9 +244,9 @@ func loadPreviousState(node Node) map[string]*AppState {
 	return prevState
 }
 
-var loadAppliedMigrations = func(db gomodels.Database) error {
+var loadAppliedMigrations = func(db gomodel.Database) error {
 	if Migration.Model.App() == nil {
-		app := gomodels.Registry()["gomodels"]
+		app := gomodel.Registry()["gomodel"]
 		if err := Migration.Model.Register(app); err != nil {
 			return err
 		}

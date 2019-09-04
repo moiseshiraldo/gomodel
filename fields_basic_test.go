@@ -1,4 +1,4 @@
-package gomodels
+package gomodel
 
 import (
 	"database/sql"
@@ -437,7 +437,7 @@ func TestIntegerField(t *testing.T) {
 		field.Null = true
 		recipient := field.Recipient()
 		if _, ok := recipient.(*NullInt32); !ok {
-			t.Errorf("expected *gomodels.NullInt32, got %T", recipient)
+			t.Errorf("expected *gomodel.NullInt32, got %T", recipient)
 		}
 	})
 

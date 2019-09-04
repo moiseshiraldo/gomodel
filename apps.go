@@ -1,4 +1,4 @@
-package gomodels
+package gomodel
 
 import (
 	"fmt"
@@ -62,8 +62,8 @@ func ClearRegistry() {
 func Register(apps ...AppSettings) {
 	for _, settings := range apps {
 		appName := settings.Name
-		if _, found := registry[appName]; found || appName == "gomodels" {
-			panic(fmt.Sprintf("gomodels: duplicate app: %s", settings.Name))
+		if _, found := registry[appName]; found || appName == "gomodel" {
+			panic(fmt.Sprintf("gomodel: duplicate app: %s", settings.Name))
 		}
 		app := &Application{
 			name:   settings.Name,
@@ -74,7 +74,7 @@ func Register(apps ...AppSettings) {
 		for _, model := range settings.Models {
 			if err := model.Register(app); err != nil {
 				panic(fmt.Sprintf(
-					"gomodels: %s: %s: %s", appName, model.name, err,
+					"gomodel: %s: %s: %s", appName, model.name, err,
 				))
 			}
 			app.models[model.name] = model

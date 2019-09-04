@@ -1,4 +1,4 @@
-package gomodels
+package gomodel
 
 import (
 	"fmt"
@@ -32,7 +32,7 @@ type DatabaseError struct {
 }
 
 func (e *DatabaseError) Error() string {
-	return fmt.Sprintf("gomodels: %s db: %s", e.Name, e.Trace)
+	return fmt.Sprintf("gomodel: %s db: %s", e.Name, e.Trace)
 }
 
 type ContainerError struct {
@@ -40,7 +40,7 @@ type ContainerError struct {
 }
 
 func (e *ContainerError) Error() string {
-	return fmt.Sprintf("gomodels: %s", e.Trace)
+	return fmt.Sprintf("gomodel: %s", e.Trace)
 }
 
 type QuerySetError struct {
@@ -48,7 +48,7 @@ type QuerySetError struct {
 }
 
 func (e *QuerySetError) Error() string {
-	return fmt.Sprintf("gomodels: %s", e.Trace)
+	return fmt.Sprintf("gomodel: %s", e.Trace)
 }
 
 type ObjectNotFoundError struct {
@@ -56,7 +56,7 @@ type ObjectNotFoundError struct {
 }
 
 func (e *ObjectNotFoundError) Error() string {
-	return fmt.Sprintf("gomodels: %s", e.Trace)
+	return fmt.Sprintf("gomodel: %s", e.Trace)
 }
 
 type MultipleObjectsError struct {
@@ -64,5 +64,5 @@ type MultipleObjectsError struct {
 }
 
 func (e *MultipleObjectsError) Error() string {
-	return fmt.Sprintf("gomodels: %s", e.Trace)
+	return fmt.Sprintf("gomodel: %s", e.Trace)
 }

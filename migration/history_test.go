@@ -1,8 +1,8 @@
-package migrations
+package migration
 
 import (
 	"fmt"
-	"github.com/moiseshiraldo/gomodels"
+	"github.com/moiseshiraldo/gomodel"
 	"strings"
 	"testing"
 )
@@ -43,26 +43,26 @@ func (r *rowsMocker) Scan(dest ...interface{}) error {
 // TestLoadAppliedMigrations test the loadAppliedMigrations function
 func TestLoadAppliedMigrations(t *testing.T) {
 	// App setup
-	app := gomodels.NewApp("test", "")
-	gomodels.Register(app)
-	defer gomodels.ClearRegistry()
+	app := gomodel.NewApp("test", "")
+	gomodel.Register(app)
+	defer gomodel.ClearRegistry()
 	// App state setup
 	appState := &AppState{
-		app:        gomodels.Registry()["test"],
+		app:        gomodel.Registry()["test"],
 		migrations: []*Node{},
 	}
 	history["test"] = appState
 	defer clearHistory()
 	// DB Setup
-	err := gomodels.Start(map[string]gomodels.Database{
+	err := gomodel.Start(map[string]gomodel.Database{
 		"default": {Driver: "mocker", Name: "test"},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	db := gomodels.Databases()["default"]
-	defer gomodels.Stop()
-	mockedEngine := db.Engine.(gomodels.MockedEngine)
+	db := gomodel.Databases()["default"]
+	defer gomodel.Stop()
+	mockedEngine := db.Engine.(gomodel.MockedEngine)
 
 	t.Run("CreateTableError", func(t *testing.T) {
 		mockedEngine.Reset()
@@ -115,22 +115,22 @@ func TestLoadAppliedMigrations(t *testing.T) {
 // TestAppMigrate tests the Migrate method of the app state
 func TestAppMigrate(t *testing.T) {
 	// App setup
-	gomodels.Register(gomodels.NewApp("test", ""))
-	defer gomodels.ClearRegistry()
+	gomodel.Register(gomodel.NewApp("test", ""))
+	defer gomodel.ClearRegistry()
 	// DB setup
-	dbSettings := map[string]gomodels.Database{
+	dbSettings := map[string]gomodel.Database{
 		"default": {Driver: "mocker", Name: "test"},
 	}
-	if err := gomodels.Start(dbSettings); err != nil {
+	if err := gomodel.Start(dbSettings); err != nil {
 		t.Fatal(err)
 	}
-	goApp := gomodels.Registry()["gomodels"]
+	goApp := gomodel.Registry()["gomodel"]
 	if err := Migration.Model.Register(goApp); err != nil {
 		t.Fatal(err)
 	}
-	db := gomodels.Databases()["default"]
-	mockedEngine := db.Engine.(gomodels.MockedEngine)
-	defer gomodels.Stop()
+	db := gomodel.Databases()["default"]
+	mockedEngine := db.Engine.(gomodel.MockedEngine)
+	defer gomodel.Stop()
 	// App state setup
 	firstNode := &Node{App: "test", Name: "initial", number: 1}
 	secondNode := &Node{
@@ -140,7 +140,7 @@ func TestAppMigrate(t *testing.T) {
 		Dependencies: [][]string{{"test", "0001_initial"}},
 	}
 	appState := &AppState{
-		app: gomodels.Registry()["test"],
+		app: gomodel.Registry()["test"],
 	}
 	history["test"] = appState
 	defer clearHistory()
@@ -156,8 +156,8 @@ func TestAppMigrate(t *testing.T) {
 
 	t.Run("NoDatabase", func(t *testing.T) {
 		err := appState.Migrate("Slave", "")
-		if _, ok := err.(*gomodels.DatabaseError); !ok {
-			t.Errorf("expected gomodels.DatabaseError, got %T", err)
+		if _, ok := err.(*gomodel.DatabaseError); !ok {
+			t.Errorf("expected gomodel.DatabaseError, got %T", err)
 		}
 	})
 
@@ -279,27 +279,27 @@ func TestAppMigrate(t *testing.T) {
 // TestAppMakeMigrations tests the MakeMigrations method of the app state
 func TestAppMakeMigrations(t *testing.T) {
 	// Models setup
-	user := gomodels.New(
+	user := gomodel.New(
 		"User",
-		gomodels.Fields{
-			"email": gomodels.CharField{MaxLength: 100, Index: true},
+		gomodel.Fields{
+			"email": gomodel.CharField{MaxLength: 100, Index: true},
 		},
-		gomodels.Options{Table: "users"},
+		gomodel.Options{Table: "users"},
 	)
-	customer := gomodels.New(
+	customer := gomodel.New(
 		"Customer",
-		gomodels.Fields{
-			"name": gomodels.CharField{MaxLength: 100},
+		gomodel.Fields{
+			"name": gomodel.CharField{MaxLength: 100},
 		},
-		gomodels.Options{
-			Indexes: gomodels.Indexes{"initial_idx": []string{"name"}},
+		gomodel.Options{
+			Indexes: gomodel.Indexes{"initial_idx": []string{"name"}},
 		},
 	)
 	// Apps setup
-	usersApp := gomodels.NewApp("users", "", user.Model)
-	customersApp := gomodels.NewApp("customers", "", customer.Model)
-	gomodels.Register(usersApp, customersApp)
-	defer gomodels.ClearRegistry()
+	usersApp := gomodel.NewApp("users", "", user.Model)
+	customersApp := gomodel.NewApp("customers", "", customer.Model)
+	gomodel.Register(usersApp, customersApp)
+	defer gomodel.ClearRegistry()
 	// App states setup
 	operation := CreateModel{Name: "Customer", Fields: customer.Model.Fields()}
 	node := &Node{
@@ -310,12 +310,12 @@ func TestAppMakeMigrations(t *testing.T) {
 		processed:  true,
 	}
 	history["users"] = &AppState{
-		app:    gomodels.Registry()["users"],
-		Models: make(map[string]*gomodels.Model),
+		app:    gomodel.Registry()["users"],
+		Models: make(map[string]*gomodel.Model),
 	}
 	history["customers"] = &AppState{
-		app:        gomodels.Registry()["customers"],
-		Models:     map[string]*gomodels.Model{"Customer": customer.Model},
+		app:        gomodel.Registry()["customers"],
+		Models:     map[string]*gomodel.Model{"Customer": customer.Model},
 		migrations: []*Node{node},
 	}
 	defer clearHistory()
@@ -375,10 +375,10 @@ func TestAppMakeMigrations(t *testing.T) {
 	})
 
 	t.Run("AddField", func(t *testing.T) {
-		customerState := gomodels.New(
+		customerState := gomodel.New(
 			"Customer",
-			gomodels.Fields{},
-			gomodels.Options{
+			gomodel.Fields{},
+			gomodel.Options{
 				Table:   customer.Model.Table(),
 				Indexes: customer.Model.Indexes(),
 			},
@@ -418,11 +418,11 @@ func TestAppMakeMigrations(t *testing.T) {
 
 	t.Run("RemoveField", func(t *testing.T) {
 		fields := customer.Model.Fields()
-		fields["active"] = gomodels.BooleanField{}
-		customerState := gomodels.New(
+		fields["active"] = gomodel.BooleanField{}
+		customerState := gomodel.New(
 			"Customer",
 			fields,
-			gomodels.Options{
+			gomodel.Options{
 				Table:   customer.Model.Table(),
 				Indexes: customer.Model.Indexes(),
 			},
@@ -461,10 +461,10 @@ func TestAppMakeMigrations(t *testing.T) {
 	})
 
 	t.Run("AddIndex", func(t *testing.T) {
-		customerState := gomodels.New(
+		customerState := gomodel.New(
 			"Customer",
 			customer.Model.Fields(),
-			gomodels.Options{Table: customer.Model.Table()},
+			gomodel.Options{Table: customer.Model.Table()},
 		)
 		history["customers"].Models["Customer"] = customerState.Model
 		migrations, err := history["customers"].MakeMigrations()
@@ -497,11 +497,11 @@ func TestAppMakeMigrations(t *testing.T) {
 	})
 
 	t.Run("RemoveIndex", func(t *testing.T) {
-		customerState := gomodels.New(
+		customerState := gomodel.New(
 			"Customer",
 			customer.Model.Fields(),
-			gomodels.Options{
-				Indexes: gomodels.Indexes{
+			gomodel.Options{
+				Indexes: gomodel.Indexes{
 					"initial_idx": []string{"name"},
 					"new_idx":     []string{"name"},
 				},
@@ -539,10 +539,10 @@ func TestAppMakeMigrations(t *testing.T) {
 	})
 
 	t.Run("DeleteModel", func(t *testing.T) {
-		transaction := gomodels.New(
+		transaction := gomodel.New(
 			"Transaction",
-			gomodels.Fields{},
-			gomodels.Options{},
+			gomodel.Fields{},
+			gomodel.Options{},
 		)
 		history["customers"].Models["Transaction"] = transaction.Model
 		migrations, err := history["customers"].MakeMigrations()
@@ -577,9 +577,9 @@ func TestAppMakeMigrations(t *testing.T) {
 // TestLoadHistory tests the loadHistory function
 func TestLoadHistory(t *testing.T) {
 	// App setup
-	app := gomodels.NewApp("test", "test/migrations")
-	gomodels.Register(app)
-	defer gomodels.ClearRegistry()
+	app := gomodel.NewApp("test", "test/migrations")
+	gomodel.Register(app)
+	defer gomodel.ClearRegistry()
 	// Mocks file read/write functions
 	origReadAppNodes := readAppNodes
 	origReadNode := readNode
@@ -592,13 +592,13 @@ func TestLoadHistory(t *testing.T) {
 		operationsRegistry["MockedOperation"] = &mockedOperation{}
 	}
 	// DB Setup
-	err := gomodels.Start(map[string]gomodels.Database{
+	err := gomodel.Start(map[string]gomodel.Database{
 		"default": {Driver: "mocker", Name: "test"},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer gomodels.Stop()
+	defer gomodel.Stop()
 
 	t.Run("WrongPath", func(t *testing.T) {
 		readAppNodes = func(path string) ([]string, error) {

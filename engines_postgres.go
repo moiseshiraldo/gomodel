@@ -1,4 +1,4 @@
-package gomodels
+package gomodel
 
 import (
 	"fmt"

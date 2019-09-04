@@ -1,17 +1,17 @@
-package migrations
+package migration
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/moiseshiraldo/gomodels"
+	"github.com/moiseshiraldo/gomodel"
 	"reflect"
 )
 
 type Operation interface {
 	OpName() string
 	SetState(state *AppState) error
-	Run(eng gomodels.Engine, state *AppState, prevState *AppState) error
-	Backwards(eng gomodels.Engine, state *AppState, prevState *AppState) error
+	Run(eng gomodel.Engine, state *AppState, prevState *AppState) error
+	Backwards(eng gomodel.Engine, state *AppState, prevState *AppState) error
 }
 
 type OperationList []Operation

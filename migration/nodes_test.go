@@ -1,8 +1,8 @@
-package migrations
+package migration
 
 import (
 	"fmt"
-	"github.com/moiseshiraldo/gomodels"
+	"github.com/moiseshiraldo/gomodel"
 	"os"
 	"testing"
 	"time"
@@ -199,20 +199,20 @@ func TestReadAppNodes(t *testing.T) {
 // TestNode tests node Run/Backwards functions
 func TestNode(t *testing.T) {
 	// DB setup
-	err := gomodels.Start(map[string]gomodels.Database{
+	err := gomodel.Start(map[string]gomodel.Database{
 		"default": {Driver: "mocker", Name: "test"},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	db := gomodels.Databases()["default"]
-	defer gomodels.Stop()
+	db := gomodel.Databases()["default"]
+	defer gomodel.Stop()
 	t.Run("Run", func(t *testing.T) { testNodeRun(t, db) })
 	t.Run("Backwards", func(t *testing.T) { testNodeBackwards(t, db) })
 }
 
-func testNodeRun(t *testing.T, db gomodels.Database) {
-	mockedEngine := db.Engine.(gomodels.MockedEngine)
+func testNodeRun(t *testing.T, db gomodel.Database) {
+	mockedEngine := db.Engine.(gomodel.MockedEngine)
 	op := &mockedOperation{}
 	setup := func() *Node {
 		op.reset()
@@ -240,8 +240,8 @@ func testNodeRun(t *testing.T, db gomodels.Database) {
 		node := setup()
 		mockedEngine.Results.InsertRow.Err = fmt.Errorf("db error")
 		err := node.Run(db)
-		if _, ok := err.(*gomodels.DatabaseError); !ok {
-			t.Errorf("expected gomodels.DatabaseError, got %T", err)
+		if _, ok := err.(*gomodel.DatabaseError); !ok {
+			t.Errorf("expected gomodel.DatabaseError, got %T", err)
 		}
 	})
 
@@ -250,8 +250,8 @@ func testNodeRun(t *testing.T, db gomodels.Database) {
 		mockedEngine.Results.InsertRow.Err = fmt.Errorf("db error")
 		mockedEngine.Results.RollbackTx = fmt.Errorf("db error")
 		err := node.Run(db)
-		if _, ok := err.(*gomodels.DatabaseError); !ok {
-			t.Errorf("expected gomodels.DatabaseError, got %T", err)
+		if _, ok := err.(*gomodel.DatabaseError); !ok {
+			t.Errorf("expected gomodel.DatabaseError, got %T", err)
 		}
 	})
 
@@ -259,8 +259,8 @@ func testNodeRun(t *testing.T, db gomodels.Database) {
 		node := setup()
 		mockedEngine.Results.BeginTx = fmt.Errorf("db error")
 		err := node.Run(db)
-		if _, ok := err.(*gomodels.DatabaseError); !ok {
-			t.Errorf("expected gomodels.DatabaseError, got %T", err)
+		if _, ok := err.(*gomodel.DatabaseError); !ok {
+			t.Errorf("expected gomodel.DatabaseError, got %T", err)
 		}
 	})
 
@@ -268,8 +268,8 @@ func testNodeRun(t *testing.T, db gomodels.Database) {
 		node := setup()
 		mockedEngine.Results.CommitTx = fmt.Errorf("db error")
 		err := node.Run(db)
-		if _, ok := err.(*gomodels.DatabaseError); !ok {
-			t.Errorf("expected gomodels.DatabaseError, got %T", err)
+		if _, ok := err.(*gomodel.DatabaseError); !ok {
+			t.Errorf("expected gomodel.DatabaseError, got %T", err)
 		}
 	})
 
@@ -278,8 +278,8 @@ func testNodeRun(t *testing.T, db gomodels.Database) {
 		op.RunErr = true
 		mockedEngine.Results.RollbackTx = fmt.Errorf("db error")
 		err := node.Run(db)
-		if _, ok := err.(*gomodels.DatabaseError); !ok {
-			t.Errorf("expected gomodels.DatabaseError, got %T", err)
+		if _, ok := err.(*gomodel.DatabaseError); !ok {
+			t.Errorf("expected gomodel.DatabaseError, got %T", err)
 		}
 	})
 
@@ -323,14 +323,14 @@ func testNodeRun(t *testing.T, db gomodels.Database) {
 			number:       2,
 			Dependencies: [][]string{{"test", "0001_initial"}},
 		}
-		gomodels.Register(gomodels.NewApp("test", ""))
+		gomodel.Register(gomodel.NewApp("test", ""))
 		appState := &AppState{
-			app:        gomodels.Registry()["test"],
+			app:        gomodel.Registry()["test"],
 			migrations: []*Node{node, secondNode},
 		}
 		history["test"] = appState
 		defer clearHistory()
-		defer gomodels.ClearRegistry()
+		defer gomodel.ClearRegistry()
 		err := secondNode.Run(db)
 		if _, ok := err.(*OperationRunError); !ok {
 			t.Errorf("expected OperationRunError, got %T", err)
@@ -351,14 +351,14 @@ func testNodeRun(t *testing.T, db gomodels.Database) {
 			number:       3,
 			Dependencies: [][]string{{"test", "0002_second"}},
 		}
-		gomodels.Register(gomodels.NewApp("test", ""))
+		gomodel.Register(gomodel.NewApp("test", ""))
 		appState := &AppState{
-			app:        gomodels.Registry()["test"],
+			app:        gomodel.Registry()["test"],
 			migrations: []*Node{node, secondNode, thirdNode},
 		}
 		history["test"] = appState
 		defer clearHistory()
-		defer gomodels.ClearRegistry()
+		defer gomodel.ClearRegistry()
 		if err := thirdNode.Run(db); err != nil {
 			t.Fatal(err)
 		}
@@ -378,8 +378,8 @@ func testNodeRun(t *testing.T, db gomodels.Database) {
 	})
 }
 
-func testNodeBackwards(t *testing.T, db gomodels.Database) {
-	mockedEngine := db.Engine.(gomodels.MockedEngine)
+func testNodeBackwards(t *testing.T, db gomodel.Database) {
+	mockedEngine := db.Engine.(gomodel.MockedEngine)
 	op := &mockedOperation{}
 	setup := func() *Node {
 		op.reset()
@@ -408,8 +408,8 @@ func testNodeBackwards(t *testing.T, db gomodels.Database) {
 		node := setup()
 		mockedEngine.Results.DeleteRows.Err = fmt.Errorf("db error")
 		err := node.Backwards(db)
-		if _, ok := err.(*gomodels.DatabaseError); !ok {
-			t.Errorf("expected gomodels.DatabaseError, got %T", err)
+		if _, ok := err.(*gomodel.DatabaseError); !ok {
+			t.Errorf("expected gomodel.DatabaseError, got %T", err)
 		}
 	})
 
@@ -418,8 +418,8 @@ func testNodeBackwards(t *testing.T, db gomodels.Database) {
 		mockedEngine.Results.DeleteRows.Err = fmt.Errorf("db error")
 		mockedEngine.Results.RollbackTx = fmt.Errorf("db error")
 		err := node.Backwards(db)
-		if _, ok := err.(*gomodels.DatabaseError); !ok {
-			t.Errorf("expected gomodels.DatabaseError, got %T", err)
+		if _, ok := err.(*gomodel.DatabaseError); !ok {
+			t.Errorf("expected gomodel.DatabaseError, got %T", err)
 		}
 	})
 
@@ -427,8 +427,8 @@ func testNodeBackwards(t *testing.T, db gomodels.Database) {
 		node := setup()
 		mockedEngine.Results.BeginTx = fmt.Errorf("db error")
 		err := node.Backwards(db)
-		if _, ok := err.(*gomodels.DatabaseError); !ok {
-			t.Errorf("expected gomodels.DatabaseError, got %T", err)
+		if _, ok := err.(*gomodel.DatabaseError); !ok {
+			t.Errorf("expected gomodel.DatabaseError, got %T", err)
 		}
 	})
 
@@ -436,8 +436,8 @@ func testNodeBackwards(t *testing.T, db gomodels.Database) {
 		node := setup()
 		mockedEngine.Results.CommitTx = fmt.Errorf("db error")
 		err := node.Backwards(db)
-		if _, ok := err.(*gomodels.DatabaseError); !ok {
-			t.Errorf("expected gomodels.DatabaseError, got %T", err)
+		if _, ok := err.(*gomodel.DatabaseError); !ok {
+			t.Errorf("expected gomodel.DatabaseError, got %T", err)
 		}
 	})
 
@@ -446,8 +446,8 @@ func testNodeBackwards(t *testing.T, db gomodels.Database) {
 		op.RunErr = true
 		mockedEngine.Results.RollbackTx = fmt.Errorf("db error")
 		err := node.Backwards(db)
-		if _, ok := err.(*gomodels.DatabaseError); !ok {
-			t.Errorf("expected gomodels.DatabaseError, got %T", err)
+		if _, ok := err.(*gomodel.DatabaseError); !ok {
+			t.Errorf("expected gomodel.DatabaseError, got %T", err)
 		}
 	})
 
@@ -494,14 +494,14 @@ func testNodeBackwards(t *testing.T, db gomodels.Database) {
 			Operations:   OperationList{op},
 			applied:      true,
 		}
-		gomodels.Register(gomodels.NewApp("test", ""))
+		gomodel.Register(gomodel.NewApp("test", ""))
 		appState := &AppState{
-			app:        gomodels.Registry()["test"],
+			app:        gomodel.Registry()["test"],
 			migrations: []*Node{node, secondNode},
 		}
 		history["test"] = appState
 		defer clearHistory()
-		defer gomodels.ClearRegistry()
+		defer gomodel.ClearRegistry()
 		err := node.Backwards(db)
 		if _, ok := err.(*OperationRunError); !ok {
 			t.Errorf("expected OperationRunError, got %T", err)
@@ -518,14 +518,14 @@ func testNodeBackwards(t *testing.T, db gomodels.Database) {
 			Operations:   OperationList{op},
 			applied:      true,
 		}
-		gomodels.Register(gomodels.NewApp("test", ""))
+		gomodel.Register(gomodel.NewApp("test", ""))
 		appState := &AppState{
-			app:        gomodels.Registry()["test"],
+			app:        gomodel.Registry()["test"],
 			migrations: []*Node{node, secondNode},
 		}
 		history["test"] = appState
 		defer clearHistory()
-		defer gomodels.ClearRegistry()
+		defer gomodel.ClearRegistry()
 		if err := node.Backwards(db); err != nil {
 			t.Fatal(err)
 		}

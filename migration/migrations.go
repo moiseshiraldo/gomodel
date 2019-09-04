@@ -1,8 +1,8 @@
-package migrations
+package migration
 
 import (
 	"fmt"
-	"github.com/moiseshiraldo/gomodels"
+	"github.com/moiseshiraldo/gomodel"
 )
 
 type MakeOptions struct {
@@ -11,7 +11,7 @@ type MakeOptions struct {
 }
 
 func Make(appName string, options MakeOptions) (*AppState, error) {
-	_, ok := gomodels.Registry()[appName]
+	_, ok := gomodel.Registry()[appName]
 	if !ok {
 		return nil, &AppNotFoundError{appName, ErrorTrace{}}
 	}
@@ -54,17 +54,17 @@ func Run(options RunOptions) error {
 	if dbName == "" {
 		dbName = "default"
 	}
-	db, ok := gomodels.Databases()[dbName]
+	db, ok := gomodel.Databases()[dbName]
 	if !ok {
 		err := fmt.Errorf("database not found")
-		return &gomodels.DatabaseError{dbName, gomodels.ErrorTrace{Err: err}}
+		return &gomodel.DatabaseError{dbName, gomodel.ErrorTrace{Err: err}}
 	}
 	if err := loadHistory(); err != nil {
 		return err
 	}
 	defer clearHistory()
 	if err := loadAppliedMigrations(db); err != nil {
-		return &gomodels.DatabaseError{dbName, gomodels.ErrorTrace{Err: err}}
+		return &gomodel.DatabaseError{dbName, gomodel.ErrorTrace{Err: err}}
 	}
 	if options.App != "" {
 		state, ok := history[options.App]
@@ -87,13 +87,13 @@ func Run(options RunOptions) error {
 }
 
 func MakeAndRun(database string) error {
-	for _, app := range gomodels.Registry() {
-		if app.Name() == "gomodels" {
+	for _, app := range gomodel.Registry() {
+		if app.Name() == "gomodel" {
 			continue
 		}
 		history[app.Name()] = &AppState{
 			app:        app,
-			Models:     map[string]*gomodels.Model{},
+			Models:     map[string]*gomodel.Model{},
 			migrations: []*Node{},
 		}
 	}
@@ -103,14 +103,14 @@ func MakeAndRun(database string) error {
 			return err
 		}
 	}
-	db, ok := gomodels.Databases()[database]
+	db, ok := gomodel.Databases()[database]
 	if !ok {
 		err := fmt.Errorf("database not found")
-		return &gomodels.DatabaseError{database, gomodels.ErrorTrace{Err: err}}
+		return &gomodel.DatabaseError{database, gomodel.ErrorTrace{Err: err}}
 	}
 	if err := loadAppliedMigrations(db); err != nil {
-		return &gomodels.DatabaseError{
-			database, gomodels.ErrorTrace{Err: err},
+		return &gomodel.DatabaseError{
+			database, gomodel.ErrorTrace{Err: err},
 		}
 	}
 	for _, state := range history {

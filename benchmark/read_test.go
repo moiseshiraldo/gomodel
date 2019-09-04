@@ -1,9 +1,9 @@
-package benchmarks
+package benchmark
 
 import (
 	"fmt"
 	_ "github.com/gwenn/gosqlite"
-	"github.com/moiseshiraldo/gomodels"
+	"github.com/moiseshiraldo/gomodel"
 	"os"
 	"testing"
 )
@@ -11,7 +11,7 @@ import (
 func loadMapInstance(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		user, err := User.Objects.Get(gomodels.Q{"firstName": "Anakin"})
+		user, err := User.Objects.Get(gomodel.Q{"firstName": "Anakin"})
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -23,7 +23,7 @@ func loadStructInstance(b *testing.B) {
 	qs := User.Objects.WithContainer(userContainer{})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		user, err := qs.Get(gomodels.Q{"firstName": "Anakin"})
+		user, err := qs.Get(gomodel.Q{"firstName": "Anakin"})
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -35,7 +35,7 @@ func loadBuilderInstance(b *testing.B) {
 	qs := User.Objects.WithContainer(&userBuilder{})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		user, err := qs.Get(gomodels.Q{"firstName": "Anakin"})
+		user, err := qs.Get(gomodel.Q{"firstName": "Anakin"})
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -44,7 +44,7 @@ func loadBuilderInstance(b *testing.B) {
 }
 
 func loadRawSqlInstance(b *testing.B) {
-	db := gomodels.Databases()["default"]
+	db := gomodel.Databases()["default"]
 	for i := 0; i < b.N; i++ {
 		user := userContainer{}
 		query := `
@@ -66,7 +66,7 @@ func loadRawSqlInstance(b *testing.B) {
 }
 
 func BenchmarkRead(b *testing.B) {
-	_, err := User.Objects.Create(gomodels.Values{
+	_, err := User.Objects.Create(gomodel.Values{
 		"firstName": "Anakin",
 		"lastName":  "Skywalker",
 		"email":     "anakin.skywalker@deathstar.com",

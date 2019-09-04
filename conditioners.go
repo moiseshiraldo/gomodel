@@ -1,4 +1,4 @@
-package gomodels
+package gomodel
 
 type Conditioner interface {
 	Conditions() map[string]Value

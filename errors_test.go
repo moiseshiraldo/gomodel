@@ -1,11 +1,11 @@
-package gomodels
+package gomodel
 
 import (
 	"fmt"
 	"testing"
 )
 
-// TestErrors tests gomodels error types
+// TestErrors tests gomodel error types
 func TestErrors(t *testing.T) {
 	app := &Application{name: "users"}
 	model := &Model{name: "User"}
@@ -14,7 +14,7 @@ func TestErrors(t *testing.T) {
 			"default",
 			ErrorTrace{App: app, Model: model, Err: fmt.Errorf("test error")},
 		}
-		expected := "gomodels: default db: users: User: test error"
+		expected := "gomodel: default db: users: User: test error"
 		if err.Error() != expected {
 			t.Errorf("expected '%s', got '%s'", expected, err.Error())
 		}
@@ -27,7 +27,7 @@ func TestErrors(t *testing.T) {
 			Err:   fmt.Errorf("test error"),
 		}
 		err := &ContainerError{trace}
-		expected := "gomodels: users: User: email: test error"
+		expected := "gomodel: users: User: email: test error"
 		if err.Error() != expected {
 			t.Errorf("expected '%s', got '%s'", expected, err.Error())
 		}
@@ -39,7 +39,7 @@ func TestErrors(t *testing.T) {
 			Err:   fmt.Errorf("test error"),
 		}
 		err := &QuerySetError{trace}
-		expected := "gomodels: users: User: test error"
+		expected := "gomodel: users: User: test error"
 		if err.Error() != expected {
 			t.Errorf("expected '%s', got '%s'", expected, err.Error())
 		}
@@ -51,7 +51,7 @@ func TestErrors(t *testing.T) {
 			Err:   fmt.Errorf("object not found"),
 		}
 		err := &ObjectNotFoundError{trace}
-		expected := "gomodels: users: User: object not found"
+		expected := "gomodel: users: User: object not found"
 		if err.Error() != expected {
 			t.Errorf("expected '%s', got '%s'", expected, err.Error())
 		}
@@ -63,7 +63,7 @@ func TestErrors(t *testing.T) {
 			Err:   fmt.Errorf("multiple objects"),
 		}
 		err := &MultipleObjectsError{trace}
-		expected := "gomodels: users: User: multiple objects"
+		expected := "gomodel: users: User: multiple objects"
 		if err.Error() != expected {
 			t.Errorf("expected '%s', got '%s'", expected, err.Error())
 		}

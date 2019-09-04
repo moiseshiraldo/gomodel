@@ -1,14 +1,14 @@
-package benchmarks
+package benchmark
 
 import (
 	_ "github.com/gwenn/gosqlite"
-	"github.com/moiseshiraldo/gomodels"
+	"github.com/moiseshiraldo/gomodel"
 	"testing"
 )
 
 func insertMapContainer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, err := User.Objects.Create(gomodels.Values{
+		_, err := User.Objects.Create(gomodel.Values{
 			"firstName": "Anakin",
 			"lastName":  "Skywalker",
 			"email":     "anakin.skywalker@deathstar.com",
@@ -49,7 +49,7 @@ func insertBuilderContainer(b *testing.B) {
 }
 
 func insertRawSqlContainer(b *testing.B) {
-	db := gomodels.Databases()["default"]
+	db := gomodel.Databases()["default"]
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		user := userContainer{
