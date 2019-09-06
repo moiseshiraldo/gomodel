@@ -61,12 +61,14 @@ func Start(options map[string]Database) error {
 	for name, db := range options {
 		engine, ok := enginesRegistry[db.Driver]
 		if !ok {
-			err := fmt.Errorf("unsupported driver: %s", db.Driver)
-			return &DatabaseError{name, ErrorTrace{Err: err}}
+			msg := fmt.Sprintf(
+				"gomodels: %s: unsupported driver: %s", name, db.Driver,
+			)
+			panic(msg)
 		}
 		eng, err := engine.Start(db)
 		if err != nil {
-			return &DatabaseError{name, ErrorTrace{Err: err}}
+			panic(fmt.Sprintf("gomodels: %s: %s:", name, err))
 		}
 		db.Engine = eng
 		db.id = name
@@ -74,8 +76,7 @@ func Start(options map[string]Database) error {
 		dbRegistry[name] = db
 	}
 	if _, ok := dbRegistry["default"]; !ok {
-		err := fmt.Errorf("missing default database")
-		return &DatabaseError{"default", ErrorTrace{Err: err}}
+		panic("gomodels: missing default database")
 	}
 	registry["gomodel"] = &Application{
 		name:   "gomodel",

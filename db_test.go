@@ -11,32 +11,33 @@ func TestStart(t *testing.T) {
 
 	t.Run("UnknownDriver", func(t *testing.T) {
 		dbRegistry = map[string]Database{}
-		settings := map[string]Database{
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("expected Start function to panic")
+			}
+		}()
+		Start(map[string]Database{
 			"default": {Driver: "qwerty"},
-		}
-		err := Start(settings)
-		if _, ok := err.(*DatabaseError); !ok {
-			t.Errorf("expected DatabaseError, got %T", err)
-		}
+		})
 	})
 
 	t.Run("MissingDefault", func(t *testing.T) {
 		dbRegistry = map[string]Database{}
-		settings := map[string]Database{
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("expected Start function to panic")
+			}
+		}()
+		Start(map[string]Database{
 			"slave": {Driver: "mocker"},
-		}
-		err := Start(settings)
-		if _, ok := err.(*DatabaseError); !ok {
-			t.Errorf("expected DatabaseError, got %T", err)
-		}
+		})
 	})
 
 	t.Run("Success", func(t *testing.T) {
 		dbRegistry = map[string]Database{}
-		settings := map[string]Database{
+		err := Start(map[string]Database{
 			"default": {Driver: "mocker"},
-		}
-		err := Start(settings)
+		})
 		if err != nil {
 			t.Fatal(err)
 		}
