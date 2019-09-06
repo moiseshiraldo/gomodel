@@ -71,7 +71,7 @@ func Make(appName string, options MakeOptions) (*AppState, error) {
 // RunOptions holds the options for the Run function.
 type RunOptions struct {
 	App      string // Application name or blank for all applications.
-	Node     string // Node name (e.g. 0001_inital or just 0001).
+	Node     string // Node name (e.g. 0001_initial or just 0001).
 	Fake     bool   // Fake is used to apply the migration without DB changes.
 	Database string // Database name or blank for default.
 }

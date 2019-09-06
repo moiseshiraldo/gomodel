@@ -12,7 +12,7 @@ import (
 // history holds a global registry of application states.
 var history = map[string]*AppState{}
 
-// AppState holds the applicaton state for a certain node of the changes graph.
+// AppState holds the application state for a certain node of the changes graph.
 type AppState struct {
 	app *gomodel.Application
 	// Models holds the model definitions for this application state.
@@ -223,7 +223,7 @@ func clearHistory() {
 	history = map[string]*AppState{}
 }
 
-// loadApp loads the migration files fot the given applicaton and stores the
+// loadApp loads the migration files fot the given application and stores the
 // application state on the global history registry.
 func loadApp(app *gomodel.Application) error {
 	state := &AppState{
