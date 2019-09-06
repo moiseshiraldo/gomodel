@@ -98,7 +98,7 @@ func TestLoadAppliedMigrations(t *testing.T) {
 		mockedEngine.Reset()
 		node := &Node{
 			App:    "test",
-			Name:   "initial",
+			name:   "initial",
 			number: 1,
 		}
 		history["test"].migrations = []*Node{node}
@@ -132,10 +132,10 @@ func TestAppMigrate(t *testing.T) {
 	mockedEngine := db.Engine.(gomodel.MockedEngine)
 	defer gomodel.Stop()
 	// App state setup
-	firstNode := &Node{App: "test", Name: "initial", number: 1}
+	firstNode := &Node{App: "test", name: "initial", number: 1}
 	secondNode := &Node{
 		App:          "test",
-		Name:         "test_migrations",
+		name:         "test_migrations",
 		number:       2,
 		Dependencies: [][]string{{"test", "0001_initial"}},
 	}
@@ -355,7 +355,7 @@ func TestAppMakeMigrations(t *testing.T) {
 	operation := CreateModel{Name: "Customer", Fields: customer.Model.Fields()}
 	node := &Node{
 		App:        "customers",
-		Name:       "initial",
+		name:       "initial",
 		number:     1,
 		Operations: OperationList{operation},
 		processed:  true,

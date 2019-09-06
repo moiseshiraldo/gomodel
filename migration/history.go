@@ -25,21 +25,21 @@ type AppState struct {
 func (state AppState) nextNode() *Node {
 	node := &Node{
 		App:          state.app.Name(),
-		Path:         state.app.FullPath(),
+		path:         state.app.FullPath(),
 		Dependencies: [][]string{},
 		Operations:   OperationList{},
 	}
 	node.number = len(state.migrations) + 1
 	if node.number == 1 {
-		node.Name = "initial"
+		node.name = "initial"
 	} else {
 		timestamp := time.Now().Format("20060102_1504")
-		node.Name = fmt.Sprintf("auto_%s", timestamp)
+		node.name = fmt.Sprintf("auto_%s", timestamp)
 	}
 	if len(state.migrations) > 0 {
 		lastNode := state.migrations[len(state.migrations)-1]
 		node.Dependencies = append(
-			node.Dependencies, []string{state.app.Name(), lastNode.fullname()},
+			node.Dependencies, []string{state.app.Name(), lastNode.Name()},
 		)
 	}
 	return node
@@ -250,9 +250,9 @@ func loadApp(app *gomodel.Application) error {
 		number, _ := strconv.Atoi(filename[:4])
 		node := &Node{
 			App:    app.Name(),
-			Name:   filename[5:],
+			name:   filename[5:],
 			number: number,
-			Path:   app.FullPath(),
+			path:   app.FullPath(),
 		}
 		if dup := state.migrations[number-1]; dup != nil {
 			err := fmt.Errorf("duplicate number")

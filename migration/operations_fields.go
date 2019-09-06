@@ -5,15 +5,18 @@ import (
 	"github.com/moiseshiraldo/gomodel"
 )
 
+// AddFields implements the Operation interface to add new fields.
 type AddFields struct {
 	Model  string
 	Fields gomodel.Fields
 }
 
+// OpName returns the operation name.
 func (op AddFields) OpName() string {
 	return "AddFields"
 }
 
+// SetState adds the new fields to the model in the given the application state.
 func (op AddFields) SetState(state *AppState) error {
 	if _, ok := state.Models[op.Model]; !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
@@ -27,6 +30,7 @@ func (op AddFields) SetState(state *AppState) error {
 	return nil
 }
 
+// Run adds the new columns to the table on the database.
 func (op AddFields) Run(
 	engine gomodel.Engine,
 	state *AppState,
@@ -35,6 +39,7 @@ func (op AddFields) Run(
 	return engine.AddColumns(state.Models[op.Model], op.Fields)
 }
 
+// Backwards removes the columns from the table on the database.
 func (op AddFields) Backwards(
 	engine gomodel.Engine,
 	state *AppState,
@@ -47,15 +52,18 @@ func (op AddFields) Backwards(
 	return engine.DropColumns(state.Models[op.Model], fields...)
 }
 
+// RemoveFields implements the Operation interface to remove fields.
 type RemoveFields struct {
 	Model  string
 	Fields []string
 }
 
+// OpName returns the operation name.
 func (op RemoveFields) OpName() string {
 	return "RemoveFields"
 }
 
+// SetState removes the fields from the model in the given the application state.
 func (op RemoveFields) SetState(state *AppState) error {
 	if _, ok := state.Models[op.Model]; !ok {
 		return fmt.Errorf("model not found: %s", op.Model)
@@ -69,6 +77,7 @@ func (op RemoveFields) SetState(state *AppState) error {
 	return nil
 }
 
+// Run removes the columns from the table on the database.
 func (op RemoveFields) Run(
 	engine gomodel.Engine,
 	state *AppState,
@@ -77,6 +86,7 @@ func (op RemoveFields) Run(
 	return engine.DropColumns(prevState.Models[op.Model], op.Fields...)
 }
 
+// Backwards adds the columns to the table on the database.
 func (op RemoveFields) Backwards(
 	engine gomodel.Engine,
 	state *AppState,

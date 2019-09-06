@@ -8,6 +8,7 @@ import (
 )
 
 type mockedOperation struct {
+	name     string
 	run      bool
 	back     bool
 	state    bool
@@ -24,6 +25,9 @@ func (op *mockedOperation) reset() {
 }
 
 func (op mockedOperation) OpName() string {
+	if op.name != "" {
+		return op.name
+	}
 	return "MockedOperation"
 }
 
@@ -121,7 +125,8 @@ func TestOperationList(t *testing.T) {
 func TestRegisterOperation(t *testing.T) {
 
 	t.Run("Duplicate", func(t *testing.T) {
-		err := RegisterOperation("CreateModel", &mockedOperation{})
+		op := &mockedOperation{name: "CreateModel"}
+		err := RegisterOperation(op)
 		expected := "migrations: duplicate operation: CreateModel"
 		if err == nil || err.Error() != expected {
 			t.Errorf("expected '%s', got '%s'", expected, err)
@@ -129,7 +134,8 @@ func TestRegisterOperation(t *testing.T) {
 	})
 
 	t.Run("Success", func(t *testing.T) {
-		err := RegisterOperation("CustomOperation", &mockedOperation{})
+		op := &mockedOperation{name: "CustomOperation"}
+		err := RegisterOperation(op)
 		if err != nil {
 			t.Fatal(err)
 		}

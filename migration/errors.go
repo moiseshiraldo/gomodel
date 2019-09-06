@@ -15,7 +15,7 @@ type ErrorTrace struct {
 func (e ErrorTrace) String() string {
 	trace := ""
 	if e.Node != nil {
-		trace += fmt.Sprintf("%s: %s: ", e.Node.App, e.Node.Name)
+		trace += fmt.Sprintf("%s: %s: ", e.Node.App, e.Node.Name())
 	}
 	if e.Operation != nil {
 		trace += fmt.Sprintf("%s: ", e.Operation.OpName())

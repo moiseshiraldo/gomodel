@@ -64,7 +64,7 @@ func TestNodeStorage(t *testing.T) {
 	}
 
 	t.Run("LoadNoPath", func(t *testing.T) {
-		node := &Node{App: "test", Name: "initial", number: 1}
+		node := &Node{App: "test", name: "initial", number: 1}
 		err := node.Load()
 		if _, ok := err.(*LoadError); !ok {
 			fmt.Errorf("expected LoadError, got %T", err)
@@ -76,8 +76,8 @@ func TestNodeStorage(t *testing.T) {
 		}
 		node := &Node{
 			App:    "test",
-			Path:   "test/migrations/",
-			Name:   "initial",
+			path:   "test/migrations/",
+			name:   "initial",
 			number: 1,
 		}
 		err := node.Load()
@@ -92,8 +92,8 @@ func TestNodeStorage(t *testing.T) {
 		}
 		node := &Node{
 			App:    "test",
-			Path:   "test/migrations/",
-			Name:   "initial",
+			path:   "test/migrations/",
+			name:   "initial",
 			number: 1,
 		}
 		if err := node.Load(); err != nil {
@@ -105,7 +105,7 @@ func TestNodeStorage(t *testing.T) {
 	})
 
 	t.Run("SaveNoPath", func(t *testing.T) {
-		node := &Node{App: "test", Name: "initial", number: 1}
+		node := &Node{App: "test", name: "initial", number: 1}
 		err := node.Save()
 		if _, ok := err.(*SaveError); !ok {
 			fmt.Errorf("expected LoadError, got %T", err)
@@ -115,9 +115,9 @@ func TestNodeStorage(t *testing.T) {
 	t.Run("SaveUnknownOperation", func(t *testing.T) {
 		node := &Node{
 			App:        "test",
-			Name:       "test_migration",
+			name:       "test_migration",
 			number:     2,
-			Path:       "test/migrations/",
+			path:       "test/migrations/",
 			Operations: OperationList{&invalidOperationType{}},
 		}
 		err := node.Save()
@@ -132,9 +132,9 @@ func TestNodeStorage(t *testing.T) {
 		}
 		node := &Node{
 			App:        "test",
-			Name:       "test_migration",
+			name:       "test_migration",
 			number:     2,
-			Path:       "test/migrations/",
+			path:       "test/migrations/",
 			Operations: OperationList{&mockedOperation{}},
 		}
 		err := node.Save()
@@ -150,9 +150,9 @@ func TestNodeStorage(t *testing.T) {
 		}
 		node := &Node{
 			App:        "test",
-			Name:       "test_migration",
+			name:       "test_migration",
 			number:     2,
-			Path:       "test/migrations/",
+			path:       "test/migrations/",
 			Operations: OperationList{&mockedOperation{}},
 		}
 		if err := node.Save(); err != nil {
@@ -222,7 +222,7 @@ func testNodeRun(t *testing.T, db gomodel.Database) {
 		mockedEngine.Results.TxSupport = true
 		return &Node{
 			App:        "test",
-			Name:       "initial",
+			name:       "initial",
 			number:     1,
 			Operations: OperationList{op},
 		}
@@ -321,7 +321,7 @@ func testNodeRun(t *testing.T, db gomodel.Database) {
 		op.RunErr = true
 		secondNode := &Node{
 			App:          "test",
-			Name:         "second",
+			name:         "second",
 			number:       2,
 			Dependencies: [][]string{{"test", "0001_initial"}},
 		}
@@ -343,13 +343,13 @@ func testNodeRun(t *testing.T, db gomodel.Database) {
 		node := setup()
 		secondNode := &Node{
 			App:          "test",
-			Name:         "second",
+			name:         "second",
 			number:       2,
 			Dependencies: [][]string{{"test", "0001_initial"}},
 		}
 		thirdNode := &Node{
 			App:          "test",
-			Name:         "third",
+			name:         "third",
 			number:       3,
 			Dependencies: [][]string{{"test", "0002_second"}},
 		}
@@ -388,7 +388,7 @@ func testNodeFake(t *testing.T, db gomodel.Database) {
 		mockedEngine.Reset()
 		return &Node{
 			App:        "test",
-			Name:       "initial",
+			name:       "initial",
 			number:     1,
 			Operations: OperationList{op},
 		}
@@ -436,13 +436,13 @@ func testNodeFake(t *testing.T, db gomodel.Database) {
 		node := setup()
 		secondNode := &Node{
 			App:          "test",
-			Name:         "second",
+			name:         "second",
 			number:       2,
 			Dependencies: [][]string{{"test", "0001_initial"}},
 		}
 		thirdNode := &Node{
 			App:          "test",
-			Name:         "third",
+			name:         "third",
 			number:       3,
 			Dependencies: [][]string{{"test", "0002_second"}},
 		}
@@ -482,7 +482,7 @@ func testNodeBackwards(t *testing.T, db gomodel.Database) {
 		mockedEngine.Results.TxSupport = true
 		return &Node{
 			App:        "test",
-			Name:       "initial",
+			name:       "initial",
 			number:     1,
 			Operations: OperationList{op},
 			applied:    true,
@@ -583,7 +583,7 @@ func testNodeBackwards(t *testing.T, db gomodel.Database) {
 		node.Operations = OperationList{}
 		secondNode := &Node{
 			App:          "test",
-			Name:         "test_migrations",
+			name:         "test_migrations",
 			number:       2,
 			Dependencies: [][]string{{"test", "0001_initial"}},
 			Operations:   OperationList{op},
@@ -607,7 +607,7 @@ func testNodeBackwards(t *testing.T, db gomodel.Database) {
 		node := setup()
 		secondNode := &Node{
 			App:          "test",
-			Name:         "test_migrations",
+			name:         "test_migrations",
 			number:       2,
 			Dependencies: [][]string{{"test", "0001_initial"}},
 			Operations:   OperationList{op},
@@ -648,7 +648,7 @@ func testNodeFakeBackwards(t *testing.T, db gomodel.Database) {
 		mockedEngine.Reset()
 		return &Node{
 			App:        "test",
-			Name:       "initial",
+			name:       "initial",
 			number:     1,
 			Operations: OperationList{op},
 			applied:    true,
@@ -697,7 +697,7 @@ func testNodeFakeBackwards(t *testing.T, db gomodel.Database) {
 		node := setup()
 		secondNode := &Node{
 			App:          "test",
-			Name:         "test_migrations",
+			name:         "test_migrations",
 			number:       2,
 			Dependencies: [][]string{{"test", "0001_initial"}},
 			Operations:   OperationList{op},

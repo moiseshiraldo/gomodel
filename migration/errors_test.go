@@ -7,7 +7,7 @@ import (
 
 // TestErrors tests migrations error types
 func TestErrors(t *testing.T) {
-	node := &Node{App: "users", Name: "initial"}
+	node := &Node{App: "users", number: 1, name: "initial"}
 	operation := &mockedOperation{}
 	t.Run("AppNotFoundError", func(t *testing.T) {
 		err := &AppNotFoundError{"users", ErrorTrace{}}
@@ -41,21 +41,21 @@ func TestErrors(t *testing.T) {
 		err := &DuplicateNumberError{
 			ErrorTrace{Node: node, Err: fmt.Errorf("duplicate number")},
 		}
-		expected := "migrations: users: initial: duplicate number"
+		expected := "migrations: users: 0001_initial: duplicate number"
 		if err.Error() != expected {
 			t.Errorf("expected '%s', got '%s'", expected, err.Error())
 		}
 	})
 	t.Run("LoadError", func(t *testing.T) {
 		err := &LoadError{ErrorTrace{Node: node, Err: fmt.Errorf("test error")}}
-		expected := "migrations: users: initial: test error"
+		expected := "migrations: users: 0001_initial: test error"
 		if err.Error() != expected {
 			t.Errorf("expected '%s', got '%s'", expected, err.Error())
 		}
 	})
 	t.Run("SaveError", func(t *testing.T) {
 		err := &SaveError{ErrorTrace{Node: node, Err: fmt.Errorf("test error")}}
-		expected := "migrations: users: initial: test error"
+		expected := "migrations: users: 0001_initial: test error"
 		if err.Error() != expected {
 			t.Errorf("expected '%s', got '%s'", expected, err.Error())
 		}
@@ -63,7 +63,7 @@ func TestErrors(t *testing.T) {
 	t.Run("InvalidDependencyError", func(t *testing.T) {
 		err := &InvalidDependencyError{
 			ErrorTrace{Node: node, Err: fmt.Errorf("invalid dependency")}}
-		expected := "migrations: users: initial: invalid dependency"
+		expected := "migrations: users: 0001_initial: invalid dependency"
 		if err.Error() != expected {
 			t.Errorf("expected '%s', got '%s'", expected, err.Error())
 		}
@@ -71,7 +71,7 @@ func TestErrors(t *testing.T) {
 	t.Run("CircularDependencyError", func(t *testing.T) {
 		err := &CircularDependencyError{
 			ErrorTrace{Node: node, Err: fmt.Errorf("circular dependency")}}
-		expected := "migrations: users: initial: circular dependency"
+		expected := "migrations: users: 0001_initial: circular dependency"
 		if err.Error() != expected {
 			t.Errorf("expected '%s', got '%s'", expected, err.Error())
 		}
@@ -80,7 +80,8 @@ func TestErrors(t *testing.T) {
 		err := &OperationStateError{
 			ErrorTrace{node, operation, fmt.Errorf("test error")},
 		}
-		expected := "migrations: users: initial: MockedOperation: test error"
+		expected := `migrations: users: 0001_initial: ` +
+			`MockedOperation: test error`
 		if err.Error() != expected {
 			t.Errorf("expected '%s', got '%s'", expected, err.Error())
 		}
@@ -89,7 +90,8 @@ func TestErrors(t *testing.T) {
 		err := &OperationRunError{
 			ErrorTrace{node, operation, fmt.Errorf("test error")},
 		}
-		expected := "migrations: users: initial: MockedOperation: test error"
+		expected := `migrations: users: 0001_initial: ` +
+			`MockedOperation: test error`
 		if err.Error() != expected {
 			t.Errorf("expected '%s', got '%s'", expected, err.Error())
 		}

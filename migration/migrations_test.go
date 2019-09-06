@@ -165,7 +165,7 @@ func TestRun(t *testing.T) {
 	mockedLoadHistory := func() error {
 		node := &Node{
 			App:    "users",
-			Name:   "initial",
+			name:   "initial",
 			number: 1,
 		}
 		state = &AppState{
