@@ -138,8 +138,8 @@ func (m *Model) Register(app *Application) error {
 // SetupPrimaryKey searches the model fields for a primary key. If not found,
 // it will add an auto incremented IntegerField called id.
 //
-// This method ia automatically called when a model is registerd and should only
-// be used to modify a model state during migration operations.
+// This method ia automatically called when a model is registered and should
+// only be used to modify a model state during migration operations.
 func (m *Model) SetupPrimaryKey() error {
 	if m.pk != "" {
 		return nil
@@ -161,8 +161,8 @@ func (m *Model) SetupPrimaryKey() error {
 // SetupIndexes validates the model Indexes definition and adds individually
 // indexes fields.
 //
-// This method ia automatically called when a model is registerd and should only
-// be used to modify a model state during migration operations.
+// This method ia automatically called when a model is registered and should
+// only be used to modify a model state during migration operations.
 func (m *Model) SetupIndexes() error {
 	for name, fields := range m.meta.Indexes {
 		if len(fields) == 0 {

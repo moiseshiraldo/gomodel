@@ -50,7 +50,7 @@ func ExampleRun() {
 			Password: "1234",
 		},
 	})
-	if err := Run(RunOptions{App: "users", Node: "0001_inital"}); err != nil {
+	if err := Run(RunOptions{App: "users", Node: "0001_initial"}); err != nil {
 		fmt.Println(err)
 	}
 }
