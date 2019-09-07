@@ -323,22 +323,12 @@ func (e baseSQLEngine) SelectQuery(
 ) (Query, error) {
 	query := Query{}
 	columns := make([]string, 0, len(m.fields))
-	if len(fields) == 0 {
-		for name, field := range m.fields {
-			columns = append(columns, e.escape(field.DBColumn(name)))
+	for _, name := range fields {
+		field, ok := m.fields[name]
+		if !ok {
+			return query, fmt.Errorf("unknown field: %s", name)
 		}
-	} else {
-		columns = append(columns, e.escape(m.fields[m.pk].DBColumn(m.pk)))
-		for _, name := range fields {
-			if name == m.pk {
-				continue
-			}
-			field, ok := m.fields[name]
-			if !ok {
-				return query, fmt.Errorf("unknown field: %s", name)
-			}
-			columns = append(columns, e.escape(field.DBColumn(name)))
-		}
+		columns = append(columns, e.escape(field.DBColumn(name)))
 	}
 	query.Stmt = fmt.Sprintf(
 		"SELECT %s FROM %s", strings.Join(columns, ", "), e.escape(m.Table()),

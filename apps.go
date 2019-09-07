@@ -14,7 +14,7 @@ type AppSettings struct {
 	// managed by the gomodel/migration package. If relative, the full path will
 	// be constructed from $GOPATH/src.
 	Path string
-	// Models is the list of models that will be registerd to the application.
+	// Models is the list of models that will be registered to the application.
 	Models []*Model
 }
 

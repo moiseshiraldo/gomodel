@@ -10,6 +10,9 @@ import (
 	"time"
 )
 
+// The Container interface represents a type that holds the field values for
+// a model object. It should be either a type implementing the Builder interface
+// or a struct with the necessary exported fields.
 type Container interface{}
 
 type Getter interface {
@@ -68,15 +71,15 @@ func newContainer(container Container) Container {
 	}
 }
 
-func getRecipients(con Container, cols []string, model *Model) []interface{} {
-	recipients := make([]interface{}, 0, len(cols))
+func getRecipients(con Container, fields []string, model *Model) []interface{} {
+	recipients := make([]interface{}, 0, len(fields))
 	if _, ok := con.(Setter); ok {
-		for _, name := range cols {
+		for _, name := range fields {
 			recipients = append(recipients, model.fields[name].Recipient())
 		}
 	} else {
 		cv := reflect.Indirect(reflect.ValueOf(con))
-		for _, name := range cols {
+		for _, name := range fields {
 			f := cv.FieldByName(strings.Title(name))
 			if f.IsValid() && f.CanSet() && f.CanAddr() {
 				recipients = append(recipients, f.Addr().Interface())

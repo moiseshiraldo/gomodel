@@ -102,6 +102,9 @@ func (qs GenericQuerySet) Exclude(c Conditioner) QuerySet {
 
 func (qs GenericQuerySet) Only(fields ...string) QuerySet {
 	qs.fields = fields
+	if !fieldInList(qs.model.pk, qs.fields) {
+		qs.fields = append(qs.fields, qs.model.pk)
+	}
 	return qs.base.Wrap(qs)
 }
 

@@ -127,14 +127,14 @@ func TestGenericQuerySet(t *testing.T) {
 	})
 
 	t.Run("Only", func(t *testing.T) {
-		qs := GenericQuerySet{base: GenericQuerySet{}}.Only("id", "email")
-		gqs := qs.(GenericQuerySet)
+		qs := GenericQuerySet{model: model, base: GenericQuerySet{}}
+		gqs := qs.Only("email").(GenericQuerySet)
 		if len(gqs.fields) != 2 {
 			t.Fatalf("expected qs fields len to be 2, got %d", len(gqs.fields))
 		}
-		if gqs.fields[0] != "id" || gqs.fields[1] != "email" {
+		if gqs.fields[0] != "email" || gqs.fields[1] != "id" {
 			t.Errorf(
-				"expected fields (id, email), got: (%s, %s)",
+				"expected fields (email, id), got: (%s, %s)",
 				gqs.fields[0], gqs.fields[1],
 			)
 		}
