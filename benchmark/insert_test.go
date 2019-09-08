@@ -67,7 +67,7 @@ func insertRawSqlContainer(b *testing.B) {
 			  )
             VALUES
               ($1, $2, $3, $4, $5, $6)`
-		result, err := db.Conn().Exec(
+		result, err := db.DB().Exec(
 			query, user.FirstName, user.LastName, user.Email, user.Superuser,
 			user.Active, user.LoginAttempts,
 		)

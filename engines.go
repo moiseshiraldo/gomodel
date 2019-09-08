@@ -41,6 +41,13 @@ var enginesRegistry = map[string]Engine{
 	"mocker":   MockedEngine{},
 }
 
+type Rows interface {
+	Close() error
+	Err() error
+	Next() bool
+	Scan(dest ...interface{}) error
+}
+
 type sqlExecutor interface {
 	Exec(query string, args ...interface{}) (sql.Result, error)
 	Query(query string, args ...interface{}) (*sql.Rows, error)

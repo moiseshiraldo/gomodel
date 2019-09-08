@@ -15,28 +15,45 @@ import (
 // or a struct with the necessary exported fields.
 type Container interface{}
 
+// Getter is the interface that wraps the basic Get method for model containers.
+//
+// Get returns the value of the given field, and a boolean indicating whether
+// the the field was found or not.
 type Getter interface {
-	Get(key string) (val Value, ok bool)
+	Get(name string) (val Value, ok bool)
 }
 
+// Setter is the interface that wraps the basic Set method for model containers.
+//
+// Set receives the name, the value and the Field definition, and returns any
+// error.
 type Setter interface {
-	Set(key string, val Value, field Field) error
+	Set(name string, val Value, field Field) error
 }
 
+// The Builder interface represents a model container that implements the Getter
+// interface, the Setter interface and the New method to return a new empty
+// container.
 type Builder interface {
 	Getter
 	Setter
 	New() Builder
 }
 
+// Value represents a value for a model field.
 type Value interface{}
+
+// Values is a map of field values that implements the Builder interface and
+// is used as the default model Container.
 type Values map[string]Value
 
+// Get implements the Getter interface.
 func (vals Values) Get(key string) (Value, bool) {
 	val, ok := vals[key]
 	return val, ok
 }
 
+// Set implements the Setter interface.
 func (vals Values) Set(key string, val Value, field Field) error {
 	recipient := field.Recipient()
 	if err := setRecipient(recipient, val); err != nil {
@@ -46,10 +63,13 @@ func (vals Values) Set(key string, val Value, field Field) error {
 	return nil
 }
 
+// New implements the Builder interface.
 func (vals Values) New() Builder {
 	return Values{}
 }
 
+// isValidContainer checks if the given container is valid. It must be either
+// a type implementing the Builder interface or a struct.
 func isValidContainer(container Container) bool {
 	if _, ok := container.(Builder); ok {
 		return true
@@ -62,6 +82,7 @@ func isValidContainer(container Container) bool {
 	return false
 }
 
+// newContainer returns a new empty container of the same type as the given one.
 func newContainer(container Container) Container {
 	if b, ok := container.(Builder); ok {
 		return b.New()
@@ -71,6 +92,8 @@ func newContainer(container Container) Container {
 	}
 }
 
+// getRecipients returns a list of destination pointers for the given container
+// and list of fields.
 func getRecipients(con Container, fields []string, model *Model) []interface{} {
 	recipients := make([]interface{}, 0, len(fields))
 	if _, ok := con.(Setter); ok {
@@ -89,7 +112,9 @@ func getRecipients(con Container, fields []string, model *Model) []interface{} {
 	return recipients
 }
 
-func getContainerField(container Container, name string) (Value, bool) {
+// getContainerField returns the container value for the field given by name
+// and a boolean indicating whether the field was found or not.
+func getContainerField(container Container, name string) (val Value, ok bool) {
 	if getter, ok := container.(Getter); ok {
 		if val, ok := getter.Get(name); ok {
 			return val, true
@@ -107,6 +132,9 @@ func getContainerField(container Container, name string) (Value, bool) {
 	return nil, false
 }
 
+// cloneBytes returns a copy of the given slice.
+//
+// Extracted from the database/sql pacakge.
 func cloneBytes(b []byte) []byte {
 	if b == nil {
 		return nil
@@ -116,6 +144,9 @@ func cloneBytes(b []byte) []byte {
 	return c
 }
 
+// asBytes returns the given value as a slice of bytes.
+//
+// Extracted from the database/sql pacakge.
 func asBytes(buf []byte, rv reflect.Value) (b []byte, ok bool) {
 	switch rv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -136,6 +167,9 @@ func asBytes(buf []byte, rv reflect.Value) (b []byte, ok bool) {
 	return
 }
 
+// asString returns the given value as a string
+//
+// Extracted from the database/sql pacakge.
 func asString(src interface{}) string {
 	switch v := src.(type) {
 	case string:
@@ -160,6 +194,12 @@ func asString(src interface{}) string {
 	return fmt.Sprintf("%v", src)
 }
 
+// convertAssignRows copies to dest the value in src, converting it if possible.
+// An error is returned if the copy would result in loss of information.
+// dest should be a pointer type.
+//
+// Extracted from the database/sql pacakge to mimic the Scan behaviour, with
+// some variations.
 func setRecipient(dest, src interface{}) error {
 	if dest == nil {
 		return fmt.Errorf("nil pointer recipient")

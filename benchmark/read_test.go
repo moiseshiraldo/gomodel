@@ -54,7 +54,7 @@ func loadRawSqlInstance(b *testing.B) {
               "main_user"
             WHERE
               firstName = ?`
-		err := db.Conn().QueryRow(query, "Anakin").Scan(
+		err := db.DB().QueryRow(query, "Anakin").Scan(
 			&user.Id, &user.FirstName, &user.LastName, &user.Email,
 			&user.Active, &user.Superuser, &user.LoginAttempts,
 		)

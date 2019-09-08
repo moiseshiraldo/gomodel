@@ -113,13 +113,6 @@ func TestDatabase(t *testing.T) {
 		}
 	})
 
-	t.Run("Connection", func(t *testing.T) {
-		db.Conn()
-		if mockedEngine.Calls("DB") != 1 {
-			t.Error("expected engine DB method to be called")
-		}
-	})
-
 	t.Run("TxError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.BeginTx = fmt.Errorf("db error")
@@ -145,13 +138,6 @@ func TestTransaction(t *testing.T) {
 	engine, _ := enginesRegistry["mocker"].Start(Database{})
 	mockedEngine := engine.(MockedEngine)
 	tx := Transaction{DB: Database{}, Engine: engine}
-
-	t.Run("Connection", func(t *testing.T) {
-		tx.Conn()
-		if mockedEngine.Calls("Tx") != 1 {
-			t.Error("expected engine Tx method to be called")
-		}
-	})
 
 	t.Run("Commit", func(t *testing.T) {
 		mockedEngine.Reset()
