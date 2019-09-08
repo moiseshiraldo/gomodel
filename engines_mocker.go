@@ -5,6 +5,8 @@ import (
 	"fmt"
 )
 
+// MockedEngineResults holds the results of the Engine interface methods to
+// be returned by a MockedEngine.
 type MockedEngineResults struct {
 	Stop        error
 	TxSupport   bool
@@ -49,10 +51,13 @@ type MockedEngineResults struct {
 	}
 }
 
+// Reset sets all the results back to zero values.
 func (r *MockedEngineResults) Reset() {
 	*r = MockedEngineResults{}
 }
 
+// MockedEngineArgs holds the arguments of the Engine interface methods when
+// they've been called from a MockedEngine.
 type MockedEngineArgs struct {
 	CreateTable *Model
 	RenameTable struct {
@@ -112,10 +117,13 @@ type MockedEngineArgs struct {
 	}
 }
 
+// Reset sets all the arguments back to zero values.
 func (a *MockedEngineArgs) Reset() {
 	*a = MockedEngineArgs{}
 }
 
+// MockedEngine mocks the Engine interface and can be used to write unit tests
+// without having to open a database connection.
 type MockedEngine struct {
 	calls   map[string]int
 	Args    *MockedEngineArgs
@@ -123,23 +131,12 @@ type MockedEngine struct {
 	tx      bool
 }
 
+// Calls returns the number of calls made to method.
 func (e MockedEngine) Calls(method string) int {
 	return e.calls[method]
 }
 
-func (e MockedEngine) Start(db Database) (Engine, error) {
-	e.calls = make(map[string]int)
-	e.Args = &MockedEngineArgs{}
-	e.Results = &MockedEngineResults{}
-	e.calls["Start"] += 1
-	return e, nil
-}
-
-func (e MockedEngine) Stop() error {
-	e.calls["Stop"] += 1
-	return e.Results.Stop
-}
-
+// Reset sets all calls, results and arguments back to zero values.
 func (e MockedEngine) Reset() {
 	for key := range e.calls {
 		delete(e.calls, key)
@@ -148,28 +145,49 @@ func (e MockedEngine) Reset() {
 	e.Results.Reset()
 }
 
+// Start implements the Start method of the Engine interface.
+func (e MockedEngine) Start(db Database) (Engine, error) {
+	e.calls = make(map[string]int)
+	e.Args = &MockedEngineArgs{}
+	e.Results = &MockedEngineResults{}
+	e.calls["Start"] += 1
+	return e, nil
+}
+
+// Stop mocks the Stop method of the Engine interface.
+func (e MockedEngine) Stop() error {
+	e.calls["Stop"] += 1
+	return e.Results.Stop
+}
+
+// TxSupport mocks the TxSupport of the Engine interface.
 func (e MockedEngine) TxSupport() bool {
 	e.calls["TxSupport"] += 1
 	return e.Results.TxSupport
 	return true
 }
 
+// DB mocks the DB method of the Engine interface. It always returns nil.
 func (e MockedEngine) DB() *sql.DB {
 	e.calls["DB"] += 1
 	return nil
 }
 
+// Tx mocks the Tx method of the Engine interface. It always returns nil.
 func (e MockedEngine) Tx() *sql.Tx {
 	e.calls["Tx"] += 1
 	return nil
 }
 
+// BeginTx mocks the BeginTx method of the Engine interface. It returns the
+// same MockedEngine.
 func (e MockedEngine) BeginTx() (Engine, error) {
 	e.calls["BeginTx"] += 1
 	e.tx = true
 	return e, e.Results.BeginTx
 }
 
+// CommitTx mocks the CommitTx method of the Engine interface.
 func (e MockedEngine) CommitTx() error {
 	e.calls["CommitTx"] += 1
 	if !e.tx {
@@ -178,6 +196,7 @@ func (e MockedEngine) CommitTx() error {
 	return e.Results.CommitTx
 }
 
+// RollbackTx mocks the RollbackTx method of the Engine interface.
 func (e MockedEngine) RollbackTx() error {
 	e.calls["RollbackTx"] += 1
 	if !e.tx {
@@ -186,12 +205,14 @@ func (e MockedEngine) RollbackTx() error {
 	return e.Results.RollbackTx
 }
 
+// CreateTable mocks the CreateTable method of the Engine interface.
 func (e MockedEngine) CreateTable(model *Model, force bool) error {
 	e.calls["CreateTable"] += 1
 	e.Args.CreateTable = model
 	return e.Results.CreateTable
 }
 
+// RenameTable mocks the RenameTable method of the Engine interface.
 func (e MockedEngine) RenameTable(old *Model, new *Model) error {
 	e.calls["RenameTable"] += 1
 	e.Args.RenameTable.Old = old
@@ -199,12 +220,14 @@ func (e MockedEngine) RenameTable(old *Model, new *Model) error {
 	return e.Results.RenameTable
 }
 
+// DropTable mocks the DropTable method of the Engine interface.
 func (e MockedEngine) DropTable(model *Model) error {
 	e.calls["DropTable"] += 1
 	e.Args.DropTable = model
 	return e.Results.DropTable
 }
 
+// AddIndex mocks the AddIndex method of the Engine interface.
 func (e MockedEngine) AddIndex(m *Model, name string, fields ...string) error {
 	e.calls["AddIndex"] += 1
 	e.Args.AddIndex.Model = m
@@ -213,6 +236,7 @@ func (e MockedEngine) AddIndex(m *Model, name string, fields ...string) error {
 	return e.Results.AddIndex
 }
 
+// DropIndex mocks the DropIndex method of the Engine interface.
 func (e MockedEngine) DropIndex(model *Model, name string) error {
 	e.calls["DropIndex"] += 1
 	e.Args.DropIndex.Model = model
@@ -220,6 +244,7 @@ func (e MockedEngine) DropIndex(model *Model, name string) error {
 	return e.Results.DropIndex
 }
 
+// AddColumns mocks the AddColumns method of the Engine interface.
 func (e MockedEngine) AddColumns(model *Model, fields Fields) error {
 	e.calls["AddColumns"] += 1
 	e.Args.AddColumns.Model = model
@@ -227,6 +252,7 @@ func (e MockedEngine) AddColumns(model *Model, fields Fields) error {
 	return e.Results.AddColumns
 }
 
+// DropColumns mocks the DropColumns method of the Engine interface.
 func (e MockedEngine) DropColumns(model *Model, fields ...string) error {
 	e.calls["DropColumns"] += 1
 	e.Args.DropColumns.Model = model
@@ -234,6 +260,7 @@ func (e MockedEngine) DropColumns(model *Model, fields ...string) error {
 	return e.Results.DropColumns
 }
 
+// SelectQuery mocks the SelectQuery method of the Engine interface.
 func (e MockedEngine) SelectQuery(
 	model *Model,
 	conditioner Conditioner,
@@ -246,6 +273,7 @@ func (e MockedEngine) SelectQuery(
 	return e.Results.SelectQuery.Query, e.Results.SelectQuery.Err
 }
 
+// GetRows mocks the GetRows method of the Engine interface.
 func (e MockedEngine) GetRows(
 	model *Model,
 	conditioner Conditioner,
@@ -262,6 +290,7 @@ func (e MockedEngine) GetRows(
 	return e.Results.GetRows.Rows, e.Results.GetRows.Err
 }
 
+// InsertRow mocks the InsertRow method of the Engine interface.
 func (e MockedEngine) InsertRow(model *Model, values Values) (int64, error) {
 	e.calls["InsertRow"] += 1
 	e.Args.InsertRow.Model = model
@@ -269,6 +298,7 @@ func (e MockedEngine) InsertRow(model *Model, values Values) (int64, error) {
 	return e.Results.InsertRow.Id, e.Results.InsertRow.Err
 }
 
+// UpdateRows mocks the UpdateRows method of the Engine interface.
 func (e MockedEngine) UpdateRows(
 	model *Model,
 	values Values,
@@ -281,6 +311,7 @@ func (e MockedEngine) UpdateRows(
 	return e.Results.UpdateRows.Number, e.Results.UpdateRows.Err
 }
 
+// DeleteRows mocks the DeleteRows method of the Engine interface.
 func (e MockedEngine) DeleteRows(model *Model, c Conditioner) (int64, error) {
 	e.calls["DeleteRows"] += 1
 	e.Args.DeleteRows.Model = model
@@ -288,6 +319,7 @@ func (e MockedEngine) DeleteRows(model *Model, c Conditioner) (int64, error) {
 	return e.Results.DeleteRows.Number, e.Results.DeleteRows.Err
 }
 
+// CountRows mocks the CountRows method of the Engine interface.
 func (e MockedEngine) CountRows(model *Model, c Conditioner) (int64, error) {
 	e.calls["CountRows"] += 1
 	e.Args.CountRows.Model = model
@@ -295,6 +327,7 @@ func (e MockedEngine) CountRows(model *Model, c Conditioner) (int64, error) {
 	return e.Results.CountRows.Number, e.Results.CountRows.Err
 }
 
+// Exists mocks the Exists method of the Engine interface.
 func (e MockedEngine) Exists(model *Model, c Conditioner) (bool, error) {
 	e.calls["Exists"] += 1
 	e.Args.Exists.Model = model

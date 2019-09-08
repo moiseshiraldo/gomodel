@@ -23,7 +23,7 @@ type Database struct {
 	id string
 }
 
-// Id returns the databse identifier in the gomodel registry.
+// Id returns the database identifier in the gomodel registry.
 func (db Database) Id() string {
 	return db.id
 }

@@ -5,10 +5,12 @@ import (
 	"strings"
 )
 
+// SqliteEngine implements the Engine interface for the sqlite3 driver.
 type SqliteEngine struct {
 	baseSQLEngine
 }
 
+// Start implemetns the Start method of the Engine interface.
 func (e SqliteEngine) Start(db Database) (Engine, error) {
 	conn, err := openDB(db.Driver, db.Name)
 	if err != nil {
@@ -23,6 +25,7 @@ func (e SqliteEngine) Start(db Database) (Engine, error) {
 	return e, nil
 }
 
+// BeginTx implemetns the BeginTx method of the Engine interface.
 func (e SqliteEngine) BeginTx() (Engine, error) {
 	tx, err := e.db.Begin()
 	if err != nil {
@@ -32,6 +35,8 @@ func (e SqliteEngine) BeginTx() (Engine, error) {
 	return e, nil
 }
 
+// copyTable copies the model table to a new one with the given name and
+// columns.
 func (e SqliteEngine) copyTable(m *Model, name string, cols ...string) error {
 	columns := make([]string, 0, len(cols))
 	for _, col := range cols {
@@ -45,6 +50,7 @@ func (e SqliteEngine) copyTable(m *Model, name string, cols ...string) error {
 	return err
 }
 
+// AddColumns implements the AddColumns method of the Engine interface.
 func (e SqliteEngine) AddColumns(model *Model, fields Fields) error {
 	for name, field := range fields {
 		stmt := fmt.Sprintf(
@@ -61,6 +67,10 @@ func (e SqliteEngine) AddColumns(model *Model, fields Fields) error {
 	return nil
 }
 
+// DropColumns implements the DropColumns method of the Engine interface.
+//
+// Since sqlite3 doesn't support dropping columns, it will perform the operation
+// by creating a new table.
 func (e SqliteEngine) DropColumns(model *Model, fields ...string) error {
 	oldFields := model.Fields()
 	keepCols := make([]string, 0, len(oldFields)-len(fields))
@@ -90,6 +100,7 @@ func (e SqliteEngine) DropColumns(model *Model, fields ...string) error {
 	return nil
 }
 
+// GetRows implements the GetRows method of the Engine interface.
 func (e SqliteEngine) GetRows(
 	m *Model,
 	c Conditioner,

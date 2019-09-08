@@ -134,7 +134,7 @@ func getContainerField(container Container, name string) (val Value, ok bool) {
 
 // cloneBytes returns a copy of the given slice.
 //
-// Extracted from the database/sql pacakge.
+// Extracted from the database/sql package.
 func cloneBytes(b []byte) []byte {
 	if b == nil {
 		return nil
@@ -146,7 +146,7 @@ func cloneBytes(b []byte) []byte {
 
 // asBytes returns the given value as a slice of bytes.
 //
-// Extracted from the database/sql pacakge.
+// Extracted from the database/sql package.
 func asBytes(buf []byte, rv reflect.Value) (b []byte, ok bool) {
 	switch rv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -169,7 +169,7 @@ func asBytes(buf []byte, rv reflect.Value) (b []byte, ok bool) {
 
 // asString returns the given value as a string
 //
-// Extracted from the database/sql pacakge.
+// Extracted from the database/sql package.
 func asString(src interface{}) string {
 	switch v := src.(type) {
 	case string:
@@ -198,7 +198,7 @@ func asString(src interface{}) string {
 // An error is returned if the copy would result in loss of information.
 // dest should be a pointer type.
 //
-// Extracted from the database/sql pacakge to mimic the Scan behaviour, with
+// Extracted from the database/sql package to mimic the Scan behaviour, with
 // some variations.
 func setRecipient(dest, src interface{}) error {
 	if dest == nil {

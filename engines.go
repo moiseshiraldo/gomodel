@@ -6,99 +6,147 @@ import (
 	"strings"
 )
 
-type Migrator interface {
-	CreateTable(model *Model, force bool) error
-	RenameTable(old *Model, new *Model) error
-	DropTable(model *Model) error
-	AddIndex(model *Model, name string, fields ...string) error
-	DropIndex(model *Model, name string) error
-	AddColumns(model *Model, fields Fields) error
-	DropColumns(model *Model, fields ...string) error
-}
-
+// Engine is the interface providing the database-abstraction API methods.
 type Engine interface {
-	Migrator
+	// Start opens a connection using the given Database details and returns
+	// a new Engine holding the connection.
 	Start(Database) (Engine, error)
+	// Stop closes the db connection held by the engine.
 	Stop() error
+	// TxSupport indicates whether the engine supports transactions or not.
 	TxSupport() bool
+	// DB returns the underlying *sql.DB or nil if not applicable.
 	DB() *sql.DB
-	Tx() *sql.Tx
+	// BeginTx starts a new transaction and returns a new Engine holding it.
 	BeginTx() (Engine, error)
+	// Tx returns the underlying *sql.Tx or nil if not applicable.
+	Tx() *sql.Tx
+	// CommitTx commits the transaction held by the engine.
 	CommitTx() error
+	// RollbackTx rolls back the transaction held by the engine.
 	RollbackTx() error
+	// CreateTable creates the table for the given model. If force is true, the
+	// method should return an error if the table already exists.
+	CreateTable(model *Model, force bool) error
+	// RenameTable renames the table from the given old model to the new one.
+	RenameTable(old *Model, new *Model) error
+	// DropTable drops the table for the given model.
+	DropTable(model *Model) error
+	// AddIndex creates a new index for the given model and fields.
+	AddIndex(model *Model, name string, fields ...string) error
+	// DropIndex drops the named index for the given model.
+	DropIndex(model *Model, name string) error
+	// AddColumns creates the columns for the given fields on the model table.
+	AddColumns(model *Model, fields Fields) error
+	// DropColumns drops the columns given by fields from the model table.
+	DropColumns(model *Model, fields ...string) error
+	// SelectQuery returns the SELECT SQL query details for the given model,
+	// conditioner and fields.
 	SelectQuery(m *Model, cond Conditioner, fields ...string) (Query, error)
+	// GetRows returns the Rows resulting from querying the database with
+	// the given arguments, where start is the first row index (starting a 0)
+	// and end the last row index (-1 for all rows).
 	GetRows(m *Model, c Conditioner, start int64, end int64, fields ...string) (Rows, error)
-	InsertRow(m *Model, vals Values) (int64, error)
-	UpdateRows(m *Model, vals Values, cond Conditioner) (int64, error)
-	DeleteRows(m *Model, cond Conditioner) (int64, error)
-	CountRows(m *Model, cond Conditioner) (int64, error)
-	Exists(m *Model, cond Conditioner) (bool, error)
+	// InsertRow inserts the given values in the model table.
+	InsertRow(model *Model, values Values) (int64, error)
+	// UpdateRows updates the model rows selected by the given conditioner with
+	// the given values.
+	UpdateRows(model *Model, values Values, cond Conditioner) (int64, error)
+	// DeleteRows deletes the model rows selected by the given conditioner.
+	DeleteRows(model *Model, cond Conditioner) (int64, error)
+	// CountRows counts the model rows selected by the given conditioner.
+	CountRows(model *Model, cond Conditioner) (int64, error)
+	// Exists returns whether any model row exists for the given conditioner.
+	Exists(model *Model, cond Conditioner) (bool, error)
 }
 
+// enginesRegistry is a global variable mapping the supported drivers to the
+// corresopnding engine.
 var enginesRegistry = map[string]Engine{
 	"sqlite3":  SqliteEngine{},
 	"postgres": PostgresEngine{},
 	"mocker":   MockedEngine{},
 }
 
+// Rows is an interface wrapping the sql.Rows methods, allowing custom types
+// to be returned by the Engine GetRows method.
 type Rows interface {
+	// Close closes the rows.
 	Close() error
+	// Err returns the error, if any, that was encountered during iteration.
 	Err() error
+	// Next prepares the next result row for reading with the Scan method. It
+	// returns true on success, or false if there is no next result row or an
+	// error happened while preparing it.
 	Next() bool
+	// Scan copies the columns in the current row into the values pointed at
+	// by dest. The number of values in dest must be the same as the number of
+	// columns in Rows.
 	Scan(dest ...interface{}) error
 }
 
+// sqlExecutor is an interface wrapping the sql package query execution methods.
 type sqlExecutor interface {
 	Exec(query string, args ...interface{}) (sql.Result, error)
 	Query(query string, args ...interface{}) (*sql.Rows, error)
 	QueryRow(query string, args ...interface{}) *sql.Row
 }
 
+// sqlDB is an interface wrapping the sql.DB methods.
 type sqlDB interface {
 	sqlExecutor
 	Begin() (*sql.Tx, error)
 	Close() error
 }
 
+// sqlTx is an interface wrapping the sql.Tx methods.
 type sqlTx interface {
 	sqlExecutor
 	Commit() error
 	Rollback() error
 }
 
+// openDB holds the function to open sql.DB connections.
 var openDB = func(driver string, credentials string) (*sql.DB, error) {
 	return sql.Open(driver, credentials)
 }
 
+// scanRow holds the function to scan single row results.
 var scanRow = func(ex sqlExecutor, dest interface{}, query Query) error {
 	row := ex.QueryRow(query.Stmt, query.Args...)
 	return row.Scan(dest)
 }
 
+// baseSQLEngine implements common Engine methods for SQL drivers.
 type baseSQLEngine struct {
-	driver      string
-	escapeChar  string
-	placeholder string
-	db          sqlDB
-	tx          sqlTx
+	driver      string // Driver name.
+	escapeChar  string // Escape characert for columns and table names.
+	placeholder string // Placeholder character for values.
+	db          sqlDB  // *sql.DB
+	tx          sqlTx  // *sql.Tx
 }
 
+// DB implements the DB method of the Engine interface.
 func (e baseSQLEngine) DB() *sql.DB {
 	return e.db.(*sql.DB)
 }
 
+// Tx implements the Tx method of the Engine interface.
 func (e baseSQLEngine) Tx() *sql.Tx {
 	return e.tx.(*sql.Tx)
 }
 
+// Stop implements the Stop method of the Engine interface.
 func (e baseSQLEngine) Stop() error {
 	return e.db.Close()
 }
 
+// TxSupport implements the TxSupport method of the Engine interface.
 func (e baseSQLEngine) TxSupport() bool {
 	return true
 }
 
+// CommitTx implements the CommitTx method of the Engine interface.
 func (e baseSQLEngine) CommitTx() error {
 	if e.tx == nil {
 		return fmt.Errorf("no transaction to commit")
@@ -106,6 +154,7 @@ func (e baseSQLEngine) CommitTx() error {
 	return e.tx.Commit()
 }
 
+// RollbackTx implements the RollbackTx method of the Engine interface.
 func (e baseSQLEngine) RollbackTx() error {
 	if e.tx == nil {
 		return fmt.Errorf("no transaction to roll back")
@@ -113,6 +162,7 @@ func (e baseSQLEngine) RollbackTx() error {
 	return e.tx.Rollback()
 }
 
+// executor returns the underlying *sql.DB or *sql.Tx for transactions.
 func (e baseSQLEngine) executor() sqlExecutor {
 	if e.tx != nil {
 		return e.tx
@@ -120,6 +170,7 @@ func (e baseSQLEngine) executor() sqlExecutor {
 	return e.db
 }
 
+// sqlColumnOptions returns the options for a new column.
 func (e baseSQLEngine) sqlColumnOptions(field Field) string {
 	options := []string{""}
 	if !field.IsAuto() {
@@ -137,10 +188,12 @@ func (e baseSQLEngine) sqlColumnOptions(field Field) string {
 	return strings.Join(options, " ")
 }
 
+// escape returns the escaped given string.
 func (e baseSQLEngine) escape(s string) string {
 	return fmt.Sprintf("%[1]s%[2]s%[1]s", e.escapeChar, s)
 }
 
+// CreateTable implements the CreateTable method of the Engine interface.
 func (e baseSQLEngine) CreateTable(model *Model, force bool) error {
 	fields := model.Fields()
 	columns := make([]string, 0, len(fields))
@@ -165,6 +218,7 @@ func (e baseSQLEngine) CreateTable(model *Model, force bool) error {
 	return err
 }
 
+// RenameTable implements the RenameTable method of the Engine interface.
 func (e baseSQLEngine) RenameTable(old *Model, new *Model) error {
 	stmt := fmt.Sprintf(
 		"ALTER TABLE %s RENAME TO %s",
@@ -174,18 +228,16 @@ func (e baseSQLEngine) RenameTable(old *Model, new *Model) error {
 	return err
 }
 
+// DropTable implements the DropTable method of the Engine interface.
 func (e baseSQLEngine) DropTable(model *Model) error {
 	stmt := fmt.Sprintf("DROP TABLE %s", e.escape(model.Table()))
 	_, err := e.executor().Exec(stmt)
 	return err
 }
 
-func (e baseSQLEngine) AddIndex(
-	model *Model,
-	name string,
-	fields ...string,
-) error {
-	modelFields := model.Fields()
+// AddIndex implements the AddIndex method of the Engine interface.
+func (e baseSQLEngine) AddIndex(m *Model, name string, fields ...string) error {
+	modelFields := m.Fields()
 	columns := make([]string, 0, len(fields))
 	for _, fieldName := range fields {
 		column := modelFields[fieldName].DBColumn(fieldName)
@@ -193,18 +245,20 @@ func (e baseSQLEngine) AddIndex(
 	}
 	stmt := fmt.Sprintf(
 		"CREATE INDEX %s ON %s (%s)",
-		e.escape(name), e.escape(model.Table()), strings.Join(columns, ", "),
+		e.escape(name), e.escape(m.Table()), strings.Join(columns, ", "),
 	)
 	_, err := e.executor().Exec(stmt)
 	return err
 }
 
+// DropIndex implements the DropIndex method of the Engine interface.
 func (e baseSQLEngine) DropIndex(model *Model, name string) error {
 	stmt := fmt.Sprintf("DROP INDEX %s", e.escape(name))
 	_, err := e.executor().Exec(stmt)
 	return err
 }
 
+// AddColumns implements the AddColumns method of the Engine interface.
 func (e baseSQLEngine) AddColumns(model *Model, fields Fields) error {
 	addColumns := make([]string, 0, len(fields))
 	for name, field := range fields {
@@ -224,6 +278,7 @@ func (e baseSQLEngine) AddColumns(model *Model, fields Fields) error {
 	return err
 }
 
+// DropColumns implements the DropColumns method of the Engine interface.
 func (e baseSQLEngine) DropColumns(model *Model, fields ...string) error {
 	oldFields := model.Fields()
 	dropColumns := make([]string, 0, len(fields))
@@ -243,6 +298,9 @@ func (e baseSQLEngine) DropColumns(model *Model, fields ...string) error {
 	return err
 }
 
+// predicate returns the SQL predicate for the given conditioner.
+//
+// pIndex is the next index if the value placeholder requires indexing.
 func (e baseSQLEngine) predicate(
 	model *Model,
 	cond Conditioner,
@@ -323,6 +381,7 @@ func (e baseSQLEngine) predicate(
 	return Query{pred, values}, nil
 }
 
+// SelectQuery implements the SelectQuery method of the Engine interface.
 func (e baseSQLEngine) SelectQuery(
 	m *Model,
 	c Conditioner,
@@ -351,6 +410,7 @@ func (e baseSQLEngine) SelectQuery(
 	return query, nil
 }
 
+// GetRows implements the GetRows method of the Engine interface.
 func (e baseSQLEngine) GetRows(
 	m *Model,
 	c Conditioner,
@@ -373,6 +433,7 @@ func (e baseSQLEngine) GetRows(
 	return e.executor().Query(query.Stmt, query.Args...)
 }
 
+// InsertRow implements the InsertRow method of the Engine interface.
 func (e baseSQLEngine) InsertRow(model *Model, values Values) (int64, error) {
 	cols := make([]string, 0, len(model.fields))
 	vals := make([]interface{}, 0, len(model.fields))
@@ -427,6 +488,7 @@ func (e baseSQLEngine) InsertRow(model *Model, values Values) (int64, error) {
 	return pk, nil
 }
 
+// UpdateRows implements the UpdateRows method of the Engine interface.
 func (e baseSQLEngine) UpdateRows(
 	model *Model,
 	values Values,
@@ -478,6 +540,7 @@ func (e baseSQLEngine) UpdateRows(
 	return rows, nil
 }
 
+// DeleteRows implements the DeleteRows method of the engine interface.
 func (e baseSQLEngine) DeleteRows(model *Model, c Conditioner) (int64, error) {
 	stmt := fmt.Sprintf("DELETE FROM %s", e.escape(model.Table()))
 	args := make([]interface{}, 0)
@@ -500,6 +563,7 @@ func (e baseSQLEngine) DeleteRows(model *Model, c Conditioner) (int64, error) {
 	return rows, nil
 }
 
+// CountRows implement the CountRows method of the Engine interface.
 func (e baseSQLEngine) CountRows(model *Model, c Conditioner) (int64, error) {
 	stmt := fmt.Sprintf("SELECT COUNT(*) FROM %s", e.escape(model.Table()))
 	args := make([]interface{}, 0)
@@ -518,6 +582,7 @@ func (e baseSQLEngine) CountRows(model *Model, c Conditioner) (int64, error) {
 	return count, nil
 }
 
+// Exsists implements the Exists method of the Engine interface.
 func (e baseSQLEngine) Exists(model *Model, c Conditioner) (bool, error) {
 	query, err := e.SelectQuery(model, c, model.pk)
 	if err != nil {
