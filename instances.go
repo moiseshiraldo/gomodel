@@ -7,52 +7,62 @@ import (
 	"time"
 )
 
+// An Instance represents a particular model object and offers some methods
+// to interact with its field values and the database.
 type Instance struct {
 	model     *Model
 	container Container
 }
 
+// trace returns the ErrorTrace for the instance.
 func (i Instance) trace(err error) ErrorTrace {
 	return ErrorTrace{App: i.model.app, Model: i.model, Err: err}
 }
 
+// Container returns the container holding the values of this model object.
 func (i Instance) Container() Container {
 	return i.container
 }
 
+// Model returns the model represented by this object.
 func (i Instance) Model() *Model {
 	return i.model
 }
 
-func (i Instance) GetIf(key string) (Value, bool) {
-	field, ok := i.model.fields[key]
+// GetIf returns the value for the given field name, and a hasField boolean
+// indicating if the field was actually found in the underlying container.
+func (i Instance) GetIf(name string) (val Value, hasField bool) {
+	field, ok := i.model.fields[name]
 	if !ok {
 		return nil, false
 	}
-	val, ok := getContainerField(i.container, key)
+	val, ok = getContainerField(i.container, name)
 	if !ok {
 		return nil, false
 	}
 	return field.Value(val), true
 }
 
-func (i Instance) Get(key string) Value {
-	val, _ := i.GetIf(key)
+// Get returns the value for the given field name, or nil if not found.
+func (i Instance) Get(name string) Value {
+	val, _ := i.GetIf(name)
 	return val
 }
 
-func (i Instance) Set(key string, val Value) error {
-	field, ok := i.model.fields[key]
+// Set updates the named instance field with the given value. The change doesn't
+// propagate to the database unless the Save method is called.
+func (i Instance) Set(name string, val Value) error {
+	field, ok := i.model.fields[name]
 	if !ok {
-		return &ContainerError{i.trace(fmt.Errorf("unknown field %s", key))}
+		return &ContainerError{i.trace(fmt.Errorf("unknown field %s", name))}
 	}
 	if c, ok := i.container.(Setter); ok {
-		if err := c.Set(key, val, field); err != nil {
+		if err := c.Set(name, val, field); err != nil {
 			return &ContainerError{i.trace(err)}
 		}
 	} else {
 		cv := reflect.Indirect(reflect.ValueOf(i.container))
-		f := cv.FieldByName(strings.Title(key))
+		f := cv.FieldByName(strings.Title(name))
 		if !f.IsValid() || !f.CanSet() || !f.CanAddr() {
 			return &ContainerError{i.trace(fmt.Errorf("Invalid field"))}
 		}
@@ -63,6 +73,8 @@ func (i Instance) Set(key string, val Value) error {
 	return nil
 }
 
+// SetValues updates the instance with the given values. The changes don't
+// propagate to the database unless the Save method is called.
 func (i Instance) SetValues(values Container) error {
 	for name := range i.model.fields {
 		if val, ok := getContainerField(values, name); ok {
@@ -74,6 +86,7 @@ func (i Instance) SetValues(values Container) error {
 	return nil
 }
 
+// valueToSave returns the value to be saved on the db for the named field.
 func (i Instance) valueToSave(name string, creating bool) (Value, error) {
 	field, ok := i.model.fields[name]
 	if !ok {
@@ -101,6 +114,7 @@ func (i Instance) valueToSave(name string, creating bool) (Value, error) {
 	return nil, nil
 }
 
+// insertRow saves the given instance fields on db.
 func (i Instance) insertRow(db Database, autoPk bool, fields ...string) error {
 	dbValues := Values{}
 	for _, name := range fields {
@@ -123,6 +137,7 @@ func (i Instance) insertRow(db Database, autoPk bool, fields ...string) error {
 	return nil
 }
 
+// updateRow updates the given fields on db row matching pkVal.
 func (i Instance) updateRow(db Database, pkVal Value, fields ...string) error {
 	dbValues := Values{}
 	for _, name := range fields {
@@ -132,9 +147,8 @@ func (i Instance) updateRow(db Database, pkVal Value, fields ...string) error {
 		val, err := i.valueToSave(name, false)
 		if err != nil {
 			return &ContainerError{i.trace(err)}
-		} else if val != nil {
-			dbValues[name] = val
 		}
+		dbValues[name] = val
 	}
 	rows, err := db.UpdateRows(i.model, dbValues, Q{i.model.pk: pkVal})
 	if err != nil {
@@ -146,6 +160,14 @@ func (i Instance) updateRow(db Database, pkVal Value, fields ...string) error {
 	return nil
 }
 
+// Save propagates the instance field values to the database. If no field names
+// are provided, all fields will be saved.
+//
+// The method will try to update the row matching the instance pk. If no row is
+// updated, a new one will be inserted.
+//
+// If the pk field is auto incremented and the pk has the zero value, a new
+// row will be inserted.
 func (i Instance) Save(fields ...string) error {
 	db := dbRegistry["default"]
 	if len(fields) == 0 {

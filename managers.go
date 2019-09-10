@@ -5,17 +5,25 @@ import (
 	"time"
 )
 
+// A Manager is the interface through which database query operations are
+// provided to models.
 type Manager struct {
-	Model    *Model
+	// Model is the model making the queries.
+	Model *Model
+	// QuerySet is the base queryset for the manager.
 	QuerySet QuerySet
 	tx       *Transaction
 }
 
+// WithTx returns a new manager where all database query operations will be
+// applied on the given transaction.
 func (m Manager) WithTx(tx *Transaction) Manager {
 	m.tx = tx
 	return m
 }
 
+// Create makes a new object with the given values, saves it to the default
+// database and returns the instance representing the object.
 func (m Manager) Create(values Container) (*Instance, error) {
 	db := dbRegistry["default"]
 	engine := db.Engine
@@ -65,26 +73,37 @@ func (m Manager) Create(values Container) (*Instance, error) {
 	return instance, nil
 }
 
+// GetQuerySet calls the New method of the base QuerySet and returns the result.
 func (m Manager) GetQuerySet() QuerySet {
 	return m.QuerySet.New(m.Model, m.QuerySet)
 }
 
+// All returns a QuerySet representing all objects.
 func (m Manager) All() QuerySet {
 	return m.GetQuerySet()
 }
 
+// Filter returns a QuerySet filtered by the given conditioner.
 func (m Manager) Filter(c Conditioner) QuerySet {
-	return m.All().Filter(c)
+	return m.GetQuerySet().Filter(c)
 }
 
+// Exclude returns a QuerySet exluding objects by the given conditioner.
 func (m Manager) Exclude(c Conditioner) QuerySet {
-	return m.All().Exclude(c)
+	return m.GetQuerySet().Exclude(c)
 }
 
+// Get returns an instance representing the single object matching the given
+// conditioner.
+//
+// If no object is found, *ObjectNotFoundError is returned.
+//
+// If multiple objects match the conditions, *MultipleObjectsError is returned.
 func (m Manager) Get(c Conditioner) (*Instance, error) {
-	return m.All().Get(c)
+	return m.GetQuerySet().Get(c)
 }
 
+// WithContainer returns a QuerySet with the given Container type as a base.
 func (m Manager) WithContainer(container Container) QuerySet {
-	return m.All().WithContainer(container)
+	return m.GetQuerySet().WithContainer(container)
 }

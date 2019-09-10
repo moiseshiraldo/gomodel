@@ -22,7 +22,7 @@ type CharField struct {
 	Null bool `json:",omitempty"`
 	// Blank is true if the field is not required. Only used for validation.
 	Blank bool `json:",omitempty"`
-	// MaxLength is the max lenght accepted for field values.
+	// MaxLength is the max length accepted for field values.
 	MaxLength int `json:",omitempty"`
 	// Index is true if the field column should be indexed.
 	Index bool `json:",omitempty"`

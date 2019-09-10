@@ -261,11 +261,6 @@ func TestInstanceSave(t *testing.T) {
 				t.Errorf("instance is missing %s value", name)
 			}
 		}
-		for _, name := range []string{"created", "active"} {
-			if _, ok := updateValues[name]; ok {
-				t.Errorf("unexpected %s value on UpdateRows arguments", name)
-			}
-		}
 	})
 
 	t.Run("UpdateNotExists", func(t *testing.T) {
