@@ -6,28 +6,71 @@ import (
 	"time"
 )
 
+// A Query holds the details of a database query.
 type Query struct {
-	Stmt string
-	Args []interface{}
+	Stmt string        // Stmt is the prepared statement.
+	Args []interface{} // Args is the list of values for the statement.
 }
 
+// The QuerySet interface represents a collection of objects from the database,
+// defining the methods to interact with those objects, narrow down the
+// collection and retrieve them.
 type QuerySet interface {
-	New(m *Model, base QuerySet) QuerySet
+	// New returns a QuerySet representing all the objects from the given model.
+	//
+	// The parent will be the type used for all methods returning another
+	// QuerySet.
+	New(model *Model, parent QuerySet) QuerySet
+	// Wrap takes a GenericQuerySet, encloses it and returns a custom type.
+	//
+	// This method is used to create custom QuerySets by embedding a
+	// GenericQuerySet, whose methods will call Wrap and return the custom type.
 	Wrap(qs GenericQuerySet) QuerySet
+	// Model returns the QuerySet model.
 	Model() *Model
-	WithContainer(c Container) QuerySet
+	// WithContainer returns a QuerySet with the given Container type as a base.
+	WithContainer(container Container) QuerySet
+	// Filter returns a new QuerySet with the given conditioner applied to
+	// the collections of objects represented by this QuerySet.
 	Filter(c Conditioner) QuerySet
+	// Exclude takes the current collection of objects, excludes the ones
+	// matching the given conditioner and returns a new QuerySet.
 	Exclude(c Conditioner) QuerySet
+	// Only returns a QuerySet that will select only the given fields when
+	// loaded.
+	Only(fields ...string) QuerySet
+	// Query returns the SELECT query details for the current QuerySet.
 	Query() (Query, error)
+	// Load retrieves the collection of objects represented by the QuerySet from
+	// the database, and returns a list of instances.
 	Load() ([]*Instance, error)
-	Get(c Conditioner) (*Instance, error)
+	// Slice retrieves the collection of objects represented by the QuerySet
+	// from the start to the end parameters. If end is -1, it will retrieve
+	// all objects from the given start.
 	Slice(start int64, end int64) ([]*Instance, error)
+	// Get returns an instance representing the single object from the current
+	// collection matching the given conditioner.
+	//
+	// If no object is found, *ObjectNotFoundError is returned.
+	//
+	// If multiple objects match the conditions, *MultipleObjectsError is
+	// returned.
+	Get(c Conditioner) (*Instance, error)
+	// Exists returns true if the collection of objects represented by the
+	// QuerySet matches at least one row in the database.
 	Exists() (bool, error)
+	// Count returns the number of rows matching the collection of objects
+	// represented by the QuerySet.
 	Count() (int64, error)
+	// Update modifies the database rows matching the collection of objects
+	// represented by the QuerySet with the given values.
 	Update(values Container) (int64, error)
+	// Delete removes the database rows matching the collection of objects
+	// represented by the QuerySet.
 	Delete() (int64, error)
 }
 
+// GenericQuerySet implements the QuerySet interface.
 type GenericQuerySet struct {
 	model     *Model
 	container Container
@@ -37,21 +80,23 @@ type GenericQuerySet struct {
 	cond      Conditioner
 }
 
-func (qs GenericQuerySet) New(m *Model, base QuerySet) QuerySet {
+// New implements the New method of the QuerySet interface.
+func (qs GenericQuerySet) New(m *Model, parent QuerySet) QuerySet {
 	fields := make([]string, 0, len(m.fields))
 	for name := range m.fields {
 		fields = append(fields, name)
 	}
 	qs.model = m
 	qs.container = m.meta.Container
-	qs.base = base
+	qs.base = parent
 	qs.database = "default"
 	qs.fields = fields
-	return base.Wrap(qs)
+	return parent.Wrap(qs)
 }
 
-func (qs GenericQuerySet) Wrap(child GenericQuerySet) QuerySet {
-	return child
+// Wrap implements the Wrap method of the QuerySet interface.
+func (qs GenericQuerySet) Wrap(parent GenericQuerySet) QuerySet {
+	return parent
 }
 
 func (qs GenericQuerySet) trace(err error) ErrorTrace {
@@ -79,19 +124,23 @@ func (qs GenericQuerySet) addConditioner(c Conditioner) GenericQuerySet {
 	return qs
 }
 
+// Model implements the Model method of the QuerySet interface.
 func (qs GenericQuerySet) Model() *Model {
 	return qs.model
 }
 
+// WithContainer implements the WithContainer of the QuerySet interface.
 func (qs GenericQuerySet) WithContainer(container Container) QuerySet {
 	qs.container = container
 	return qs.base.Wrap(qs)
 }
 
+// Filter implements the Filter method of the QuerySet interface.
 func (qs GenericQuerySet) Filter(c Conditioner) QuerySet {
 	return qs.base.Wrap(qs.addConditioner(c))
 }
 
+// Exclude implements the Exclude method of the QuerySet interface.
 func (qs GenericQuerySet) Exclude(c Conditioner) QuerySet {
 	if qs.cond == nil {
 		qs.cond = Q{}
@@ -100,6 +149,7 @@ func (qs GenericQuerySet) Exclude(c Conditioner) QuerySet {
 	return qs.base.Wrap(qs)
 }
 
+// Only implements the Only method of the QuerySet interface.
 func (qs GenericQuerySet) Only(fields ...string) QuerySet {
 	qs.fields = fields
 	if !fieldInList(qs.model.pk, qs.fields) {
@@ -108,6 +158,7 @@ func (qs GenericQuerySet) Only(fields ...string) QuerySet {
 	return qs.base.Wrap(qs)
 }
 
+// Query implements the Query method of the QuerySet interface.
 func (qs GenericQuerySet) Query() (Query, error) {
 	db, ok := dbRegistry[qs.database]
 	if !ok {
@@ -167,14 +218,17 @@ func (qs GenericQuerySet) load(start int64, end int64) ([]*Instance, error) {
 	return result, nil
 }
 
+// Load implements the Load method of the QuerySet interface.
 func (qs GenericQuerySet) Load() ([]*Instance, error) {
 	return qs.load(0, -1)
 }
 
+// Slice implemetns the Slice method of the QuerySet interface.
 func (qs GenericQuerySet) Slice(start int64, end int64) ([]*Instance, error) {
 	return qs.load(start, end)
 }
 
+// Get implements the Get method of the QuerySet interface.
 func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 	qs = qs.addConditioner(c)
 	db, ok := dbRegistry[qs.database]
@@ -221,6 +275,7 @@ func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 	return instance, nil
 }
 
+// Exists implements the Exists method of the QuerySet interface.
 func (qs GenericQuerySet) Exists() (bool, error) {
 	db, ok := dbRegistry[qs.database]
 	if !ok {
@@ -233,6 +288,7 @@ func (qs GenericQuerySet) Exists() (bool, error) {
 	return exists, nil
 }
 
+// Count implements the Count method of the QuerySet interface.
 func (qs GenericQuerySet) Count() (int64, error) {
 	db, ok := dbRegistry[qs.database]
 	if !ok {
@@ -245,6 +301,7 @@ func (qs GenericQuerySet) Count() (int64, error) {
 	return count, nil
 }
 
+// Update implements the Update method of the QuerySet interface.
 func (qs GenericQuerySet) Update(container Container) (int64, error) {
 	db, ok := dbRegistry[qs.database]
 	if !ok {
@@ -270,6 +327,7 @@ func (qs GenericQuerySet) Update(container Container) (int64, error) {
 	return rows, nil
 }
 
+// Delete implements the Delete method of the QuerySet interface.
 func (qs GenericQuerySet) Delete() (int64, error) {
 	db, ok := dbRegistry[qs.database]
 	if !ok {
