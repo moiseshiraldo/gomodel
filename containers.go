@@ -73,11 +73,10 @@ func (vals Values) New() Builder {
 func isValidContainer(container Container) bool {
 	if _, ok := container.(Builder); ok {
 		return true
-	} else {
-		cv := reflect.Indirect(reflect.ValueOf(container))
-		if cv.Kind() == reflect.Struct {
-			return true
-		}
+	}
+	cv := reflect.Indirect(reflect.ValueOf(container))
+	if cv.Kind() == reflect.Struct {
+		return true
 	}
 	return false
 }
@@ -86,10 +85,9 @@ func isValidContainer(container Container) bool {
 func newContainer(container Container) Container {
 	if b, ok := container.(Builder); ok {
 		return b.New()
-	} else {
-		ct := reflect.Indirect(reflect.ValueOf(container)).Type()
-		return reflect.New(ct).Interface()
 	}
+	ct := reflect.Indirect(reflect.ValueOf(container)).Type()
+	return reflect.New(ct).Interface()
 }
 
 // getRecipients returns a list of destination pointers for the given container
@@ -119,15 +117,13 @@ func getContainerField(container Container, name string) (val Value, ok bool) {
 		if val, ok := getter.Get(name); ok {
 			return val, true
 		}
-	} else {
-		cv := reflect.Indirect(reflect.ValueOf(container))
-		field := cv.FieldByName(strings.Title(name))
-		if field.IsValid() && field.CanInterface() {
-			val := field.Interface()
-			return val, true
-		} else {
-			return nil, false
-		}
+		return nil, false
+	}
+	cv := reflect.Indirect(reflect.ValueOf(container))
+	field := cv.FieldByName(strings.Title(name))
+	if field.IsValid() && field.CanInterface() {
+		val := field.Interface()
+		return val, true
 	}
 	return nil, false
 }

@@ -288,6 +288,7 @@ func (f TimeField) DriverValue(v Value, dvr string) (interface{}, error) {
 	return v, fmt.Errorf("invalid value")
 }
 
+// DateTimeField implements the Field interface for datetime values.
 type DateTimeField struct {
 	// PrimaryKey is true if the field is the model primary key.
 	PrimaryKey bool `json:",omitempty"`
@@ -358,9 +359,8 @@ func (f DateTimeField) DBColumn(name string) string {
 func (f DateTimeField) DataType(dvr string) string {
 	if dvr == "postgres" {
 		return "TIMESTAMP"
-	} else {
-		return "DATETIME"
 	}
+	return "DATETIME"
 }
 
 // DefaultVal implements the DefaultVal method of the Field interface.

@@ -60,8 +60,8 @@ func (fields Fields) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements the json.Unmarshaler interface. An error is
 // returned if the field type is not registered.
-func (fp *Fields) UnmarshalJSON(data []byte) error {
-	fields := map[string]Field{}
+func (fields *Fields) UnmarshalJSON(data []byte) error {
+	result := map[string]Field{}
 	rawMap := map[string]map[string]json.RawMessage{}
 	err := json.Unmarshal(data, &rawMap)
 	if err != nil {
@@ -78,10 +78,10 @@ func (fp *Fields) UnmarshalJSON(data []byte) error {
 			if err := json.Unmarshal(raw, fp); err != nil {
 				return err
 			}
-			fields[name] = fp.(Field)
+			result[name] = fp.(Field)
 		}
 	}
-	*fp = fields
+	*fields = result
 	return nil
 }
 

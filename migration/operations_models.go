@@ -101,7 +101,7 @@ func (op AddIndex) OpName() string {
 	return "AddIndex"
 }
 
-// SetSate adds the index to the model in the given application state.
+// SetState adds the index to the model in the given application state.
 func (op AddIndex) SetState(state *AppState) error {
 	model, ok := state.Models[op.Model]
 	if !ok {

@@ -2,10 +2,11 @@ package benchmark
 
 import (
 	"fmt"
-	_ "github.com/gwenn/gosqlite"
+	_ "github.com/gwenn/gosqlite" // Loads sqlite driver.
 	"github.com/moiseshiraldo/gomodel"
 )
 
+// User defines a model to be used on benchmarks.
 var User = gomodel.New(
 	"User",
 	gomodel.Fields{

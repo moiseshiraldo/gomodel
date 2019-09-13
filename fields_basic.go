@@ -88,9 +88,8 @@ func (f CharField) DataType(driver string) string {
 func (f CharField) DefaultVal() (Value, bool) {
 	if f.Default != "" || f.DefaultEmpty {
 		return f.Default, true
-	} else {
-		return nil, false
 	}
+	return nil, false
 }
 
 // Recipient implements the Recipient method of the Field interface.
@@ -327,18 +326,16 @@ func (f IntegerField) DBColumn(name string) string {
 func (f IntegerField) DataType(dvr string) string {
 	if dvr == "postgres" && f.IsAuto() {
 		return "SERIAL"
-	} else {
-		return "INTEGER"
 	}
+	return "INTEGER"
 }
 
 // DefaultVal implements the DefaultVal method of the Field interface.
 func (f IntegerField) DefaultVal() (Value, bool) {
 	if f.Default != 0 || f.DefaultZero {
 		return f.Default, true
-	} else {
-		return nil, false
 	}
+	return nil, false
 }
 
 // Recipient implements the Recipient method of the Field interface.

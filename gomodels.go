@@ -255,7 +255,7 @@ func (m *Model) AddIndex(name string, fields ...string) error {
 	return nil
 }
 
-// RevmoeIndex removes the named index from the model definition. It returns an
+// RemoveIndex removes the named index from the model definition. It returns an
 // error if the index doesn't exist.
 //
 // This method should only be used to modify a model state during migration

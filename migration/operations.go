@@ -55,8 +55,8 @@ func (opList OperationList) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements the json.Unmarshaler interface. An error is
 // returned if the name of the operation is not registered.
-func (op *OperationList) UnmarshalJSON(data []byte) error {
-	opList := *op
+func (opList *OperationList) UnmarshalJSON(data []byte) error {
+	ops := *opList
 	rawList := []map[string]json.RawMessage{}
 	err := json.Unmarshal(data, &rawList)
 	if err != nil {
@@ -74,10 +74,10 @@ func (op *OperationList) UnmarshalJSON(data []byte) error {
 			if err := json.Unmarshal(rawOp, op); err != nil {
 				return err
 			}
-			opList = append(opList, op.(Operation))
+			ops = append(ops, op.(Operation))
 		}
 	}
-	*op = opList
+	*opList = ops
 	return nil
 }
 
