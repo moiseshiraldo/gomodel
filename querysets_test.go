@@ -268,7 +268,7 @@ func TestGenericQuerySet(t *testing.T) {
 		if mockedEngine.Calls("GetRows") != 1 {
 			t.Fatal("expected engine GetRows method to be called")
 		}
-		args := mockedEngine.Args.GetRows
+		args := mockedEngine.Args.GetRows.Options
 		if args.Start != 2 || args.End != 4 {
 			t.Errorf(
 				"expected GetRows args (2, 4), got (%d, %d)",

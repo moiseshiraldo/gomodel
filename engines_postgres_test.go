@@ -215,7 +215,11 @@ func TestPostgresEngine(t *testing.T) {
 		).AndNot(
 			Q{"updated": nil},
 		)
-		query, err := engine.SelectQuery(model, cond, "id", "email")
+		options := QueryOptions{
+			Conditioner: cond,
+			Fields:      []string{"id", "email"},
+		}
+		query, err := engine.SelectQuery(model, options)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -240,7 +244,11 @@ func TestPostgresEngine(t *testing.T) {
 		).AndNot(
 			Q{"updated <": "2018-07-20"},
 		)
-		_, err := engine.SelectQuery(model, cond)
+		options := QueryOptions{
+			Conditioner: cond,
+			Fields:      []string{"id", "email"},
+		}
+		_, err := engine.SelectQuery(model, options)
 		if err == nil {
 			t.Fatal("expected invalid operator error")
 		}
@@ -248,12 +256,12 @@ func TestPostgresEngine(t *testing.T) {
 
 	t.Run("SelectUnknownField", func(t *testing.T) {
 		mockedDB.Reset()
-		cond := Q{"active": true}.OrNot(
-			Q{"email": "user@test.com"}.Or(Q{"id >=": 10}),
-		).AndNot(
-			Q{"updated <": "2018-07-20"},
-		)
-		_, err := engine.SelectQuery(model, cond, "id", "username")
+		cond := Q{"active": true}
+		options := QueryOptions{
+			Conditioner: cond,
+			Fields:      []string{"id", "username"},
+		}
+		_, err := engine.SelectQuery(model, options)
 		if err == nil {
 			t.Fatal("expected unknown field error")
 		}
@@ -266,7 +274,11 @@ func TestPostgresEngine(t *testing.T) {
 		).AndNot(
 			Q{"updated <": "2018-07-20"},
 		)
-		_, err := engine.SelectQuery(model, cond, "id", "email")
+		options := QueryOptions{
+			Conditioner: cond,
+			Fields:      []string{"id", "email"},
+		}
+		_, err := engine.SelectQuery(model, options)
 		if err == nil {
 			t.Fatal("expected unknown field error")
 		}
@@ -279,7 +291,11 @@ func TestPostgresEngine(t *testing.T) {
 		).AndNot(
 			Q{"updated <": true},
 		)
-		_, err := engine.SelectQuery(model, cond, "id", "email")
+		options := QueryOptions{
+			Conditioner: cond,
+			Fields:      []string{"id", "email"},
+		}
+		_, err := engine.SelectQuery(model, options)
 		if err == nil {
 			t.Fatal("expected invalid value error")
 		}
@@ -287,8 +303,13 @@ func TestPostgresEngine(t *testing.T) {
 
 	t.Run("GetRows", func(t *testing.T) {
 		mockedDB.Reset()
-		cond := Q{"active": true}
-		_, err := engine.GetRows(model, cond, 10, 20, "id", "updated")
+		options := QueryOptions{
+			Conditioner: Q{"active": true},
+			Fields:      []string{"id", "updated"},
+			Start:       10,
+			End:         20,
+		}
+		_, err := engine.GetRows(model, options)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -305,8 +326,13 @@ func TestPostgresEngine(t *testing.T) {
 
 	t.Run("GetRowsNoLimit", func(t *testing.T) {
 		mockedDB.Reset()
-		cond := Q{"active": true}
-		_, err := engine.GetRows(model, cond, 10, -1, "id", "updated")
+		options := QueryOptions{
+			Conditioner: Q{"active": true},
+			Fields:      []string{"id", "updated"},
+			Start:       10,
+			End:         -1,
+		}
+		_, err := engine.GetRows(model, options)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -323,8 +349,13 @@ func TestPostgresEngine(t *testing.T) {
 
 	t.Run("GetRowsInvalidCondition", func(t *testing.T) {
 		mockedDB.Reset()
-		cond := Q{"username": "test"}
-		_, err := engine.GetRows(model, cond, 10, 20, "id", "updated")
+		options := QueryOptions{
+			Conditioner: Q{"username": "test"},
+			Fields:      []string{"id", "updated"},
+			Start:       10,
+			End:         20,
+		}
+		_, err := engine.GetRows(model, options)
 		if err == nil {
 			t.Fatal("expected unknown field error")
 		}
@@ -385,7 +416,8 @@ func TestPostgresEngine(t *testing.T) {
 	t.Run("UpdateRows", func(t *testing.T) {
 		mockedDB.Reset()
 		values := Values{"active": false}
-		_, err := engine.UpdateRows(model, values, Q{"active": true})
+		options := QueryOptions{Conditioner: Q{"active": true}}
+		_, err := engine.UpdateRows(model, values, options)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -409,7 +441,8 @@ func TestPostgresEngine(t *testing.T) {
 	t.Run("UpdateUnknownField", func(t *testing.T) {
 		mockedDB.Reset()
 		values := Values{"username": "test"}
-		_, err := engine.UpdateRows(model, values, Q{"active": true})
+		options := QueryOptions{Conditioner: Q{"active": true}}
+		_, err := engine.UpdateRows(model, values, options)
 		if err == nil {
 			t.Fatal("expected unknown field error")
 		}
@@ -418,7 +451,8 @@ func TestPostgresEngine(t *testing.T) {
 	t.Run("UpdateUnknownConditionField", func(t *testing.T) {
 		mockedDB.Reset()
 		values := Values{"active": false}
-		_, err := engine.UpdateRows(model, values, Q{"username": "test"})
+		options := QueryOptions{Conditioner: Q{"username": "test"}}
+		_, err := engine.UpdateRows(model, values, options)
 		if err == nil {
 			t.Fatal("expected unknown field error")
 		}
@@ -427,7 +461,8 @@ func TestPostgresEngine(t *testing.T) {
 	t.Run("UpdateInvalidValue", func(t *testing.T) {
 		mockedDB.Reset()
 		values := Values{"updated": true}
-		_, err := engine.UpdateRows(model, values, Q{"active": true})
+		options := QueryOptions{Conditioner: Q{"active": true}}
+		_, err := engine.UpdateRows(model, values, options)
 		if err == nil {
 			t.Fatal("expected invalid value error")
 		}
@@ -437,7 +472,8 @@ func TestPostgresEngine(t *testing.T) {
 		mockedDB.Reset()
 		mockedDB.err = fmt.Errorf("db error")
 		values := Values{"active": false}
-		_, err := engine.UpdateRows(model, values, Q{"active": true})
+		options := QueryOptions{Conditioner: Q{"active": true}}
+		_, err := engine.UpdateRows(model, values, options)
 		if err == nil {
 			t.Fatal("expected db error")
 		}
@@ -445,7 +481,8 @@ func TestPostgresEngine(t *testing.T) {
 
 	t.Run("DeleteRows", func(t *testing.T) {
 		mockedDB.Reset()
-		_, err := engine.DeleteRows(model, Q{"id >=": 100})
+		options := QueryOptions{Conditioner: Q{"id >=": 100}}
+		_, err := engine.DeleteRows(model, options)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -468,7 +505,8 @@ func TestPostgresEngine(t *testing.T) {
 
 	t.Run("DeleteInvalidCondition", func(t *testing.T) {
 		mockedDB.Reset()
-		_, err := engine.DeleteRows(model, Q{"loginAttempts >=": 100})
+		options := QueryOptions{Conditioner: Q{"loginAttempts >=": 100}}
+		_, err := engine.DeleteRows(model, options)
 		if err == nil {
 			t.Fatal("expected unknown field error")
 		}
@@ -477,7 +515,8 @@ func TestPostgresEngine(t *testing.T) {
 	t.Run("DeleteDBError", func(t *testing.T) {
 		mockedDB.Reset()
 		mockedDB.err = fmt.Errorf("db error")
-		_, err := engine.DeleteRows(model, Q{"id >=": 100})
+		options := QueryOptions{Conditioner: Q{"id >=": 100}}
+		_, err := engine.DeleteRows(model, options)
 		if err == nil {
 			t.Fatal("expected unknown field error")
 		}
@@ -485,7 +524,8 @@ func TestPostgresEngine(t *testing.T) {
 
 	t.Run("CountRows", func(t *testing.T) {
 		mockedDB.Reset()
-		_, err := engine.CountRows(model, Q{"email": "user@test.com"})
+		options := QueryOptions{Conditioner: Q{"email": "user@test.com"}}
+		_, err := engine.CountRows(model, options)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -509,7 +549,8 @@ func TestPostgresEngine(t *testing.T) {
 	t.Run("Exists", func(t *testing.T) {
 		mockedDB.Reset()
 		engine.baseSQLEngine.tx = mockedDB
-		_, err := engine.Exists(model, Q{"email": "user@test.com"})
+		options := QueryOptions{Conditioner: Q{"email": "user@test.com"}}
+		_, err := engine.Exists(model, options)
 		if err != nil {
 			t.Fatal(err)
 		}

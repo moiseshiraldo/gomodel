@@ -265,7 +265,7 @@ func TestAppMigrate(t *testing.T) {
 		if mockedEngine.Calls("DeleteRows") != 1 {
 			t.Errorf("expected engine DeleteRows to be called")
 		}
-		args := mockedEngine.Args.DeleteRows.Conditioner.Conditions()
+		args := mockedEngine.Args.DeleteRows.Options.Conditioner.Conditions()
 		if args["app"].(string) != "test" || args["number"].(int) != 2 {
 			t.Errorf(
 				"SaveMigration called with wrong arguments: %s, %d",
@@ -291,7 +291,7 @@ func TestAppMigrate(t *testing.T) {
 		if mockedEngine.Calls("DeleteRows") != 1 {
 			t.Errorf("expected engine DeleteRows to be called")
 		}
-		args := mockedEngine.Args.DeleteRows.Conditioner.Conditions()
+		args := mockedEngine.Args.DeleteRows.Options.Conditioner.Conditions()
 		if args["app"].(string) != "test" || args["number"].(int) != 2 {
 			t.Errorf(
 				"SaveMigration called with wrong arguments: %s, %d",
@@ -317,7 +317,7 @@ func TestAppMigrate(t *testing.T) {
 		if mockedEngine.Calls("DeleteRows") != 2 {
 			t.Errorf("expected engine DeleteRows to be called twice")
 		}
-		args := mockedEngine.Args.DeleteRows.Conditioner.Conditions()
+		args := mockedEngine.Args.DeleteRows.Options.Conditioner.Conditions()
 		if args["app"].(string) != "test" || args["number"].(int) != 1 {
 			t.Errorf(
 				"SaveMigration called with wrong arguments: %s, %d",

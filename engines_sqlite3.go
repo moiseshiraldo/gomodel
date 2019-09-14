@@ -101,24 +101,18 @@ func (e SqliteEngine) DropColumns(model *Model, fields ...string) error {
 }
 
 // GetRows implements the GetRows method of the Engine interface.
-func (e SqliteEngine) GetRows(
-	m *Model,
-	c Conditioner,
-	start int64,
-	end int64,
-	fields ...string,
-) (Rows, error) {
-	query, err := e.SelectQuery(m, c, fields...)
+func (e SqliteEngine) GetRows(model *Model, opt QueryOptions) (Rows, error) {
+	query, err := e.SelectQuery(model, opt)
 	if err != nil {
 		return nil, err
 	}
-	if end > 0 {
-		query.Stmt = fmt.Sprintf("%s LIMIT %d", query.Stmt, end-start)
-	} else if start > 0 {
+	if opt.End > 0 {
+		query.Stmt = fmt.Sprintf("%s LIMIT %d", query.Stmt, opt.End-opt.Start)
+	} else if opt.Start > 0 {
 		query.Stmt += " LIMIT -1"
 	}
-	if start > 0 {
-		query.Stmt = fmt.Sprintf("%s OFFSET %d", query.Stmt, start)
+	if opt.Start > 0 {
+		query.Stmt = fmt.Sprintf("%s OFFSET %d", query.Stmt, opt.Start)
 	}
 	return e.executor().Query(query.Stmt, query.Args...)
 }

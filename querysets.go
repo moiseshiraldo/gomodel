@@ -164,7 +164,11 @@ func (qs GenericQuerySet) Query() (Query, error) {
 	if !ok {
 		return Query{}, qs.dbError(fmt.Errorf("db not found"))
 	}
-	return db.SelectQuery(qs.model, qs.cond, qs.fields...)
+	options := QueryOptions{
+		Conditioner: qs.cond,
+		Fields:      qs.fields,
+	}
+	return db.SelectQuery(qs.model, options)
 }
 
 func (qs GenericQuerySet) load(start int64, end int64) ([]*Instance, error) {
@@ -186,7 +190,13 @@ func (qs GenericQuerySet) load(start int64, end int64) ([]*Instance, error) {
 		err := fmt.Errorf("invalid container recipients")
 		return nil, qs.containerError(err)
 	}
-	rows, err := db.GetRows(qs.model, qs.cond, start, end, qs.fields...)
+	options := QueryOptions{
+		Conditioner: qs.cond,
+		Fields:      qs.fields,
+		Start:       start,
+		End:         end,
+	}
+	rows, err := db.GetRows(qs.model, options)
 	if err != nil {
 		return nil, qs.dbError(err)
 	}
@@ -244,7 +254,13 @@ func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 		err := fmt.Errorf("invalid container recipients")
 		return nil, qs.containerError(err)
 	}
-	rows, err := db.GetRows(qs.model, qs.cond, 0, 2, qs.fields...)
+	options := QueryOptions{
+		Conditioner: qs.cond,
+		Fields:      qs.fields,
+		Start:       0,
+		End:         2,
+	}
+	rows, err := db.GetRows(qs.model, options)
 	if err != nil {
 		return nil, qs.dbError(err)
 	}
@@ -281,7 +297,7 @@ func (qs GenericQuerySet) Exists() (bool, error) {
 	if !ok {
 		return false, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
-	exists, err := db.Exists(qs.model, qs.cond)
+	exists, err := db.Exists(qs.model, QueryOptions{Conditioner: qs.cond})
 	if err != nil {
 		return false, qs.dbError(err)
 	}
@@ -294,7 +310,7 @@ func (qs GenericQuerySet) Count() (int64, error) {
 	if !ok {
 		return 0, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
-	count, err := db.CountRows(qs.model, qs.cond)
+	count, err := db.CountRows(qs.model, QueryOptions{Conditioner: qs.cond})
 	if err != nil {
 		return 0, qs.dbError(err)
 	}
@@ -320,7 +336,8 @@ func (qs GenericQuerySet) Update(container Container) (int64, error) {
 			dbValues[name] = val
 		}
 	}
-	rows, err := db.UpdateRows(qs.model, dbValues, qs.cond)
+	options := QueryOptions{Conditioner: qs.cond}
+	rows, err := db.UpdateRows(qs.model, dbValues, options)
 	if err != nil {
 		return 0, qs.dbError(err)
 	}
@@ -333,7 +350,7 @@ func (qs GenericQuerySet) Delete() (int64, error) {
 	if !ok {
 		return 0, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
 	}
-	rows, err := db.DeleteRows(qs.model, qs.cond)
+	rows, err := db.DeleteRows(qs.model, QueryOptions{Conditioner: qs.cond})
 	if err != nil {
 		return 0, qs.dbError(err)
 	}

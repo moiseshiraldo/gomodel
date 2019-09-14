@@ -150,7 +150,8 @@ func (i Instance) updateRow(db Database, pkVal Value, fields ...string) error {
 		}
 		dbValues[name] = val
 	}
-	rows, err := db.UpdateRows(i.model, dbValues, Q{i.model.pk: pkVal})
+	options := QueryOptions{Conditioner: Q{i.model.pk: pkVal}}
+	rows, err := db.UpdateRows(i.model, dbValues, options)
 	if err != nil {
 		return &DatabaseError{db.id, i.trace(err)}
 	}

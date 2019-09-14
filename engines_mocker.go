@@ -83,37 +83,33 @@ type MockedEngineArgs struct {
 		Fields []string
 	}
 	SelectQuery struct {
-		Model       *Model
-		Conditioner Conditioner
-		Fields      []string
+		Model   *Model
+		Options QueryOptions
 	}
 	GetRows struct {
-		Model       *Model
-		Conditioner Conditioner
-		Start       int64
-		End         int64
-		Fields      []string
+		Model   *Model
+		Options QueryOptions
 	}
 	InsertRow struct {
 		Model  *Model
 		Values Values
 	}
 	UpdateRows struct {
-		Model       *Model
-		Values      Values
-		Conditioner Conditioner
+		Model   *Model
+		Values  Values
+		Options QueryOptions
 	}
 	DeleteRows struct {
-		Model       *Model
-		Conditioner Conditioner
+		Model   *Model
+		Options QueryOptions
 	}
 	CountRows struct {
-		Model       *Model
-		Conditioner Conditioner
+		Model   *Model
+		Options QueryOptions
 	}
 	Exists struct {
-		Model       *Model
-		Conditioner Conditioner
+		Model   *Model
+		Options QueryOptions
 	}
 }
 
@@ -261,32 +257,18 @@ func (e MockedEngine) DropColumns(model *Model, fields ...string) error {
 }
 
 // SelectQuery mocks the SelectQuery method of the Engine interface.
-func (e MockedEngine) SelectQuery(
-	model *Model,
-	conditioner Conditioner,
-	fields ...string,
-) (Query, error) {
+func (e MockedEngine) SelectQuery(m *Model, opt QueryOptions) (Query, error) {
 	e.calls["SelectQuery"] += 1
-	e.Args.SelectQuery.Model = model
-	e.Args.SelectQuery.Conditioner = conditioner
-	e.Args.SelectQuery.Fields = fields
+	e.Args.SelectQuery.Model = m
+	e.Args.SelectQuery.Options = opt
 	return e.Results.SelectQuery.Query, e.Results.SelectQuery.Err
 }
 
 // GetRows mocks the GetRows method of the Engine interface.
-func (e MockedEngine) GetRows(
-	model *Model,
-	conditioner Conditioner,
-	start int64,
-	end int64,
-	fields ...string,
-) (Rows, error) {
+func (e MockedEngine) GetRows(model *Model, opt QueryOptions) (Rows, error) {
 	e.calls["GetRows"] += 1
 	e.Args.GetRows.Model = model
-	e.Args.GetRows.Conditioner = conditioner
-	e.Args.GetRows.Start = start
-	e.Args.GetRows.End = end
-	e.Args.GetRows.Fields = fields
+	e.Args.GetRows.Options = opt
 	return e.Results.GetRows.Rows, e.Results.GetRows.Err
 }
 
@@ -302,35 +284,35 @@ func (e MockedEngine) InsertRow(model *Model, values Values) (int64, error) {
 func (e MockedEngine) UpdateRows(
 	model *Model,
 	values Values,
-	conditioner Conditioner,
+	options QueryOptions,
 ) (int64, error) {
 	e.calls["UpdateRows"] += 1
 	e.Args.UpdateRows.Model = model
 	e.Args.UpdateRows.Values = values
-	e.Args.UpdateRows.Conditioner = conditioner
+	e.Args.UpdateRows.Options = options
 	return e.Results.UpdateRows.Number, e.Results.UpdateRows.Err
 }
 
 // DeleteRows mocks the DeleteRows method of the Engine interface.
-func (e MockedEngine) DeleteRows(model *Model, c Conditioner) (int64, error) {
+func (e MockedEngine) DeleteRows(m *Model, opt QueryOptions) (int64, error) {
 	e.calls["DeleteRows"] += 1
-	e.Args.DeleteRows.Model = model
-	e.Args.DeleteRows.Conditioner = c
+	e.Args.DeleteRows.Model = m
+	e.Args.DeleteRows.Options = opt
 	return e.Results.DeleteRows.Number, e.Results.DeleteRows.Err
 }
 
 // CountRows mocks the CountRows method of the Engine interface.
-func (e MockedEngine) CountRows(model *Model, c Conditioner) (int64, error) {
+func (e MockedEngine) CountRows(m *Model, opt QueryOptions) (int64, error) {
 	e.calls["CountRows"] += 1
-	e.Args.CountRows.Model = model
-	e.Args.CountRows.Conditioner = c
+	e.Args.CountRows.Model = m
+	e.Args.CountRows.Options = opt
 	return e.Results.CountRows.Number, e.Results.CountRows.Err
 }
 
 // Exists mocks the Exists method of the Engine interface.
-func (e MockedEngine) Exists(model *Model, c Conditioner) (bool, error) {
+func (e MockedEngine) Exists(m *Model, opt QueryOptions) (bool, error) {
 	e.calls["Exists"] += 1
-	e.Args.Exists.Model = model
-	e.Args.Exists.Conditioner = c
+	e.Args.Exists.Model = m
+	e.Args.Exists.Options = opt
 	return e.Results.Exists.Result, e.Results.Exists.Err
 }

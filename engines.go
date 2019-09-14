@@ -6,6 +6,18 @@ import (
 	"strings"
 )
 
+// QueryOptions holds common arguments for some Engine interface methods.
+type QueryOptions struct {
+	// Conditioner holds the conditions to be applied on the query.
+	Conditioner Conditioner
+	// Fields are the columns that will be selected on the query.
+	Fields []string
+	// Start represents the first row index to be selected, starting at 0.
+	Start int64
+	// End represents the row index to stop the selection.
+	End int64
+}
+
 // Engine is the interface providing the database-abstraction API methods.
 type Engine interface {
 	// Start opens a connection using the given Database details and returns
@@ -40,24 +52,24 @@ type Engine interface {
 	AddColumns(model *Model, fields Fields) error
 	// DropColumns drops the columns given by fields from the model table.
 	DropColumns(model *Model, fields ...string) error
-	// SelectQuery returns the SELECT SQL query details for the given model,
-	// conditioner and fields.
-	SelectQuery(m *Model, cond Conditioner, fields ...string) (Query, error)
+	// SelectQuery returns the SELECT SQL query details for the given model and
+	// query options.
+	SelectQuery(model *Model, options QueryOptions) (Query, error)
 	// GetRows returns the Rows resulting from querying the database with
-	// the given arguments, where start is the first row index (starting a 0)
-	// and end the last row index (-1 for all rows).
-	GetRows(m *Model, c Conditioner, start int64, end int64, fields ...string) (Rows, error)
+	// the query options, where options.Start is the first row index (starting
+	// at 0) and options.End the last row index (-1 for all rows).
+	GetRows(model *Model, options QueryOptions) (Rows, error)
 	// InsertRow inserts the given values in the model table.
 	InsertRow(model *Model, values Values) (int64, error)
 	// UpdateRows updates the model rows selected by the given conditioner with
 	// the given values.
-	UpdateRows(model *Model, values Values, cond Conditioner) (int64, error)
+	UpdateRows(model *Model, values Values, options QueryOptions) (int64, error)
 	// DeleteRows deletes the model rows selected by the given conditioner.
-	DeleteRows(model *Model, cond Conditioner) (int64, error)
+	DeleteRows(model *Model, options QueryOptions) (int64, error)
 	// CountRows counts the model rows selected by the given conditioner.
-	CountRows(model *Model, cond Conditioner) (int64, error)
+	CountRows(model *Model, options QueryOptions) (int64, error)
 	// Exists returns whether any model row exists for the given conditioner.
-	Exists(model *Model, cond Conditioner) (bool, error)
+	Exists(model *Model, options QueryOptions) (bool, error)
 }
 
 // enginesRegistry is a global variable mapping the supported drivers to the
@@ -303,7 +315,7 @@ func (e baseSQLEngine) DropColumns(model *Model, fields ...string) error {
 // pIndex is the next index if the value placeholder requires indexing.
 func (e baseSQLEngine) predicate(
 	model *Model,
-	cond Conditioner,
+	options QueryOptions,
 	pIndex int,
 ) (Query, error) {
 	conditions := make([]string, 0)
@@ -315,10 +327,12 @@ func (e baseSQLEngine) predicate(
 		"<":  "<",
 		"<=": "<=",
 	}
-	root, isChain := cond.Root()
+	root, isChain := options.Conditioner.Root()
 	pred := ""
 	if isChain {
-		rootPred, err := e.predicate(model, root, pIndex)
+		rootPred, err := e.predicate(
+			model, QueryOptions{Conditioner: root}, pIndex,
+		)
 		if err != nil {
 			return Query{}, err
 		}
@@ -326,7 +340,7 @@ func (e baseSQLEngine) predicate(
 		pIndex += len(rootPred.Args)
 		values = append(values, rootPred.Args...)
 	} else {
-		for condition, value := range cond.Conditions() {
+		for condition, value := range options.Conditioner.Conditions() {
 			args := strings.Split(condition, " ")
 			name := args[0]
 			operator := "="
@@ -362,7 +376,7 @@ func (e baseSQLEngine) predicate(
 		}
 		pred = strings.Join(conditions, " AND ")
 	}
-	next, isOr, isNot := cond.Next()
+	next, isOr, isNot := options.Conditioner.Next()
 	if next != nil {
 		operator := "AND"
 		if isOr {
@@ -371,7 +385,9 @@ func (e baseSQLEngine) predicate(
 		if isNot {
 			operator += " NOT"
 		}
-		nextPred, err := e.predicate(model, next, pIndex)
+		nextPred, err := e.predicate(
+			model, QueryOptions{Conditioner: next}, pIndex,
+		)
 		if err != nil {
 			return Query{}, err
 		}
@@ -382,14 +398,10 @@ func (e baseSQLEngine) predicate(
 }
 
 // SelectQuery implements the SelectQuery method of the Engine interface.
-func (e baseSQLEngine) SelectQuery(
-	m *Model,
-	c Conditioner,
-	fields ...string,
-) (Query, error) {
+func (e baseSQLEngine) SelectQuery(m *Model, opt QueryOptions) (Query, error) {
 	query := Query{}
-	columns := make([]string, 0, len(m.fields))
-	for _, name := range fields {
+	columns := make([]string, 0, len(opt.Fields))
+	for _, name := range opt.Fields {
 		field, ok := m.fields[name]
 		if !ok {
 			return query, fmt.Errorf("unknown field: %s", name)
@@ -399,8 +411,8 @@ func (e baseSQLEngine) SelectQuery(
 	query.Stmt = fmt.Sprintf(
 		"SELECT %s FROM %s", strings.Join(columns, ", "), e.escape(m.Table()),
 	)
-	if c != nil {
-		pred, err := e.predicate(m, c, 1)
+	if opt.Conditioner != nil {
+		pred, err := e.predicate(m, opt, 1)
 		if err != nil {
 			return query, err
 		}
@@ -411,24 +423,18 @@ func (e baseSQLEngine) SelectQuery(
 }
 
 // GetRows implements the GetRows method of the Engine interface.
-func (e baseSQLEngine) GetRows(
-	m *Model,
-	c Conditioner,
-	start int64,
-	end int64,
-	fields ...string,
-) (Rows, error) {
-	query, err := e.SelectQuery(m, c, fields...)
+func (e baseSQLEngine) GetRows(model *Model, opt QueryOptions) (Rows, error) {
+	query, err := e.SelectQuery(model, opt)
 	if err != nil {
 		return nil, err
 	}
-	if end > 0 {
-		query.Stmt = fmt.Sprintf("%s LIMIT %d", query.Stmt, end-start)
-	} else if start > 0 {
+	if opt.End > 0 {
+		query.Stmt = fmt.Sprintf("%s LIMIT %d", query.Stmt, opt.End-opt.Start)
+	} else if opt.Start > 0 {
 		query.Stmt += " LIMIT ALL"
 	}
-	if start > 0 {
-		query.Stmt = fmt.Sprintf("%s OFFSET %d", query.Stmt, start)
+	if opt.Start > 0 {
+		query.Stmt = fmt.Sprintf("%s OFFSET %d", query.Stmt, opt.Start)
 	}
 	return e.executor().Query(query.Stmt, query.Args...)
 }
@@ -492,7 +498,7 @@ func (e baseSQLEngine) InsertRow(model *Model, values Values) (int64, error) {
 func (e baseSQLEngine) UpdateRows(
 	model *Model,
 	values Values,
-	conditioner Conditioner,
+	options QueryOptions,
 ) (int64, error) {
 	vals := make([]interface{}, 0, len(model.fields))
 	cols := make([]string, 0, len(model.fields))
@@ -521,8 +527,8 @@ func (e baseSQLEngine) UpdateRows(
 	stmt := fmt.Sprintf(
 		"UPDATE %s SET %s", e.escape(model.Table()), strings.Join(cols, ", "),
 	)
-	if conditioner != nil {
-		pred, err := e.predicate(model, conditioner, index)
+	if options.Conditioner != nil {
+		pred, err := e.predicate(model, options, index)
 		if err != nil {
 			return 0, err
 		}
@@ -541,11 +547,11 @@ func (e baseSQLEngine) UpdateRows(
 }
 
 // DeleteRows implements the DeleteRows method of the engine interface.
-func (e baseSQLEngine) DeleteRows(model *Model, c Conditioner) (int64, error) {
-	stmt := fmt.Sprintf("DELETE FROM %s", e.escape(model.Table()))
+func (e baseSQLEngine) DeleteRows(m *Model, opt QueryOptions) (int64, error) {
+	stmt := fmt.Sprintf("DELETE FROM %s", e.escape(m.Table()))
 	args := make([]interface{}, 0)
-	if c != nil {
-		pred, err := e.predicate(model, c, 1)
+	if opt.Conditioner != nil {
+		pred, err := e.predicate(m, opt, 1)
 		if err != nil {
 			return 0, err
 		}
@@ -564,11 +570,11 @@ func (e baseSQLEngine) DeleteRows(model *Model, c Conditioner) (int64, error) {
 }
 
 // CountRows implement the CountRows method of the Engine interface.
-func (e baseSQLEngine) CountRows(model *Model, c Conditioner) (int64, error) {
-	stmt := fmt.Sprintf("SELECT COUNT(*) FROM %s", e.escape(model.Table()))
+func (e baseSQLEngine) CountRows(m *Model, opt QueryOptions) (int64, error) {
+	stmt := fmt.Sprintf("SELECT COUNT(*) FROM %s", e.escape(m.Table()))
 	args := make([]interface{}, 0)
-	if c != nil {
-		pred, err := e.predicate(model, c, 1)
+	if opt.Conditioner != nil {
+		pred, err := e.predicate(m, opt, 1)
 		if err != nil {
 			return 0, err
 		}
@@ -583,8 +589,9 @@ func (e baseSQLEngine) CountRows(model *Model, c Conditioner) (int64, error) {
 }
 
 // Exsists implements the Exists method of the Engine interface.
-func (e baseSQLEngine) Exists(model *Model, c Conditioner) (bool, error) {
-	query, err := e.SelectQuery(model, c, model.pk)
+func (e baseSQLEngine) Exists(m *Model, opt QueryOptions) (bool, error) {
+	opt.Fields = []string{m.pk}
+	query, err := e.SelectQuery(m, opt)
 	if err != nil {
 		return false, err
 	}

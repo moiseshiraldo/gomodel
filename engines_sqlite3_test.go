@@ -334,7 +334,11 @@ func TestSqliteEngine(t *testing.T) {
 		).AndNot(
 			Q{"updated <": "2018-07-20"},
 		)
-		query, err := engine.SelectQuery(model, cond, "id", "email")
+		options := QueryOptions{
+			Conditioner: cond,
+			Fields:      []string{"id", "email"},
+		}
+		query, err := engine.SelectQuery(model, options)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -357,8 +361,13 @@ func TestSqliteEngine(t *testing.T) {
 
 	t.Run("GetRows", func(t *testing.T) {
 		mockedDB.Reset()
-		cond := Q{"active": true}
-		_, err := engine.GetRows(model, cond, 10, 20, "id", "updated")
+		options := QueryOptions{
+			Conditioner: Q{"active": true},
+			Fields:      []string{"id", "updated"},
+			Start:       10,
+			End:         20,
+		}
+		_, err := engine.GetRows(model, options)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -375,8 +384,13 @@ func TestSqliteEngine(t *testing.T) {
 
 	t.Run("GetRowsNoLimit", func(t *testing.T) {
 		mockedDB.Reset()
-		cond := Q{"active": true}
-		_, err := engine.GetRows(model, cond, 10, -1, "id", "updated")
+		options := QueryOptions{
+			Conditioner: Q{"active": true},
+			Fields:      []string{"id", "updated"},
+			Start:       10,
+			End:         -1,
+		}
+		_, err := engine.GetRows(model, options)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -393,8 +407,13 @@ func TestSqliteEngine(t *testing.T) {
 
 	t.Run("GetRowsInvalidCondition", func(t *testing.T) {
 		mockedDB.Reset()
-		cond := Q{"username": "test"}
-		_, err := engine.GetRows(model, cond, 10, 20, "id", "updated")
+		options := QueryOptions{
+			Conditioner: Q{"username": "test"},
+			Fields:      []string{"id", "updated"},
+			Start:       10,
+			End:         20,
+		}
+		_, err := engine.GetRows(model, options)
 		if err == nil {
 			t.Fatal("expected unknown field error")
 		}
@@ -433,7 +452,8 @@ func TestSqliteEngine(t *testing.T) {
 	t.Run("UpdateRows", func(t *testing.T) {
 		mockedDB.Reset()
 		values := Values{"active": false}
-		_, err := engine.UpdateRows(model, values, Q{"active": true})
+		options := QueryOptions{Conditioner: Q{"active": true}}
+		_, err := engine.UpdateRows(model, values, options)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -456,7 +476,8 @@ func TestSqliteEngine(t *testing.T) {
 
 	t.Run("DeleteRows", func(t *testing.T) {
 		mockedDB.Reset()
-		_, err := engine.DeleteRows(model, Q{"id >=": 100})
+		options := QueryOptions{Conditioner: Q{"id >=": 100}}
+		_, err := engine.DeleteRows(model, options)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -479,7 +500,8 @@ func TestSqliteEngine(t *testing.T) {
 
 	t.Run("CountRows", func(t *testing.T) {
 		mockedDB.Reset()
-		_, err := engine.CountRows(model, Q{"email": "user@test.com"})
+		options := QueryOptions{Conditioner: Q{"email": "user@test.com"}}
+		_, err := engine.CountRows(model, options)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -502,7 +524,8 @@ func TestSqliteEngine(t *testing.T) {
 
 	t.Run("CountInvalidCondition", func(t *testing.T) {
 		mockedDB.Reset()
-		_, err := engine.CountRows(model, Q{"username": "user@test.com"})
+		options := QueryOptions{Conditioner: Q{"username": "user@test.com"}}
+		_, err := engine.CountRows(model, options)
 		if err == nil {
 			t.Fatal("expected unknown field error")
 		}
@@ -515,7 +538,8 @@ func TestSqliteEngine(t *testing.T) {
 		scanRow = func(ex sqlExecutor, dest interface{}, query Query) error {
 			return fmt.Errorf("db error")
 		}
-		_, err := engine.CountRows(model, Q{"email": "user@test.com"})
+		options := QueryOptions{Conditioner: Q{"email": "user@test.com"}}
+		_, err := engine.CountRows(model, options)
 		if err == nil {
 			t.Fatal("expected db error")
 		}
@@ -523,7 +547,8 @@ func TestSqliteEngine(t *testing.T) {
 
 	t.Run("Exists", func(t *testing.T) {
 		mockedDB.Reset()
-		_, err := engine.Exists(model, Q{"email": "user@test.com"})
+		options := QueryOptions{Conditioner: Q{"email": "user@test.com"}}
+		_, err := engine.Exists(model, options)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -547,7 +572,8 @@ func TestSqliteEngine(t *testing.T) {
 
 	t.Run("ExistsInvalidCondition", func(t *testing.T) {
 		mockedDB.Reset()
-		_, err := engine.Exists(model, Q{"username": "user@test.com"})
+		options := QueryOptions{Conditioner: Q{"username": "user@test.com"}}
+		_, err := engine.Exists(model, options)
 		if err == nil {
 			t.Fatal("expected unknown field error")
 		}
@@ -560,7 +586,8 @@ func TestSqliteEngine(t *testing.T) {
 		scanRow = func(ex sqlExecutor, dest interface{}, query Query) error {
 			return fmt.Errorf("db error")
 		}
-		_, err := engine.Exists(model, Q{"email": "user@test.com"})
+		options := QueryOptions{Conditioner: Q{"email": "user@test.com"}}
+		_, err := engine.Exists(model, options)
 		if err == nil {
 			t.Fatal("expected db error")
 		}
