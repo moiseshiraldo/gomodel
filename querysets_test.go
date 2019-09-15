@@ -100,6 +100,18 @@ func TestGenericQuerySet(t *testing.T) {
 		}
 	})
 
+	t.Run("WithTx", func(t *testing.T) {
+		tx := &Transaction{}
+		qs := GenericQuerySet{base: GenericQuerySet{}}.WithTx(tx)
+		gqs, ok := qs.(GenericQuerySet)
+		if !ok {
+			t.Fatalf("expected GenericQuerySet, got %T", qs)
+		}
+		if gqs.tx != tx {
+			t.Error("expected queryset to be linked to transaction")
+		}
+	})
+
 	t.Run("Filter", func(t *testing.T) {
 		qs := GenericQuerySet{base: GenericQuerySet{}}.Filter(Q{"active": true})
 		gqs, ok := qs.(GenericQuerySet)
@@ -398,6 +410,7 @@ func TestGenericQuerySet(t *testing.T) {
 			database:  "default",
 			container: userContainer{},
 			fields:    []string{"id", "email"},
+			tx:        &Transaction{Engine: mockedEngine},
 		}
 		instance, err := qs.Get(Q{"id": 1})
 		if err != nil {
@@ -427,7 +440,10 @@ func TestGenericQuerySet(t *testing.T) {
 	t.Run("ExistsDatabaseError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.Exists.Err = fmt.Errorf("db error")
-		qs := GenericQuerySet{model: model, database: "default"}
+		qs := GenericQuerySet{
+			model: model,
+			tx:    &Transaction{Engine: mockedEngine},
+		}
 		_, err := qs.Exists()
 		if _, ok := err.(*DatabaseError); !ok {
 			t.Errorf("expected DatabaseError, got %T", err)

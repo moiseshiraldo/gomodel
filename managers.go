@@ -75,7 +75,11 @@ func (m Manager) Create(values Container) (*Instance, error) {
 
 // GetQuerySet calls the New method of the base QuerySet and returns the result.
 func (m Manager) GetQuerySet() QuerySet {
-	return m.QuerySet.New(m.Model, m.QuerySet)
+	qs := m.QuerySet.New(m.Model, m.QuerySet)
+	if m.tx != nil {
+		return qs.WithTx(m.tx)
+	}
+	return qs
 }
 
 // All returns a QuerySet representing all objects.

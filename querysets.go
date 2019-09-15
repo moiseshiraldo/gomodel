@@ -30,6 +30,9 @@ type QuerySet interface {
 	Model() *Model
 	// WithContainer returns a QuerySet with the given Container type as a base.
 	WithContainer(container Container) QuerySet
+	// WithTx returns a QuerySet where all database operations will be applied
+	// on the given transaction.
+	WithTx(tx *Transaction) QuerySet
 	// Filter returns a new QuerySet with the given conditioner applied to
 	// the collections of objects represented by this QuerySet.
 	Filter(c Conditioner) QuerySet
@@ -76,6 +79,7 @@ type GenericQuerySet struct {
 	container Container
 	base      QuerySet
 	database  string
+	tx        *Transaction
 	fields    []string
 	cond      Conditioner
 }
@@ -104,11 +108,25 @@ func (qs GenericQuerySet) trace(err error) ErrorTrace {
 }
 
 func (qs GenericQuerySet) dbError(err error) error {
+	if qs.tx != nil {
+		return &DatabaseError{qs.tx.DB.id, qs.trace(err)}
+	}
 	return &DatabaseError{qs.database, qs.trace(err)}
 }
 
 func (qs GenericQuerySet) containerError(err error) error {
 	return &ContainerError{qs.trace(err)}
+}
+
+func (qs GenericQuerySet) engine() (Engine, error) {
+	if qs.tx != nil {
+		return qs.tx.Engine, nil
+	}
+	db, ok := dbRegistry[qs.database]
+	if !ok {
+		return nil, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
+	}
+	return db.Engine, nil
 }
 
 func (qs GenericQuerySet) addConditioner(c Conditioner) GenericQuerySet {
@@ -129,9 +147,15 @@ func (qs GenericQuerySet) Model() *Model {
 	return qs.model
 }
 
-// WithContainer implements the WithContainer of the QuerySet interface.
+// WithContainer implements the WithContainer method of the QuerySet interface.
 func (qs GenericQuerySet) WithContainer(container Container) QuerySet {
 	qs.container = container
+	return qs.base.Wrap(qs)
+}
+
+// WithTx implements the WithTx method of the QuerySet interface.
+func (qs GenericQuerySet) WithTx(tx *Transaction) QuerySet {
+	qs.tx = tx
 	return qs.base.Wrap(qs)
 }
 
@@ -160,15 +184,15 @@ func (qs GenericQuerySet) Only(fields ...string) QuerySet {
 
 // Query implements the Query method of the QuerySet interface.
 func (qs GenericQuerySet) Query() (Query, error) {
-	db, ok := dbRegistry[qs.database]
-	if !ok {
-		return Query{}, qs.dbError(fmt.Errorf("db not found"))
+	eng, err := qs.engine()
+	if err != nil {
+		return Query{}, err
 	}
 	options := QueryOptions{
 		Conditioner: qs.cond,
 		Fields:      qs.fields,
 	}
-	return db.SelectQuery(qs.model, options)
+	return eng.SelectQuery(qs.model, options)
 }
 
 func (qs GenericQuerySet) load(start int64, end int64) ([]*Instance, error) {
@@ -177,9 +201,9 @@ func (qs GenericQuerySet) load(start int64, end int64) ([]*Instance, error) {
 		return nil, &QuerySetError{qs.trace(err)}
 	}
 	result := []*Instance{}
-	db, ok := dbRegistry[qs.database]
-	if !ok {
-		return nil, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
+	eng, err := qs.engine()
+	if err != nil {
+		return nil, err
 	}
 	if !isValidContainer(qs.container) {
 		return nil, qs.containerError(fmt.Errorf("invalid container"))
@@ -196,7 +220,7 @@ func (qs GenericQuerySet) load(start int64, end int64) ([]*Instance, error) {
 		Start:       start,
 		End:         end,
 	}
-	rows, err := db.GetRows(qs.model, options)
+	rows, err := eng.GetRows(qs.model, options)
 	if err != nil {
 		return nil, qs.dbError(err)
 	}
@@ -241,9 +265,9 @@ func (qs GenericQuerySet) Slice(start int64, end int64) ([]*Instance, error) {
 // Get implements the Get method of the QuerySet interface.
 func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 	qs = qs.addConditioner(c)
-	db, ok := dbRegistry[qs.database]
-	if !ok {
-		return nil, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
+	eng, err := qs.engine()
+	if err != nil {
+		return nil, err
 	}
 	if !isValidContainer(qs.container) {
 		return nil, qs.containerError(fmt.Errorf("invalid container"))
@@ -260,7 +284,7 @@ func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 		Start:       0,
 		End:         2,
 	}
-	rows, err := db.GetRows(qs.model, options)
+	rows, err := eng.GetRows(qs.model, options)
 	if err != nil {
 		return nil, qs.dbError(err)
 	}
@@ -293,11 +317,11 @@ func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 
 // Exists implements the Exists method of the QuerySet interface.
 func (qs GenericQuerySet) Exists() (bool, error) {
-	db, ok := dbRegistry[qs.database]
-	if !ok {
-		return false, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
+	eng, err := qs.engine()
+	if err != nil {
+		return false, err
 	}
-	exists, err := db.Exists(qs.model, QueryOptions{Conditioner: qs.cond})
+	exists, err := eng.Exists(qs.model, QueryOptions{Conditioner: qs.cond})
 	if err != nil {
 		return false, qs.dbError(err)
 	}
@@ -306,11 +330,11 @@ func (qs GenericQuerySet) Exists() (bool, error) {
 
 // Count implements the Count method of the QuerySet interface.
 func (qs GenericQuerySet) Count() (int64, error) {
-	db, ok := dbRegistry[qs.database]
-	if !ok {
-		return 0, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
+	eng, err := qs.engine()
+	if err != nil {
+		return 0, err
 	}
-	count, err := db.CountRows(qs.model, QueryOptions{Conditioner: qs.cond})
+	count, err := eng.CountRows(qs.model, QueryOptions{Conditioner: qs.cond})
 	if err != nil {
 		return 0, qs.dbError(err)
 	}
@@ -319,9 +343,9 @@ func (qs GenericQuerySet) Count() (int64, error) {
 
 // Update implements the Update method of the QuerySet interface.
 func (qs GenericQuerySet) Update(container Container) (int64, error) {
-	db, ok := dbRegistry[qs.database]
-	if !ok {
-		return 0, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
+	eng, err := qs.engine()
+	if err != nil {
+		return 0, err
 	}
 	if !isValidContainer(container) {
 		err := fmt.Errorf("invalid values container")
@@ -337,7 +361,7 @@ func (qs GenericQuerySet) Update(container Container) (int64, error) {
 		}
 	}
 	options := QueryOptions{Conditioner: qs.cond}
-	rows, err := db.UpdateRows(qs.model, dbValues, options)
+	rows, err := eng.UpdateRows(qs.model, dbValues, options)
 	if err != nil {
 		return 0, qs.dbError(err)
 	}
@@ -346,11 +370,11 @@ func (qs GenericQuerySet) Update(container Container) (int64, error) {
 
 // Delete implements the Delete method of the QuerySet interface.
 func (qs GenericQuerySet) Delete() (int64, error) {
-	db, ok := dbRegistry[qs.database]
-	if !ok {
-		return 0, qs.dbError(fmt.Errorf("db not found: %s", qs.database))
+	eng, err := qs.engine()
+	if err != nil {
+		return 0, err
 	}
-	rows, err := db.DeleteRows(qs.model, QueryOptions{Conditioner: qs.cond})
+	rows, err := eng.DeleteRows(qs.model, QueryOptions{Conditioner: qs.cond})
 	if err != nil {
 		return 0, qs.dbError(err)
 	}

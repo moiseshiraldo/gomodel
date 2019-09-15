@@ -164,4 +164,20 @@ func TestManager(t *testing.T) {
 		}
 	})
 
+	t.Run("WithTx", func(t *testing.T) {
+		tx := &Transaction{}
+		m := manager.WithTx(tx)
+		if m.tx != tx {
+			t.Fatal("expected manager to be linked to transaction")
+		}
+		qs := m.GetQuerySet()
+		mocked, ok := qs.(mockedQuerySet)
+		if !ok {
+			t.Fatalf("expected mockedQuerySet, got %T", qs)
+		}
+		if mocked.tx != tx {
+			t.Error("expected queryset to be linked to transaction")
+		}
+	})
+
 }
