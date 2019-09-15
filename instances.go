@@ -86,42 +86,42 @@ func (i Instance) SetValues(values Container) error {
 	return nil
 }
 
-// valueToSave returns the value to be saved on the db for the named field.
-func (i Instance) valueToSave(name string, creating bool) (Value, error) {
+// valueToSave returns the value to be saved on the db for the named field,
+// and a boolean indicating if there's a value to save.
+func (i Instance) valueToSave(name string, creating bool) (Value, bool, error) {
 	field, ok := i.model.fields[name]
 	if !ok {
 		err := fmt.Errorf("unknown field: %s", name)
-		return nil, err
+		return nil, false, err
 	}
 	if field.IsAuto() {
-		return nil, nil
+		return nil, false, nil
 	}
 	if field.IsAutoNow() || creating && field.IsAutoNowAdd() {
 		val := time.Now()
 		if err := i.Set(name, val); err != nil {
-			return nil, err
+			return nil, false, err
 		}
-		return val, nil
+		return val, true, nil
 	}
 	if val, ok := getContainerField(i.container, name); ok {
-		return val, nil
+		return val, true, nil
 	} else if val, hasDefault := field.DefaultVal(); creating && hasDefault {
 		if err := i.Set(name, val); err != nil {
-			return nil, err
+			return nil, false, err
 		}
-		return val, nil
+		return val, true, nil
 	}
-	return nil, nil
+	return nil, false, nil
 }
 
 // insertRow saves the given instance fields on db.
 func (i Instance) insertRow(db Database, autoPk bool, fields ...string) error {
 	dbValues := Values{}
 	for _, name := range fields {
-		val, err := i.valueToSave(name, true)
-		if err != nil {
+		if val, ok, err := i.valueToSave(name, true); err != nil {
 			return &ContainerError{i.trace(err)}
-		} else if val != nil {
+		} else if ok && val != nil {
 			dbValues[name] = val
 		}
 	}
@@ -144,11 +144,12 @@ func (i Instance) updateRow(db Database, pkVal Value, fields ...string) error {
 		if name == i.model.pk {
 			continue
 		}
-		val, err := i.valueToSave(name, false)
+		val, ok, err := i.valueToSave(name, false)
 		if err != nil {
 			return &ContainerError{i.trace(err)}
+		} else if ok {
+			dbValues[name] = val
 		}
-		dbValues[name] = val
 	}
 	options := QueryOptions{Conditioner: Q{i.model.pk: pkVal}}
 	rows, err := db.UpdateRows(i.model, dbValues, options)
