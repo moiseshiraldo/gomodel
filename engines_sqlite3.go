@@ -5,6 +5,15 @@ import (
 	"strings"
 )
 
+// sqliteOperators holds the supported comparison operators for sqlite.
+var sqliteOperators = map[string]string{
+	"=":  "=",
+	">":  ">",
+	">=": ">=",
+	"<":  "<",
+	"<=": "<=",
+}
+
 // SqliteEngine implements the Engine interface for the sqlite3 driver.
 type SqliteEngine struct {
 	baseSQLEngine
@@ -21,6 +30,7 @@ func (e SqliteEngine) Start(db Database) (Engine, error) {
 		driver:      "sqlite3",
 		escapeChar:  "\"",
 		placeholder: "?",
+		operators:   sqliteOperators,
 	}
 	return e, nil
 }

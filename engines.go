@@ -131,11 +131,12 @@ var scanRow = func(ex sqlExecutor, dest interface{}, query Query) error {
 
 // baseSQLEngine implements common Engine methods for SQL drivers.
 type baseSQLEngine struct {
-	driver      string // Driver name.
-	escapeChar  string // Escape characert for columns and table names.
-	placeholder string // Placeholder character for values.
-	db          sqlDB  // *sql.DB
-	tx          sqlTx  // *sql.Tx
+	driver      string            // Driver name.
+	escapeChar  string            // Escape char for columns and table names.
+	placeholder string            // Placeholder character for values.
+	operators   map[string]string // Available comparison operators.
+	db          sqlDB             // *sql.DB
+	tx          sqlTx             // *sql.Tx
 }
 
 // DB implements the DB method of the Engine interface.
@@ -320,13 +321,6 @@ func (e baseSQLEngine) predicate(
 ) (Query, error) {
 	conditions := make([]string, 0)
 	values := make([]interface{}, 0)
-	operators := map[string]string{
-		"=":  "=",
-		">":  ">",
-		">=": ">=",
-		"<":  "<",
-		"<=": "<=",
-	}
 	root, isChain := options.Conditioner.Root()
 	pred := ""
 	if isChain {
@@ -345,7 +339,7 @@ func (e baseSQLEngine) predicate(
 			name := args[0]
 			operator := "="
 			if len(args) > 1 {
-				op, ok := operators[args[1]]
+				op, ok := e.operators[args[1]]
 				if !ok {
 					return Query{}, fmt.Errorf("invalid operator: %s", args[1])
 				}

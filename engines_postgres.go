@@ -4,6 +4,15 @@ import (
 	"fmt"
 )
 
+// postgresOperators holds the supported comparison operators for postgres.
+var postgresOperators = map[string]string{
+	"=":  "=",
+	">":  ">",
+	">=": ">=",
+	"<":  "<",
+	"<=": "<=",
+}
+
 // PostgresEngine implements the Engine interface for the postgres driver.
 type PostgresEngine struct {
 	baseSQLEngine
@@ -24,6 +33,7 @@ func (e PostgresEngine) Start(db Database) (Engine, error) {
 		driver:      "postgres",
 		escapeChar:  "\"",
 		placeholder: "$",
+		operators:   postgresOperators,
 	}
 	return e, nil
 }

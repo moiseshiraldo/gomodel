@@ -29,6 +29,7 @@ func TestPostgresEngine(t *testing.T) {
 		driver:      "postgres",
 		escapeChar:  "\"",
 		placeholder: "$",
+		operators:   postgresOperators,
 	}}
 	origScanRow := scanRow
 	defer func() { scanRow = origScanRow }()

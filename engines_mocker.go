@@ -121,10 +121,11 @@ func (a *MockedEngineArgs) Reset() {
 // MockedEngine mocks the Engine interface and can be used to write unit tests
 // without having to open a database connection.
 type MockedEngine struct {
-	calls   map[string]int
-	Args    *MockedEngineArgs
-	Results *MockedEngineResults
-	tx      bool
+	calls     map[string]int
+	Args      *MockedEngineArgs
+	Results   *MockedEngineResults
+	operators map[string]string
+	tx        bool
 }
 
 // Calls returns the number of calls made to method.
@@ -146,6 +147,13 @@ func (e MockedEngine) Start(db Database) (Engine, error) {
 	e.calls = make(map[string]int)
 	e.Args = &MockedEngineArgs{}
 	e.Results = &MockedEngineResults{}
+	e.operators = map[string]string{
+		"=":  "=",
+		">":  ">",
+		">=": ">=",
+		"<":  "<",
+		"<=": "<=",
+	}
 	e.calls["Start"] += 1
 	return e, nil
 }

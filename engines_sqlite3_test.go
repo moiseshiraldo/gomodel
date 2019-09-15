@@ -57,7 +57,7 @@ func (res resultMocker) RowsAffected() (int64, error) {
 	return 1, nil
 }
 
-// TestSqliteEngine tests the SqliteEngine methods
+// TestSqliteEngine tests the SqliteEngine methods.
 func TestSqliteEngine(t *testing.T) {
 	model := &Model{
 		name: "User",
@@ -79,6 +79,7 @@ func TestSqliteEngine(t *testing.T) {
 		driver:      "sqlite3",
 		escapeChar:  "\"",
 		placeholder: "?",
+		operators:   sqliteOperators,
 	}}
 	origScanRow := scanRow
 	origOpenDB := openDB
