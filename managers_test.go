@@ -164,6 +164,21 @@ func TestManager(t *testing.T) {
 		}
 	})
 
+	t.Run("WithDB", func(t *testing.T) {
+		m := manager.WithDB("slave")
+		if m.database != "slave" {
+			t.Fatal("expected manager to be linked to slave db")
+		}
+		qs := m.GetQuerySet()
+		mocked, ok := qs.(mockedQuerySet)
+		if !ok {
+			t.Fatalf("expected mockedQuerySet, got %T", qs)
+		}
+		if mocked.database != "slave" {
+			t.Error("expected queryset to be linked to slave database")
+		}
+	})
+
 	t.Run("WithTx", func(t *testing.T) {
 		tx := &Transaction{}
 		m := manager.WithTx(tx)

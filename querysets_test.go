@@ -100,6 +100,17 @@ func TestGenericQuerySet(t *testing.T) {
 		}
 	})
 
+	t.Run("WithDB", func(t *testing.T) {
+		qs := GenericQuerySet{base: GenericQuerySet{}}.WithDB("slave")
+		gqs, ok := qs.(GenericQuerySet)
+		if !ok {
+			t.Fatalf("expected GenericQuerySet, got %T", qs)
+		}
+		if gqs.database != "slave" {
+			t.Error("expected queryset to be linked to slave db")
+		}
+	})
+
 	t.Run("WithTx", func(t *testing.T) {
 		tx := &Transaction{}
 		qs := GenericQuerySet{base: GenericQuerySet{}}.WithTx(tx)

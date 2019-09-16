@@ -115,8 +115,30 @@ func (i Instance) valueToSave(name string, creating bool) (Value, bool, error) {
 	return nil, false, nil
 }
 
+// engine returns the Engine and database identifier for the given target,
+// nil and blank for invalid target.
+func (i Instance) engine(target interface{}) (Engine, string) {
+	switch t := target.(type) {
+	case *Transaction:
+		return t.Engine, t.DB.id
+	case string:
+		if db, ok := dbRegistry[t]; ok {
+			return db.Engine, t
+		}
+	}
+	return nil, ""
+}
+
 // insertRow saves the given instance fields on db.
-func (i Instance) insertRow(db Database, autoPk bool, fields ...string) error {
+func (i Instance) insertRow(
+	target interface{},
+	autoPk bool,
+	fields ...string,
+) error {
+	eng, dbName := i.engine(target)
+	if dbName == "" {
+		return &DatabaseError{Trace: i.trace(fmt.Errorf("invalid target"))}
+	}
 	dbValues := Values{}
 	for _, name := range fields {
 		if val, ok, err := i.valueToSave(name, true); err != nil {
@@ -125,9 +147,9 @@ func (i Instance) insertRow(db Database, autoPk bool, fields ...string) error {
 			dbValues[name] = val
 		}
 	}
-	pk, err := db.InsertRow(i.model, dbValues)
+	pk, err := eng.InsertRow(i.model, dbValues)
 	if err != nil {
-		return &DatabaseError{db.id, i.trace(err)}
+		return &DatabaseError{dbName, i.trace(err)}
 	}
 	if autoPk {
 		if err := i.Set(i.model.pk, pk); err != nil {
@@ -138,7 +160,15 @@ func (i Instance) insertRow(db Database, autoPk bool, fields ...string) error {
 }
 
 // updateRow updates the given fields on db row matching pkVal.
-func (i Instance) updateRow(db Database, pkVal Value, fields ...string) error {
+func (i Instance) updateRow(
+	target interface{},
+	pkVal Value,
+	fields ...string,
+) error {
+	eng, dbName := i.engine(target)
+	if dbName == "" {
+		return &DatabaseError{Trace: i.trace(fmt.Errorf("invalid target"))}
+	}
 	dbValues := Values{}
 	for _, name := range fields {
 		if name == i.model.pk {
@@ -152,14 +182,32 @@ func (i Instance) updateRow(db Database, pkVal Value, fields ...string) error {
 		}
 	}
 	options := QueryOptions{Conditioner: Q{i.model.pk: pkVal}}
-	rows, err := db.UpdateRows(i.model, dbValues, options)
+	rows, err := eng.UpdateRows(i.model, dbValues, options)
 	if err != nil {
-		return &DatabaseError{db.id, i.trace(err)}
+		return &DatabaseError{dbName, i.trace(err)}
 	}
 	if rows == 0 {
-		return i.insertRow(db, false, fields...)
+		return i.insertRow(target, false, fields...)
 	}
 	return nil
+}
+
+// save propagates the values of the given fields to the given database target.
+func (i Instance) save(target interface{}, fields ...string) error {
+	if len(fields) == 0 {
+		for name := range i.model.fields {
+			fields = append(fields, name)
+		}
+	}
+	autoPk := i.model.fields[i.model.pk].IsAuto()
+	pkVal := i.Get(i.model.pk)
+	if pkVal != nil {
+		zero := reflect.Zero(reflect.TypeOf(pkVal)).Interface()
+		if !(autoPk && pkVal == zero) {
+			return i.updateRow(target, pkVal, fields...)
+		}
+	}
+	return i.insertRow(target, autoPk, fields...)
 }
 
 // Save propagates the instance field values to the database. If no field names
@@ -171,19 +219,11 @@ func (i Instance) updateRow(db Database, pkVal Value, fields ...string) error {
 // If the pk field is auto incremented and the pk has the zero value, a new
 // row will be inserted.
 func (i Instance) Save(fields ...string) error {
-	db := dbRegistry["default"]
-	if len(fields) == 0 {
-		for name := range i.model.fields {
-			fields = append(fields, name)
-		}
-	}
-	autoPk := i.model.fields[i.model.pk].IsAuto()
-	pkVal := i.Get(i.model.pk)
-	if pkVal != nil {
-		zero := reflect.Zero(reflect.TypeOf(pkVal)).Interface()
-		if !(autoPk && pkVal == zero) {
-			return i.updateRow(db, pkVal, fields...)
-		}
-	}
-	return i.insertRow(db, autoPk, fields...)
+	return i.save("default", fields...)
+}
+
+// SaveOn works as Save, but the changes are propagated to the given target,
+// that can be a *Transaction or a string representing a database identifier.
+func (i Instance) SaveOn(target interface{}, fields ...string) error {
+	return i.save(target, fields...)
 }

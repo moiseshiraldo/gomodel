@@ -30,6 +30,9 @@ type QuerySet interface {
 	Model() *Model
 	// WithContainer returns a QuerySet with the given Container type as a base.
 	WithContainer(container Container) QuerySet
+	// WithDB returns a QuerySet where all database operations will be applied
+	// on the database identified by the given name.
+	WithDB(database string) QuerySet
 	// WithTx returns a QuerySet where all database operations will be applied
 	// on the given transaction.
 	WithTx(tx *Transaction) QuerySet
@@ -150,6 +153,12 @@ func (qs GenericQuerySet) Model() *Model {
 // WithContainer implements the WithContainer method of the QuerySet interface.
 func (qs GenericQuerySet) WithContainer(container Container) QuerySet {
 	qs.container = container
+	return qs.base.Wrap(qs)
+}
+
+// WithDB implements the WithDB method of the QuerySet interface.
+func (qs GenericQuerySet) WithDB(database string) QuerySet {
+	qs.database = database
 	return qs.base.Wrap(qs)
 }
 

@@ -12,10 +12,18 @@ type Manager struct {
 	Model *Model
 	// QuerySet is the base queryset for the manager.
 	QuerySet QuerySet
+	database string
 	tx       *Transaction
 }
 
-// WithTx returns a new manager where all database query operations will be
+// WithDB returns a new manager where all database query operations will be
+// applied on the database identified by the given name.
+func (m Manager) WithDB(database string) Manager {
+	m.database = database
+	return m
+}
+
+// WithTx returns a new manager where all database operations will be
 // applied on the given transaction.
 func (m Manager) WithTx(tx *Transaction) Manager {
 	m.tx = tx
@@ -25,16 +33,29 @@ func (m Manager) WithTx(tx *Transaction) Manager {
 // Create makes a new object with the given values, saves it to the default
 // database and returns the instance representing the object.
 func (m Manager) Create(values Container) (*Instance, error) {
-	db := dbRegistry["default"]
-	engine := db.Engine
-	if m.tx != nil {
-		engine = m.tx.Engine
-	}
 	container := m.Model.Container()
 	instance := &Instance{m.Model, container}
 	if !isValidContainer(values) {
 		err := fmt.Errorf("invalid values container")
 		return nil, &ContainerError{instance.trace(err)}
+	}
+	var engine Engine
+	var dbName string
+	if m.tx != nil {
+		engine = m.tx.Engine
+		dbName = m.tx.DB.id
+	} else {
+		database := m.database
+		if database == "" {
+			database = "default"
+		}
+		db, ok := dbRegistry[database]
+		if !ok {
+			trace := instance.trace(fmt.Errorf("db not found"))
+			return nil, &DatabaseError{database, trace}
+		}
+		engine = db.Engine
+		dbName = db.id
 	}
 	dbValues := Values{}
 	for name, field := range m.Model.fields {
@@ -59,11 +80,7 @@ func (m Manager) Create(values Container) (*Instance, error) {
 	}
 	pk, err := engine.InsertRow(m.Model, dbValues)
 	if err != nil {
-		if m.tx != nil {
-			db = m.tx.DB
-		}
-		trace := ErrorTrace{App: m.Model.app, Model: m.Model, Err: err}
-		return instance, &DatabaseError{db.id, trace}
+		return instance, &DatabaseError{dbName, instance.trace(err)}
 	}
 	if m.Model.fields[m.Model.pk].IsAuto() {
 		if err := instance.Set(m.Model.pk, pk); err != nil {
@@ -78,6 +95,8 @@ func (m Manager) GetQuerySet() QuerySet {
 	qs := m.QuerySet.New(m.Model, m.QuerySet)
 	if m.tx != nil {
 		return qs.WithTx(m.tx)
+	} else if m.database != "" {
+		return qs.WithDB(m.database)
 	}
 	return qs
 }

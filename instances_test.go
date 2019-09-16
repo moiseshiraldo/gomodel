@@ -227,6 +227,41 @@ func TestInstanceSave(t *testing.T) {
 		}
 	})
 
+	t.Run("InsertOnInvalidTarget", func(t *testing.T) {
+		mockedEngine.Reset()
+		err := instance.SaveOn(mockedEngine)
+		if _, ok := err.(*DatabaseError); !ok {
+			t.Errorf("expected DatabaseError, got %T", err)
+		}
+	})
+
+	t.Run("InsertOn", func(t *testing.T) {
+		mockedEngine.Reset()
+		mockedEngine.Results.InsertRow.Id = 23
+		tx := &Transaction{Engine: mockedEngine, DB: Database{id: "default"}}
+		instance.container = Values{"email": "user@test.com"}
+		err := instance.SaveOn(tx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if mockedEngine.Calls("InsertRow") != 1 {
+			t.Error("expected engine InsertRow method to be called")
+		}
+		insertValues := mockedEngine.Args.InsertRow.Values
+		instanceValues := instance.container.(Values)
+		for _, name := range []string{"active", "created", "updated", "email"} {
+			if _, ok := insertValues[name]; !ok {
+				t.Errorf("missing %s value on InsertRow arguments", name)
+			}
+			if _, ok := instanceValues[name]; !ok {
+				t.Errorf("instance is missing %s value", name)
+			}
+		}
+		if id, ok := instanceValues["id"]; !ok || id != int32(23) {
+			t.Errorf("expected id to be 23, got %s", id)
+		}
+	})
+
 	t.Run("UpdateError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.UpdateRows.Err = fmt.Errorf("db error")
@@ -245,6 +280,38 @@ func TestInstanceSave(t *testing.T) {
 		mockedEngine.Results.UpdateRows.Number = 1
 		instance.container = Values{"id": 23, "email": "user@test.com"}
 		err := instance.Save()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if mockedEngine.Calls("UpdateRows") != 1 {
+			t.Fatal("expected engine UpdateRows method to be called")
+		}
+		updateValues := mockedEngine.Args.UpdateRows.Values
+		instanceValues := instance.container.(Values)
+		for _, name := range []string{"updated", "email"} {
+			if _, ok := updateValues[name]; !ok {
+				t.Errorf("missing %s value on UpdateRows arguments", name)
+			}
+			if _, ok := instanceValues[name]; !ok {
+				t.Errorf("instance is missing %s value", name)
+			}
+		}
+	})
+
+	t.Run("UpdateOnInvalidTarget", func(t *testing.T) {
+		mockedEngine.Reset()
+		instance.container = Values{"id": 23, "email": "user@test.com"}
+		err := instance.SaveOn(mockedEngine)
+		if _, ok := err.(*DatabaseError); !ok {
+			t.Errorf("expected DatabaseError, got %T", err)
+		}
+	})
+
+	t.Run("UpdateOn", func(t *testing.T) {
+		mockedEngine.Reset()
+		mockedEngine.Results.UpdateRows.Number = 1
+		instance.container = Values{"id": 23, "email": "user@test.com"}
+		err := instance.SaveOn("default")
 		if err != nil {
 			t.Fatal(err)
 		}
