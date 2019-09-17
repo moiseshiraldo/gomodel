@@ -4,13 +4,8 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	"reflect"
 )
-
-// CharChoice holds a choice option for a CharField.
-type CharChoice struct {
-	Value string // Value is the choice value.
-	Label string // Label is the choice label.
-}
 
 // CharField implements the Field interface for small to medium-sized strings.
 type CharField struct {
@@ -29,7 +24,7 @@ type CharField struct {
 	// Column is the name of the db column. If blank, it will be the field name.
 	Column string `json:",omitempty"`
 	// Choices is a list of possible choices for the field.
-	Choices []CharChoice `json:",omitempty"`
+	Choices []Choice `json:",omitempty"`
 	// Default is the default value for the field. Blank for no default.
 	Default string `json:",omitempty"`
 	// DefaultEmpty is true if the empty string is the field default value.
@@ -119,6 +114,16 @@ func (f CharField) DriverValue(val Value, dvr string) (interface{}, error) {
 		return vlr.Value()
 	}
 	return val, nil
+}
+
+// DisplayValue implements the DisplayValue method of the Field interface.
+func (f CharField) DisplayValue(val Value) string {
+	for _, choice := range f.Choices {
+		if reflect.DeepEqual(f.Value(val), choice.Value) {
+			return choice.Label
+		}
+	}
+	return fmt.Sprintf("%v", f.Value(val))
 }
 
 // BooleanField implements the Field interface for true/false fields.
@@ -225,6 +230,11 @@ func (f BooleanField) DriverValue(v Value, dvr string) (interface{}, error) {
 	return v, nil
 }
 
+// DisplayValue implements the DisplayValue method of the Field interface.
+func (f BooleanField) DisplayValue(val Value) string {
+	return fmt.Sprintf("%v", f.Value(val))
+}
+
 // NullInt32 represents an int32 that may be null. TODO: remove for Golang 1.13
 type NullInt32 struct {
 	Int32 int32
@@ -249,12 +259,6 @@ func (n NullInt32) Value() (driver.Value, error) {
 	return int64(n.Int32), nil
 }
 
-// IntChoice holds a choice option for an IntegerField.
-type IntChoice struct {
-	Value int    // Value is the Choice value.
-	Label string // Label is che choice label.
-}
-
 // IntegerField implements the Field interface for small to medium-sized strings.
 type IntegerField struct {
 	// PrimaryKey is true if the field is the model primary key.
@@ -272,7 +276,7 @@ type IntegerField struct {
 	// Column is the name of the db column. If blank, it will be the field name.
 	Column string `json:",omitempty"`
 	// Choices is a list of possible choices for the field.
-	Choices []IntChoice `json:",omitempty"`
+	Choices []Choice `json:",omitempty"`
 	// Default is the default value for the field. Blank for no default.
 	Default int32 `json:",omitempty"`
 	// DefaultZero is true if zero is the field default value.
@@ -365,4 +369,14 @@ func (f IntegerField) DriverValue(v Value, dvr string) (interface{}, error) {
 		return vlr.Value()
 	}
 	return v, nil
+}
+
+// DisplayValue implements the DisplayValue method of the Field interface.
+func (f IntegerField) DisplayValue(val Value) string {
+	for _, choice := range f.Choices {
+		if reflect.DeepEqual(f.Value(val), choice.Value) {
+			return choice.Label
+		}
+	}
+	return fmt.Sprintf("%v", f.Value(val))
 }

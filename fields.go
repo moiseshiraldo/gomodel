@@ -42,6 +42,8 @@ type Field interface {
 	// DriverValue receives a field value and returns the value that should
 	// be used on database queries for the given driver.
 	DriverValue(val Value, driver string) (interface{}, error)
+	// DisplayValue returns the string representation of the given value.
+	DisplayValue(val Value) string
 }
 
 // Fields represents the fields map of a model.

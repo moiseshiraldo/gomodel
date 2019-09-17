@@ -155,6 +155,27 @@ func TestCharField(t *testing.T) {
 			t.Errorf("expected nil, got %s", value)
 		}
 	})
+
+	t.Run("DisplayValue", func(t *testing.T) {
+		recipient := "foo"
+		value := field.DisplayValue(recipient)
+		if value != "foo" {
+			t.Errorf("expected foo, got %s", value)
+		}
+	})
+
+	t.Run("DisplayValueChoice", func(t *testing.T) {
+		field.Choices = []Choice{
+			{"p", "Pending"},
+			{"c", "Completed"},
+		}
+		recipient := "c"
+		value := field.DisplayValue(recipient)
+		if value != "Completed" {
+			t.Errorf("expected Completed, got %s", value)
+		}
+	})
+
 }
 
 // TestBooleanField tests the BooleanField struct methods
@@ -312,6 +333,14 @@ func TestBooleanField(t *testing.T) {
 		}
 		if value != nil {
 			t.Errorf("expected nil, got %s", value)
+		}
+	})
+
+	t.Run("DisplayValue", func(t *testing.T) {
+		recipient := true
+		value := field.DisplayValue(recipient)
+		if value != "true" {
+			t.Errorf("expected true, got %s", value)
 		}
 	})
 }
@@ -495,6 +524,26 @@ func TestIntegerField(t *testing.T) {
 		}
 		if v, ok := value.(int64); !ok || v != 42 {
 			t.Errorf("expected 42, got %d", v)
+		}
+	})
+
+	t.Run("DisplayValue", func(t *testing.T) {
+		recipient := 42
+		value := field.DisplayValue(recipient)
+		if value != "42" {
+			t.Errorf("expected 42, got %s", value)
+		}
+	})
+
+	t.Run("DisplayValueChoice", func(t *testing.T) {
+		field.Choices = []Choice{
+			{1, "One"},
+			{2, "Two"},
+		}
+		recipient := 2
+		value := field.DisplayValue(recipient)
+		if value != "Two" {
+			t.Errorf("expected Two, got %s", value)
 		}
 	})
 }

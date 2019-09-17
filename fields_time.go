@@ -3,6 +3,7 @@ package gomodel
 import (
 	"database/sql/driver"
 	"fmt"
+	"reflect"
 	"time"
 )
 
@@ -46,12 +47,6 @@ func (d NullTime) Value() (driver.Value, error) {
 	return d.Time, nil
 }
 
-// TimeChoice holds a choice option for time fields.
-type TimeChoice struct {
-	Value time.Time // Value is the choice value.
-	Label string    // Label is the choice label.
-}
-
 // DateField implements the Field interface for dates.
 type DateField struct {
 	// PrimaryKey is true if the field is the model primary key.
@@ -71,7 +66,7 @@ type DateField struct {
 	// Column is the name of the db column. If blank, it will be the field name.
 	Column string `json:",omitempty"`
 	// Choices is a list of possible choices for the field.
-	Choices []TimeChoice `json:",omitempty"`
+	Choices []Choice `json:",omitempty"`
 	// Default is the default value for the field. Blank for no default
 	Default time.Time `json:",omitempty"`
 }
@@ -170,6 +165,20 @@ func (f DateField) DriverValue(v Value, dvr string) (interface{}, error) {
 	return v, fmt.Errorf("invalid value")
 }
 
+// DisplayValue implements the DisplayValue method of the Field interface.
+func (f DateField) DisplayValue(val Value) string {
+	val = f.Value(val)
+	for _, choice := range f.Choices {
+		if reflect.DeepEqual(val, choice.Value) {
+			return choice.Label
+		}
+	}
+	if t, ok := val.(time.Time); ok {
+		return t.Format("2006-01-02")
+	}
+	return fmt.Sprintf("%v", val)
+}
+
 // TimeField implements the Field interface for time values.
 type TimeField struct {
 	// PrimaryKey is true if the field is the model primary key.
@@ -189,7 +198,7 @@ type TimeField struct {
 	// Column is the name of the db column. If blank, it will be the field name.
 	Column string `json:",omitempty"`
 	// Choices is a list of possible choices for the field.
-	Choices []TimeChoice `json:",omitempty"`
+	Choices []Choice `json:",omitempty"`
 	// Default is the default value for the field. Blank for no default
 	Default time.Time `json:",omitempty"`
 }
@@ -288,6 +297,20 @@ func (f TimeField) DriverValue(v Value, dvr string) (interface{}, error) {
 	return v, fmt.Errorf("invalid value")
 }
 
+// DisplayValue implements the DisplayValue method of the Field interface.
+func (f TimeField) DisplayValue(val Value) string {
+	val = f.Value(val)
+	for _, choice := range f.Choices {
+		if reflect.DeepEqual(val, choice.Value) {
+			return choice.Label
+		}
+	}
+	if t, ok := val.(time.Time); ok {
+		return t.Format("15:04:05")
+	}
+	return fmt.Sprintf("%v", val)
+}
+
 // DateTimeField implements the Field interface for datetime values.
 type DateTimeField struct {
 	// PrimaryKey is true if the field is the model primary key.
@@ -307,7 +330,7 @@ type DateTimeField struct {
 	// Column is the name of the db column. If blank, it will be the field name.
 	Column string `json:",omitempty"`
 	// Choices is a list of possible choices for the field.
-	Choices []TimeChoice `json:",omitempty"`
+	Choices []Choice `json:",omitempty"`
 	// Default is the default value for the field. Blank for no default
 	Default time.Time `json:",omitempty"`
 }
@@ -407,4 +430,18 @@ func (f DateTimeField) DriverValue(v Value, dvr string) (interface{}, error) {
 		return s, nil
 	}
 	return v, fmt.Errorf("invalid value")
+}
+
+// DisplayValue implements the DisplayValue method of the Field interface.
+func (f DateTimeField) DisplayValue(val Value) string {
+	val = f.Value(val)
+	for _, choice := range f.Choices {
+		if reflect.DeepEqual(val, choice.Value) {
+			return choice.Label
+		}
+	}
+	if t, ok := val.(time.Time); ok {
+		return t.Format("2006-01-02 15:04:05")
+	}
+	return fmt.Sprintf("%v", val)
 }

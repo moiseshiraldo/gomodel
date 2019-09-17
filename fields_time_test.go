@@ -177,6 +177,34 @@ func TestDateField(t *testing.T) {
 			t.Error("expected invalid value error")
 		}
 	})
+
+	t.Run("DisplayValue", func(t *testing.T) {
+		recipient := time.Date(2019, 8, 24, 0, 0, 0, 0, time.UTC)
+		value := field.DisplayValue(recipient)
+		if value != "2019-08-24" {
+			t.Errorf("expected 2019-08-24, got %s", value)
+		}
+	})
+
+	t.Run("DisplayValueNoTime", func(t *testing.T) {
+		recipient := 30
+		value := field.DisplayValue(recipient)
+		if value != "30" {
+			t.Errorf("expected 30, got %s", value)
+		}
+	})
+
+	t.Run("DisplayValueChoice", func(t *testing.T) {
+		field.Choices = []Choice{
+			{time.Date(2019, 8, 24, 0, 0, 0, 0, time.UTC), "Date One"},
+			{time.Date(2019, 10, 17, 0, 0, 0, 0, time.UTC), "Date Two"},
+		}
+		recipient := time.Date(2019, 10, 17, 0, 0, 0, 0, time.UTC)
+		value := field.DisplayValue(recipient)
+		if value != "Date Two" {
+			t.Errorf("expected Date Two, got %s", value)
+		}
+	})
 }
 
 // TestTimeField tests the TimeField struct methods
@@ -346,6 +374,34 @@ func TestTimeField(t *testing.T) {
 		recipient := 42
 		if _, err := field.DriverValue(recipient, "sqlite3"); err == nil {
 			t.Error("expected invalid value error")
+		}
+	})
+
+	t.Run("DisplayValue", func(t *testing.T) {
+		recipient := time.Date(0, 0, 0, 14, 18, 3, 0, time.UTC)
+		value := field.DisplayValue(recipient)
+		if value != "14:18:03" {
+			t.Errorf("expected 14:18:03, got %s", value)
+		}
+	})
+
+	t.Run("DisplayValueNoTime", func(t *testing.T) {
+		recipient := 30
+		value := field.DisplayValue(recipient)
+		if value != "30" {
+			t.Errorf("expected 30, got %s", value)
+		}
+	})
+
+	t.Run("DisplayValueChoice", func(t *testing.T) {
+		field.Choices = []Choice{
+			{time.Date(0, 0, 0, 14, 18, 3, 0, time.UTC), "Time One"},
+			{time.Date(0, 0, 0, 18, 05, 51, 0, time.UTC), "Time Two"},
+		}
+		recipient := time.Date(0, 0, 0, 18, 05, 51, 0, time.UTC)
+		value := field.DisplayValue(recipient)
+		if value != "Time Two" {
+			t.Errorf("expected Time Two, got %s", value)
 		}
 	})
 }
@@ -520,6 +576,34 @@ func TestDateTimeField(t *testing.T) {
 		recipient := 42
 		if _, err := field.DriverValue(recipient, "sqlite3"); err == nil {
 			t.Error("expected invalid value error")
+		}
+	})
+
+	t.Run("DisplayValue", func(t *testing.T) {
+		recipient := time.Date(2019, 8, 24, 14, 18, 03, 0, time.UTC)
+		value := field.DisplayValue(recipient)
+		if value != "2019-08-24 14:18:03" {
+			t.Errorf("expected 2019-08-24 14:18:03, got %s", value)
+		}
+	})
+
+	t.Run("DisplayValueNoTime", func(t *testing.T) {
+		recipient := 30
+		value := field.DisplayValue(recipient)
+		if value != "30" {
+			t.Errorf("expected 30, got %s", value)
+		}
+	})
+
+	t.Run("DisplayValueChoice", func(t *testing.T) {
+		field.Choices = []Choice{
+			{time.Date(2019, 8, 24, 14, 18, 03, 0, time.UTC), "Datetime One"},
+			{time.Date(2019, 11, 23, 10, 54, 12, 0, time.UTC), "Datetime Two"},
+		}
+		recipient := time.Date(2019, 11, 23, 10, 54, 12, 0, time.UTC)
+		value := field.DisplayValue(recipient)
+		if value != "Datetime Two" {
+			t.Errorf("expected Datetime Two, got %s", value)
 		}
 	})
 }

@@ -229,6 +229,7 @@ func TestInstanceSave(t *testing.T) {
 
 	t.Run("InsertOnInvalidTarget", func(t *testing.T) {
 		mockedEngine.Reset()
+		instance.container = Values{"email": "user@test.com"}
 		err := instance.SaveOn(mockedEngine)
 		if _, ok := err.(*DatabaseError); !ok {
 			t.Errorf("expected DatabaseError, got %T", err)

@@ -68,6 +68,12 @@ func (vals Values) New() Builder {
 	return Values{}
 }
 
+// Choice holds a choice option for a Field.
+type Choice struct {
+	Value Value  // Value is the choice value.
+	Label string // Label is the choice label.
+}
+
 // isValidContainer checks if the given container is valid. It must be either
 // a type implementing the Builder interface or a struct.
 func isValidContainer(container Container) bool {
