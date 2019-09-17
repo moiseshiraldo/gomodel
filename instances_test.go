@@ -10,6 +10,7 @@ import (
 func TestInstance(t *testing.T) {
 	model := &Model{
 		name: "User",
+		pk:   "email",
 		fields: Fields{
 			"id":     IntegerField{Auto: true},
 			"email":  CharField{MaxLength: 100},
@@ -75,6 +76,24 @@ func TestInstance(t *testing.T) {
 	t.Run("Get", func(t *testing.T) {
 		if val := instance.Get("foo"); val != nil {
 			t.Errorf("expected nil, got %s", val)
+		}
+	})
+
+	t.Run("DisplayNoValue", func(t *testing.T) {
+		if val := instance.Display("active"); val != "" {
+			t.Errorf("expected blank string, got %s", val)
+		}
+	})
+
+	t.Run("DisplayUnknownField", func(t *testing.T) {
+		if val := instance.Display("foo"); val != "" {
+			t.Errorf("expected blank string, got %s", val)
+		}
+	})
+
+	t.Run("Display", func(t *testing.T) {
+		if val := instance.Display("dob"); val != "1942-11-27" {
+			t.Errorf("expected 1942-11-27, got %s", val)
 		}
 	})
 

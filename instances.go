@@ -49,6 +49,20 @@ func (i Instance) Get(name string) Value {
 	return val
 }
 
+// Display returns the string representation of the value for the given field
+// name, blank if not found.
+func (i Instance) Display(name string) string {
+	field, ok := i.model.fields[name]
+	if !ok {
+		return ""
+	}
+	val, ok := getContainerField(i.container, name)
+	if !ok {
+		return ""
+	}
+	return field.DisplayValue(val)
+}
+
 // Set updates the named instance field with the given value. The change doesn't
 // propagate to the database unless the Save method is called.
 func (i Instance) Set(name string, val Value) error {
