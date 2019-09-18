@@ -4,7 +4,7 @@ go:
   - 1.12.x
 
 script:
-  - go test -coverprofile=coverage.txt ./...
+  - go test -coverprofile=coverage.txt ./ ./migration
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
