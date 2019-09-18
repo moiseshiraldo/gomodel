@@ -272,9 +272,6 @@ func loadPreviousState(node Node) map[string]*AppState {
 	prevState := map[string]*AppState{}
 	registry := gomodel.Registry()
 	for name := range history {
-		if name == "gomodel" {
-			continue
-		}
 		prevState[name] = &AppState{
 			app:    registry[node.App],
 			Models: map[string]*gomodel.Model{},

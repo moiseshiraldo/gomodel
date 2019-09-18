@@ -124,10 +124,6 @@ func TestAppMigrate(t *testing.T) {
 	if err := gomodel.Start(dbSettings); err != nil {
 		t.Fatal(err)
 	}
-	goApp := gomodel.Registry()["gomodel"]
-	if err := Migration.Model.Register(goApp); err != nil {
-		t.Fatal(err)
-	}
 	db := gomodel.Databases()["default"]
 	mockedEngine := db.Engine.(gomodel.MockedEngine)
 	defer gomodel.Stop()
@@ -628,8 +624,8 @@ func TestAppMakeMigrations(t *testing.T) {
 // TestLoadHistory tests the loadHistory function
 func TestLoadHistory(t *testing.T) {
 	// App setup
-	app := gomodel.NewApp("test", "test/migrations")
-	gomodel.Register(app)
+	gomodel.Register(gomodel.NewApp("test", "test/migrations"))
+	gomodel.Register(gomodel.NewApp("skip", ""))
 	defer gomodel.ClearRegistry()
 	// Mocks file read/write functions
 	origReadAppNodes := readAppNodes

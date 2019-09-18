@@ -211,6 +211,18 @@ func TestNode(t *testing.T) {
 	t.Run("Fake", func(t *testing.T) { testNodeFake(t, db) })
 	t.Run("Backwards", func(t *testing.T) { testNodeBackwards(t, db) })
 	t.Run("FakeBackwards", func(t *testing.T) { testNodeFakeBackwards(t, db) })
+	t.Run("SkipSetState", func(t *testing.T) {
+		node := &Node{
+			App:          "test",
+			name:         "initial",
+			number:       1,
+			Dependencies: [][]string{{"invalid", "dependency"}},
+			processed:    true,
+		}
+		if err := node.setState(map[string]map[string]bool{}); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func testNodeRun(t *testing.T, db gomodel.Database) {
@@ -429,6 +441,35 @@ func testNodeFake(t *testing.T, db gomodel.Database) {
 		args := mockedEngine.Args.InsertRow.Values
 		if args["app"].(string) != "test" || args["number"].(int) != 1 {
 			t.Errorf("InsertRow called with wrong arguments")
+		}
+	})
+
+	t.Run("DependencyDbError", func(t *testing.T) {
+		node := setup()
+		mockedEngine.Results.InsertRow.Err = fmt.Errorf("db error")
+		secondNode := &Node{
+			App:          "test",
+			name:         "second",
+			number:       2,
+			Dependencies: [][]string{{"test", "0001_initial"}},
+		}
+		thirdNode := &Node{
+			App:          "test",
+			name:         "third",
+			number:       3,
+			Dependencies: [][]string{{"test", "0002_second"}},
+		}
+		gomodel.Register(gomodel.NewApp("test", ""))
+		appState := &AppState{
+			app:        gomodel.Registry()["test"],
+			migrations: []*Node{node, secondNode, thirdNode},
+		}
+		history["test"] = appState
+		defer clearHistory()
+		defer gomodel.ClearRegistry()
+		err := thirdNode.Fake(db)
+		if _, ok := err.(*gomodel.DatabaseError); !ok {
+			t.Errorf("expected gomodel.DatabaseError, got %T", err)
 		}
 	})
 
@@ -690,6 +731,31 @@ func testNodeFakeBackwards(t *testing.T, db gomodel.Database) {
 		args := mockedEngine.Args.DeleteRows.Options.Conditioner.Conditions()
 		if args["app"].(string) != "test" || args["number"].(int) != 1 {
 			t.Errorf("DeleteRows called with wrong arguments")
+		}
+	})
+
+	t.Run("DependencyDbError", func(t *testing.T) {
+		node := setup()
+		mockedEngine.Results.DeleteRows.Err = fmt.Errorf("db error")
+		secondNode := &Node{
+			App:          "test",
+			name:         "test_migrations",
+			number:       2,
+			Dependencies: [][]string{{"test", "0001_initial"}},
+			Operations:   OperationList{op},
+			applied:      true,
+		}
+		gomodel.Register(gomodel.NewApp("test", ""))
+		appState := &AppState{
+			app:        gomodel.Registry()["test"],
+			migrations: []*Node{node, secondNode},
+		}
+		history["test"] = appState
+		defer clearHistory()
+		defer gomodel.ClearRegistry()
+		err := node.FakeBackwards(db)
+		if _, ok := err.(*gomodel.DatabaseError); !ok {
+			t.Errorf("expected gomodel.DatabaseError, got %T", err)
 		}
 	})
 
