@@ -145,10 +145,13 @@ func (m *Model) SetupPrimaryKey() error {
 		return nil
 	}
 	for name, field := range m.fields {
-		if field.IsPK() && m.pk != "" {
-			return fmt.Errorf("duplicate pk: %s", name)
-		} else if field.IsPK() {
+		if field.IsPK() {
+			if m.pk != "" {
+				return fmt.Errorf("duplicate pk: %s", name)
+			}
 			m.pk = name
+		} else if name == "pk" {
+			return fmt.Errorf("name pk is reserved for the primary key field")
 		}
 	}
 	if m.pk == "" {

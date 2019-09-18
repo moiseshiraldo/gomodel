@@ -331,7 +331,7 @@ func TestSqliteEngine(t *testing.T) {
 	t.Run("SelectQuery", func(t *testing.T) {
 		mockedDB.Reset()
 		cond := Q{"active": true}.OrNot(
-			Q{"email": "user@test.com"}.Or(Q{"id >=": 10}),
+			Q{"email": "user@test.com"}.Or(Q{"pk >=": 10}),
 		).AndNot(
 			Q{"updated <": "2018-07-20"},
 		)

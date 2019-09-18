@@ -32,6 +32,9 @@ func (i Instance) Model() *Model {
 // GetIf returns the value for the given field name, and a hasField boolean
 // indicating if the field was actually found in the underlying container.
 func (i Instance) GetIf(name string) (val Value, hasField bool) {
+	if name == "pk" {
+		name = i.model.pk
+	}
 	field, ok := i.model.fields[name]
 	if !ok {
 		return nil, false
@@ -52,6 +55,9 @@ func (i Instance) Get(name string) Value {
 // Display returns the string representation of the value for the given field
 // name, blank if not found.
 func (i Instance) Display(name string) string {
+	if name == "pk" {
+		name = i.model.pk
+	}
 	field, ok := i.model.fields[name]
 	if !ok {
 		return ""
@@ -66,6 +72,9 @@ func (i Instance) Display(name string) string {
 // Set updates the named instance field with the given value. The change doesn't
 // propagate to the database unless the Save method is called.
 func (i Instance) Set(name string, val Value) error {
+	if name == "pk" {
+		name = i.model.pk
+	}
 	field, ok := i.model.fields[name]
 	if !ok {
 		return &ContainerError{i.trace(fmt.Errorf("unknown field %s", name))}
@@ -78,7 +87,7 @@ func (i Instance) Set(name string, val Value) error {
 		cv := reflect.Indirect(reflect.ValueOf(i.container))
 		f := cv.FieldByName(strings.Title(name))
 		if !f.IsValid() || !f.CanSet() || !f.CanAddr() {
-			return &ContainerError{i.trace(fmt.Errorf("Invalid field"))}
+			return &ContainerError{i.trace(fmt.Errorf("invalid field"))}
 		}
 		if err := setRecipient(f.Addr().Interface(), val); err != nil {
 			return &ContainerError{i.trace(err)}

@@ -100,6 +100,15 @@ func TestModel(t *testing.T) {
 		}
 	})
 
+	t.Run("FieldNamePK", func(t *testing.T) {
+		model.pk = ""
+		model.fields["id"] = IntegerField{PrimaryKey: true}
+		model.fields["pk"] = CharField{}
+		if err := model.SetupPrimaryKey(); err == nil {
+			t.Error("expected reserved field name pk error")
+		}
+	})
+
 	t.Run("SkipPKSetup", func(t *testing.T) {
 		model.pk = "id"
 		if err := model.SetupPrimaryKey(); err != nil {

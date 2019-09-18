@@ -79,6 +79,12 @@ func TestInstance(t *testing.T) {
 		}
 	})
 
+	t.Run("GetPK", func(t *testing.T) {
+		if s, ok := instance.Get("pk").(string); !ok || s != "user@test.com" {
+			t.Errorf("expected user@test.com, got %s", s)
+		}
+	})
+
 	t.Run("DisplayNoValue", func(t *testing.T) {
 		if val := instance.Display("active"); val != "" {
 			t.Errorf("expected blank string, got %s", val)
@@ -94,6 +100,12 @@ func TestInstance(t *testing.T) {
 	t.Run("Display", func(t *testing.T) {
 		if val := instance.Display("dob"); val != "1942-11-27" {
 			t.Errorf("expected 1942-11-27, got %s", val)
+		}
+	})
+
+	t.Run("DisplayPK", func(t *testing.T) {
+		if val := instance.Display("pk"); val != "user@test.com" {
+			t.Errorf("expected user@test.com, got %s", val)
 		}
 	})
 
@@ -130,6 +142,17 @@ func TestInstance(t *testing.T) {
 	t.Run("Set", func(t *testing.T) {
 		instance.container = Values{"email": "user@test.com", "dob": dob}
 		if err := instance.Set("email", "new@test.com"); err != nil {
+			t.Fatal(err)
+		}
+		values := instance.container.(Values)
+		if s, ok := values["email"].(string); !ok || s != "new@test.com" {
+			t.Errorf("expected new@test.com, got %s", s)
+		}
+	})
+
+	t.Run("SetPK", func(t *testing.T) {
+		instance.container = Values{"email": "user@test.com", "dob": dob}
+		if err := instance.Set("pk", "new@test.com"); err != nil {
 			t.Fatal(err)
 		}
 		values := instance.container.(Values)

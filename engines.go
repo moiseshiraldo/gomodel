@@ -337,6 +337,9 @@ func (e baseSQLEngine) predicate(
 		for condition, value := range options.Conditioner.Conditions() {
 			args := strings.Split(condition, " ")
 			name := args[0]
+			if name == "pk" {
+				name = model.pk
+			}
 			operator := "="
 			if len(args) > 1 {
 				op, ok := e.operators[args[1]]
