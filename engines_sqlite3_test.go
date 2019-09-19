@@ -8,13 +8,15 @@ import (
 )
 
 type dbMocker struct {
-	queries []Query
-	err     error
+	queries   []Query
+	err       error
+	resultErr error
 }
 
 func (db *dbMocker) Reset() {
 	db.queries = make([]Query, 0)
 	db.err = nil
+	db.resultErr = nil
 }
 
 func (db *dbMocker) Begin() (*sql.Tx, error) {
@@ -34,7 +36,7 @@ func (db *dbMocker) Rollback() error {
 
 func (db *dbMocker) Exec(stmt string, args ...interface{}) (sql.Result, error) {
 	db.queries = append(db.queries, Query{stmt, args})
-	return resultMocker{}, db.err
+	return resultMocker{db.resultErr}, db.err
 }
 
 func (db *dbMocker) Query(stmt string, args ...interface{}) (*sql.Rows, error) {
@@ -47,14 +49,16 @@ func (db *dbMocker) QueryRow(stmt string, args ...interface{}) *sql.Row {
 	return &sql.Row{}
 }
 
-type resultMocker struct{}
+type resultMocker struct {
+	err error
+}
 
 func (res resultMocker) LastInsertId() (int64, error) {
-	return 42, nil
+	return 42, res.err
 }
 
 func (res resultMocker) RowsAffected() (int64, error) {
-	return 1, nil
+	return 1, res.err
 }
 
 // TestSqliteEngine tests the SqliteEngine methods.
@@ -121,6 +125,26 @@ func TestSqliteEngine(t *testing.T) {
 		if eng.baseSQLEngine.placeholder != "?" {
 			t.Errorf("expected ?, got %s", eng.baseSQLEngine.placeholder)
 		}
+	})
+
+	t.Run("DB", func(t *testing.T) {
+		mockedDB.Reset()
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("expected conversion error (dbMocker to  *sql.DB)")
+			}
+		}()
+		engine.DB()
+	})
+
+	t.Run("Tx", func(t *testing.T) {
+		mockedDB.Reset()
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("expected conversion error (nil to  *sql.Tx)")
+			}
+		}()
+		engine.Tx()
 	})
 
 	t.Run("BeginTxErr", func(t *testing.T) {
@@ -295,6 +319,18 @@ func TestSqliteEngine(t *testing.T) {
 		}
 	})
 
+	t.Run("AddColumnsDBError", func(t *testing.T) {
+		mockedDB.Reset()
+		mockedDB.err = fmt.Errorf("db error")
+		fields := Fields{
+			"is_superuser": BooleanField{},
+			"created":      DateTimeField{AutoNowAdd: true},
+		}
+		if err := engine.AddColumns(model, fields); err == nil {
+			t.Error("expected db error")
+		}
+	})
+
 	t.Run("DropColumns", func(t *testing.T) {
 		mockedDB.Reset()
 		if err := engine.DropColumns(model, "active", "updated"); err != nil {
@@ -326,6 +362,15 @@ func TestSqliteEngine(t *testing.T) {
 		if st != expected {
 			t.Fatalf("expected:\n\n%s\n\ngot:\n\n%s", expected, st)
 		}
+	})
+
+	t.Run("DropColumnsDBError", func(t *testing.T) {
+		mockedDB.Reset()
+		mockedDB.err = fmt.Errorf("db error")
+		if err := engine.DropColumns(model, "active", "updated"); err == nil {
+			t.Error("expected db error")
+		}
+
 	})
 
 	t.Run("SelectQuery", func(t *testing.T) {
@@ -450,6 +495,16 @@ func TestSqliteEngine(t *testing.T) {
 		}
 	})
 
+	t.Run("InsertRowResultError", func(t *testing.T) {
+		mockedDB.Reset()
+		mockedDB.resultErr = fmt.Errorf("result error")
+		values := Values{"email": "user@test.com", "active": true}
+		_, err := engine.InsertRow(model, values)
+		if err == nil {
+			t.Fatal("expected result error")
+		}
+	})
+
 	t.Run("UpdateRows", func(t *testing.T) {
 		mockedDB.Reset()
 		values := Values{"active": false}
@@ -475,6 +530,17 @@ func TestSqliteEngine(t *testing.T) {
 		}
 	})
 
+	t.Run("UpdateRowsResultError", func(t *testing.T) {
+		mockedDB.Reset()
+		mockedDB.resultErr = fmt.Errorf("result error")
+		values := Values{"active": false}
+		options := QueryOptions{Conditioner: Q{"active": true}}
+		_, err := engine.UpdateRows(model, values, options)
+		if err == nil {
+			t.Fatal("expected result error")
+		}
+	})
+
 	t.Run("DeleteRows", func(t *testing.T) {
 		mockedDB.Reset()
 		options := QueryOptions{Conditioner: Q{"id >=": 100}}
@@ -496,6 +562,16 @@ func TestSqliteEngine(t *testing.T) {
 		}
 		if val, ok := args[0].(int); !ok || val != 100 {
 			t.Errorf("expected 100, got %s", args[0])
+		}
+	})
+
+	t.Run("DeleteRowsResultError", func(t *testing.T) {
+		mockedDB.Reset()
+		mockedDB.resultErr = fmt.Errorf("result error")
+		options := QueryOptions{Conditioner: Q{"id >=": 100}}
+		_, err := engine.DeleteRows(model, options)
+		if err == nil {
+			t.Fatal("expected result error")
 		}
 	})
 

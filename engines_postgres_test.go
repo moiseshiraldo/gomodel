@@ -241,9 +241,13 @@ func TestPostgresEngine(t *testing.T) {
 	t.Run("SelectInvalidOperator", func(t *testing.T) {
 		mockedDB.Reset()
 		cond := Q{"active": true}.OrNot(
-			Q{"email": "user@test.com"}.Or(Q{"id +-": 10}),
+			Q{"email": "user@test.com"}.Or(Q{"id <": 10}).And(Q{"id >": 20}),
 		).AndNot(
 			Q{"updated <": "2018-07-20"},
+		).Or(
+			Q{"email": "alice@test.com"},
+		).OrNot(
+			Q{"updated ^": nil},
 		)
 		options := QueryOptions{
 			Conditioner: cond,

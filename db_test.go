@@ -33,6 +33,18 @@ func TestStart(t *testing.T) {
 		})
 	})
 
+	t.Run("MissingDriver", func(t *testing.T) {
+		dbRegistry = map[string]Database{}
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("expected driver not imported error")
+			}
+		}()
+		Start(map[string]Database{
+			"default": {Driver: "postgres"},
+		})
+	})
+
 	t.Run("Success", func(t *testing.T) {
 		dbRegistry = map[string]Database{}
 		err := Start(map[string]Database{

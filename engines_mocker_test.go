@@ -34,6 +34,14 @@ func TestMockedEngine(t *testing.T) {
 				t.Fatalf("expected method %s to be called", method)
 			}
 		}
+		engine.DB()
+		if engine.Calls("DB") != 1 {
+			t.Fatal("expected method DB to be called")
+		}
+		engine.Tx()
+		if engine.Calls("Tx") != 1 {
+			t.Fatal("expected method Tx to be called")
+		}
 	})
 
 	t.Run("TxSupport", func(t *testing.T) {
