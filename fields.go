@@ -89,9 +89,10 @@ func (fields *Fields) UnmarshalJSON(data []byte) error {
 
 // fieldsRegistry holds a global registry with the available fields.
 var fieldsRegistry = Fields{
-	"IntegerField": IntegerField{},
-	"BooleanField": BooleanField{},
-	"CharField":    CharField{},
-	"DateField":    DateField{},
-	"TimeField":    TimeField{},
+	"IntegerField":  IntegerField{},
+	"BooleanField":  BooleanField{},
+	"CharField":     CharField{},
+	"DateField":     DateField{},
+	"TimeField":     TimeField{},
+	"DateTimeField": DateTimeField{},
 }
