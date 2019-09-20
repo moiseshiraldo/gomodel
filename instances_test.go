@@ -132,8 +132,16 @@ func TestInstance(t *testing.T) {
 	})
 
 	t.Run("SetStructFieldInvalidValue", func(t *testing.T) {
-		instance.container = struct{ active bool }{false}
+		instance.container = struct{ Active bool }{false}
 		err := instance.Set("active", 42)
+		if _, ok := err.(*ContainerError); !ok {
+			t.Errorf("expected ContainerError, got %T", err)
+		}
+	})
+
+	t.Run("SetStructInvalidField", func(t *testing.T) {
+		instance.container = struct{ active bool }{false}
+		err := instance.Set("username", "alice")
 		if _, ok := err.(*ContainerError); !ok {
 			t.Errorf("expected ContainerError, got %T", err)
 		}
@@ -162,6 +170,7 @@ func TestInstance(t *testing.T) {
 	})
 
 	t.Run("SetInvalidValues", func(t *testing.T) {
+		instance.container = Values{"email": "user@test.com", "dob": dob}
 		err := instance.SetValues(Values{"active": 42})
 		if _, ok := err.(*ContainerError); !ok {
 			t.Errorf("expected ContainerError, got %T", err)
@@ -183,7 +192,7 @@ func TestInstance(t *testing.T) {
 		}
 	})
 
-	t.Run("SetValues", func(t *testing.T) {
+	t.Run("SetValuesFromStruct", func(t *testing.T) {
 		instance.container = Values{"email": "user@test.com", "active": false}
 		newValues := struct {
 			Email  string
@@ -269,6 +278,18 @@ func TestInstanceSave(t *testing.T) {
 		}
 	})
 
+	t.Run("InsertInvalidPKRecipient", func(t *testing.T) {
+		mockedEngine.Reset()
+		instance.container = struct {
+			Id    time.Time
+			Email string
+		}{}
+		err := instance.Save("email")
+		if _, ok := err.(*ContainerError); !ok {
+			t.Errorf("expected ContainerError, got %T", err)
+		}
+	})
+
 	t.Run("InsertOnInvalidTarget", func(t *testing.T) {
 		mockedEngine.Reset()
 		instance.container = Values{"email": "user@test.com"}
@@ -305,7 +326,7 @@ func TestInstanceSave(t *testing.T) {
 		}
 	})
 
-	t.Run("UpdateError", func(t *testing.T) {
+	t.Run("UpdateDBError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.UpdateRows.Err = fmt.Errorf("db error")
 		instance.container = Values{"id": 23, "email": "user@test.com"}
@@ -315,6 +336,29 @@ func TestInstanceSave(t *testing.T) {
 		}
 		if mockedEngine.Calls("UpdateRows") != 1 {
 			t.Error("expected engine UpdateRows method to be called")
+		}
+	})
+
+	t.Run("UpdateContainerMissingAutoField", func(t *testing.T) {
+		mockedEngine.Reset()
+		mockedEngine.Results.UpdateRows.Err = fmt.Errorf("db error")
+		instance.container = struct {
+			Id     int
+			Active bool
+		}{Id: 13}
+		err := instance.Save("updated")
+		if _, ok := err.(*ContainerError); !ok {
+			t.Errorf("expected ContainerError, got %T", err)
+		}
+	})
+
+	t.Run("UpdateContainerMissingDefault", func(t *testing.T) {
+		mockedEngine.Reset()
+		mockedEngine.Results.UpdateRows.Err = fmt.Errorf("db error")
+		instance.container = struct{ Updated time.Time }{}
+		err := instance.Save("active")
+		if _, ok := err.(*ContainerError); !ok {
+			t.Errorf("expected ContainerError, got %T", err)
 		}
 	})
 

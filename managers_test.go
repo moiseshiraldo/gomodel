@@ -3,6 +3,7 @@ package gomodel
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 type mockedQuerySet struct {
@@ -72,6 +73,20 @@ func TestManager(t *testing.T) {
 		}
 	})
 
+	t.Run("CreateInvalidContainerPK", func(t *testing.T) {
+		model.meta.Container = struct {
+			Id      time.Time
+			Email   string
+			Active  bool
+			Created time.Time
+		}{}
+		_, err := manager.Create(Values{"email": "user@test.com"})
+		model.meta.Container = Values{}
+		if _, ok := err.(*ContainerError); !ok {
+			t.Errorf("expected ContainerError, got %T", err)
+		}
+	})
+
 	t.Run("CreateInsertError", func(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.InsertRow.Err = fmt.Errorf("db error")
@@ -88,6 +103,43 @@ func TestManager(t *testing.T) {
 		mockedEngine.Reset()
 		mockedEngine.Results.InsertRow.Id = 23
 		instance, err := manager.Create(Values{"email": "user@test.com"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if mockedEngine.Calls("InsertRow") != 1 {
+			t.Error("expected engine InsertRow method to be called")
+		}
+		insertValues := mockedEngine.Args.InsertRow.Values
+		instanceValues := instance.container.(Values)
+		for _, name := range []string{"active", "created", "email"} {
+			if _, ok := insertValues[name]; !ok {
+				t.Errorf("missing %s value on InsertRow arguments", name)
+			}
+			if _, ok := instanceValues[name]; !ok {
+				t.Errorf("instance is missing %s value", name)
+			}
+		}
+		if id, ok := instanceValues["id"]; !ok || id != int32(23) {
+			t.Errorf("expected id to be 23, got %s", id)
+		}
+	})
+
+	t.Run("CreateMissingDB", func(t *testing.T) {
+		mockedEngine.Reset()
+		manager.database = "slave"
+		_, err := manager.Create(Values{"email": "user@test.com"})
+		manager.database = ""
+		if _, ok := err.(*DatabaseError); !ok {
+			t.Errorf("expected DatabaseError, got %T", err)
+		}
+	})
+
+	t.Run("CreateOnTx", func(t *testing.T) {
+		mockedEngine.Reset()
+		manager.tx = &Transaction{mockedEngine, Database{id: "default"}}
+		mockedEngine.Results.InsertRow.Id = 23
+		instance, err := manager.Create(Values{"email": "user@test.com"})
+		manager.tx = nil
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -95,13 +95,3 @@ var fieldsRegistry = Fields{
 	"DateField":    DateField{},
 	"TimeField":    TimeField{},
 }
-
-// fieldInList returns true if name is found in the given list of fields.
-func fieldInList(name string, fields []string) bool {
-	for _, field := range fields {
-		if field == name {
-			return true
-		}
-	}
-	return false
-}

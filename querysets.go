@@ -134,11 +134,7 @@ func (qs GenericQuerySet) engine() (Engine, error) {
 
 func (qs GenericQuerySet) addConditioner(c Conditioner) GenericQuerySet {
 	if qs.cond == nil {
-		if cond, ok := c.(Q); ok {
-			qs.cond = condChain{root: cond}
-		} else {
-			qs.cond = c
-		}
+		qs.cond = c
 	} else {
 		qs.cond = qs.cond.And(c)
 	}
@@ -185,7 +181,14 @@ func (qs GenericQuerySet) Exclude(c Conditioner) QuerySet {
 // Only implements the Only method of the QuerySet interface.
 func (qs GenericQuerySet) Only(fields ...string) QuerySet {
 	qs.fields = fields
-	if !fieldInList(qs.model.pk, qs.fields) {
+	pkFound := false
+	for _, name := range qs.fields {
+		if name == qs.model.pk || name == "pk" {
+			pkFound = true
+			break
+		}
+	}
+	if !pkFound {
 		qs.fields = append(qs.fields, qs.model.pk)
 	}
 	return qs.base.Wrap(qs)

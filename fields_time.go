@@ -15,28 +15,16 @@ type NullTime struct {
 
 // Scan implements the Scanner interface.
 func (d *NullTime) Scan(value interface{}) error {
-	if t, ok := value.(time.Time); ok {
+	if value == nil {
+		d.Time, d.Valid = time.Time{}, false
+		return nil
+	} else if t, ok := value.(time.Time); ok {
 		d.Time = t
 		d.Valid = true
 		return nil
-	} else if s, ok := value.(string); ok {
-		if t, err := time.Parse("2006-01-02 15:04:05", s); err == nil {
-			d.Time = t
-			d.Valid = true
-			return nil
-		}
-		if t, err := time.Parse("2006-01-02", s); err == nil {
-			d.Time = t
-			d.Valid = true
-			return nil
-		}
-		if t, err := time.Parse("15:04:05", s); err == nil {
-			d.Time = t
-			d.Valid = true
-			return nil
-		}
 	}
-	return fmt.Errorf("cannot parse %T into gomodel.NullTime", value)
+	d.Valid = true
+	return setRecipient(&d.Time, value)
 }
 
 // Value implements the driver Valuer interface.

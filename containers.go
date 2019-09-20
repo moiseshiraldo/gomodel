@@ -218,6 +218,17 @@ func setRecipient(dest, src interface{}) error {
 		case *sql.RawBytes:
 			*d = append((*d)[:0], s...)
 			return nil
+		case *time.Time:
+			if t, err := time.Parse("2006-01-02 15:04:05", s); err == nil {
+				*d = t
+				return nil
+			} else if t, err := time.Parse("2006-01-02", s); err == nil {
+				*d = t
+				return nil
+			} else if t, err := time.Parse("15:04:05", s); err == nil {
+				*d = t
+				return nil
+			}
 		}
 	case []byte:
 		switch d := dest.(type) {

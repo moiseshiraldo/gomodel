@@ -164,6 +164,19 @@ func TestRecipients(t *testing.T) {
 		}
 	})
 
+	t.Run("TimeRecipient", func(t *testing.T) {
+		var s time.Time
+		field.recipient = &s
+		source := []interface{}{
+			"2018-03-21", "15:18:03", "2018-03-21 15:18:03",
+		}
+		for _, val := range source {
+			if err := values.Set("test", val, field); err != nil {
+				t.Fatal(err)
+			}
+		}
+	})
+
 	t.Run("ByteSliceRecipient", func(t *testing.T) {
 		var b []byte
 		field.recipient = &b

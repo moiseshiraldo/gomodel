@@ -24,7 +24,10 @@ func (r *rowsMocker) Next() bool {
 }
 
 func (r *rowsMocker) Scan(dest ...interface{}) error {
-	id := dest[0].(*int32)
+	id, ok := dest[0].(*int32)
+	if !ok {
+		return fmt.Errorf("invalid type")
+	}
 	email := dest[1].(*string)
 	*id = int32(r.number + 1)
 	*email = "user@test.com"
@@ -149,7 +152,7 @@ func TestGenericQuerySet(t *testing.T) {
 		}
 	})
 
-	t.Run("Only", func(t *testing.T) {
+	t.Run("OnlyAutoPK", func(t *testing.T) {
 		qs := GenericQuerySet{model: model, base: GenericQuerySet{}}
 		gqs := qs.Only("email").(GenericQuerySet)
 		if len(gqs.fields) != 2 {
@@ -158,6 +161,20 @@ func TestGenericQuerySet(t *testing.T) {
 		if gqs.fields[0] != "email" || gqs.fields[1] != "id" {
 			t.Errorf(
 				"expected fields (email, id), got: (%s, %s)",
+				gqs.fields[0], gqs.fields[1],
+			)
+		}
+	})
+
+	t.Run("Only", func(t *testing.T) {
+		qs := GenericQuerySet{model: model, base: GenericQuerySet{}}
+		gqs := qs.Only("pk", "email").(GenericQuerySet)
+		if len(gqs.fields) != 2 {
+			t.Fatalf("expected qs fields len to be 2, got %d", len(gqs.fields))
+		}
+		if gqs.fields[0] != "pk" || gqs.fields[1] != "email" {
+			t.Errorf(
+				"expected fields (pk, email), got: (%s, %s)",
 				gqs.fields[0], gqs.fields[1],
 			)
 		}
@@ -197,11 +214,44 @@ func TestGenericQuerySet(t *testing.T) {
 		}
 	})
 
-	t.Run("LoadInvalidRecipients", func(t *testing.T) {
+	t.Run("LoadInvalidContainer", func(t *testing.T) {
+		mockedEngine.Reset()
+		qs := GenericQuerySet{
+			model:     model,
+			database:  "default",
+			container: false,
+			fields:    []string{"id", "email", "active"},
+		}
+		_, err := qs.Load()
+		if _, ok := err.(*ContainerError); !ok {
+			t.Errorf("expected ContainerError, got %T", err)
+		}
+	})
+
+	t.Run("LoadInvalidContainerFieldType", func(t *testing.T) {
+		mockedEngine.Reset()
+		mockedEngine.Results.GetRows.Rows = &rowsMocker{2}
+		container := struct {
+			Id    bool
+			Email string
+		}{}
+		qs := GenericQuerySet{
+			model:     model,
+			database:  "default",
+			container: container,
+			fields:    []string{"id", "email"},
+		}
+		_, err := qs.Load()
+		if _, ok := err.(*ContainerError); !ok {
+			t.Errorf("expected ContainerError, got %T", err)
+		}
+	})
+
+	t.Run("LoadInvalidRecipientsNumber", func(t *testing.T) {
 		mockedEngine.Reset()
 		container := struct {
-			id    int
-			email string
+			Id    int
+			Email string
 		}{}
 		qs := GenericQuerySet{
 			model:     model,
@@ -258,6 +308,38 @@ func TestGenericQuerySet(t *testing.T) {
 		}
 		if e, ok := values["email"].(string); !ok || e != "user@test.com" {
 			t.Errorf("expected email to be user@test.com, got %s", e)
+		}
+	})
+
+	t.Run("LoadContainer", func(t *testing.T) {
+		mockedEngine.Reset()
+		mockedEngine.Results.GetRows.Rows = &rowsMocker{2}
+		type userContainer struct {
+			Id    int32
+			Email string
+		}
+		qs := GenericQuerySet{
+			model:     model,
+			database:  "default",
+			container: userContainer{},
+			fields:    []string{"id", "email"},
+		}
+		result, err := qs.Load()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(result) != 2 {
+			t.Fatalf("expected 2 results, got %d", len(result))
+		}
+		values, ok := result[0].container.(*userContainer)
+		if !ok {
+			t.Fatalf("expected *userContainer, got %T", result[0].container)
+		}
+		if values.Id != 2 {
+			t.Errorf("expected id to be 2, got %d", values.Id)
+		}
+		if values.Email != "user@test.com" {
+			t.Errorf("expected email to be user@test.com, got %s", values.Email)
 		}
 	})
 
@@ -321,14 +403,33 @@ func TestGenericQuerySet(t *testing.T) {
 	t.Run("GetInvalidRecipients", func(t *testing.T) {
 		mockedEngine.Reset()
 		container := struct {
-			id    int
-			email string
+			Id    int
+			Email string
 		}{}
 		qs := GenericQuerySet{
 			model:     model,
 			database:  "default",
 			container: container,
 			fields:    []string{"id", "email", "active"},
+		}
+		_, err := qs.Get(Q{"id": 23})
+		if _, ok := err.(*ContainerError); !ok {
+			t.Errorf("expected ContainerError, got %T", err)
+		}
+	})
+
+	t.Run("GetInvalidRecipientFieldType", func(t *testing.T) {
+		mockedEngine.Reset()
+		mockedEngine.Results.GetRows.Rows = &rowsMocker{1}
+		container := struct {
+			Id    bool
+			Email string
+		}{}
+		qs := GenericQuerySet{
+			model:     model,
+			database:  "default",
+			container: container,
+			fields:    []string{"id", "email"},
 		}
 		_, err := qs.Get(Q{"id": 23})
 		if _, ok := err.(*ContainerError); !ok {
@@ -536,7 +637,17 @@ func TestGenericQuerySet(t *testing.T) {
 		}
 	})
 
-	t.Run("UpdateInvalidValues", func(t *testing.T) {
+	t.Run("UpdateDBError", func(t *testing.T) {
+		mockedEngine.Reset()
+		mockedEngine.Results.UpdateRows.Err = fmt.Errorf("db error")
+		qs := GenericQuerySet{model: model, database: "default"}
+		_, err := qs.Update(Values{"active": true})
+		if _, ok := err.(*DatabaseError); !ok {
+			t.Errorf("expected DatabaseError, got %T", err)
+		}
+	})
+
+	t.Run("Update", func(t *testing.T) {
 		mockedEngine.Reset()
 		qs := GenericQuerySet{model: model, database: "default"}
 		_, err := qs.Update(Values{"active": true})

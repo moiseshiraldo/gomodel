@@ -102,8 +102,10 @@ func TestModel(t *testing.T) {
 
 	t.Run("FieldNamePK", func(t *testing.T) {
 		model.pk = ""
-		model.fields["id"] = IntegerField{PrimaryKey: true}
-		model.fields["pk"] = CharField{}
+		model.fields = Fields{
+			"id": IntegerField{PrimaryKey: true},
+			"pk": CharField{},
+		}
 		if err := model.SetupPrimaryKey(); err == nil {
 			t.Error("expected reserved field name pk error")
 		}
