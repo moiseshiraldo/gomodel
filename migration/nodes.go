@@ -363,7 +363,7 @@ func (n *Node) setState(stash map[string]map[string]bool) error {
 		}
 		if stash[app][depName] {
 			return &CircularDependencyError{
-				ErrorTrace{Node: n, Err: fmt.Errorf("invalid dependency")},
+				ErrorTrace{Node: n, Err: fmt.Errorf("circular dependency")},
 			}
 		}
 		if !depNode.processed {
@@ -378,7 +378,7 @@ func (n *Node) setState(stash map[string]map[string]bool) error {
 		}
 	}
 	n.processed = true
-	delete(stash[n.App], n.name)
+	delete(stash[n.App], n.Name())
 	return nil
 }
 

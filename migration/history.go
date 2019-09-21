@@ -293,12 +293,12 @@ var loadAppliedMigrations = func(db gomodel.Database) error {
 	if err := db.CreateTable(Migration.Model, false); err != nil {
 		return err
 	}
-	migrations, err := Migration.Objects.All().Load()
+	migrations, err := Migration.Objects.All().Only("app", "number").Load()
 	if err != nil {
 		return err
 	}
 	for _, migration := range migrations {
-		appName := migration.Get("name").(string)
+		appName := migration.Get("app").(string)
 		number := migration.Get("number").(int32)
 		if state, ok := history[appName]; ok {
 			if int(number) > len(state.migrations) {

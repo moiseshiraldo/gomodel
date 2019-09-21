@@ -28,8 +28,12 @@ func (op CreateModel) SetState(state *AppState) error {
 	if table == "" {
 		table = fmt.Sprintf("%s_%s", state.app.Name(), op.Name)
 	}
+	fields := gomodel.Fields{}
+	for name, field := range op.Fields {
+		fields[name] = field
+	}
 	state.Models[op.Name] = gomodel.New(
-		op.Name, op.Fields, gomodel.Options{Table: table},
+		op.Name, fields, gomodel.Options{Table: table},
 	).Model
 	return nil
 }
