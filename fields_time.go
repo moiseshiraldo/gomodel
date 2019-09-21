@@ -23,6 +23,8 @@ func (d *NullTime) Scan(value interface{}) error {
 		d.Time = t
 		d.Valid = true
 		return nil
+	} else if s, ok := value.(string); ok {
+		value = s
 	}
 	d.Valid = true
 	return setRecipient(&d.Time, value)
@@ -132,11 +134,7 @@ func (f DateField) DefaultVal() (Value, bool) {
 
 // Recipient implements the Recipient method of the Field interface.
 func (f DateField) Recipient() interface{} {
-	if f.Null {
-		var val NullTime
-		return &val
-	}
-	var val time.Time
+	var val NullTime
 	return &val
 }
 
@@ -308,11 +306,7 @@ func (f TimeField) DefaultVal() (Value, bool) {
 
 // Recipient implements the Recipient method of the Field interface.
 func (f TimeField) Recipient() interface{} {
-	if f.Null {
-		var val NullTime
-		return &val
-	}
-	var val time.Time
+	var val NullTime
 	return &val
 }
 
@@ -486,11 +480,7 @@ func (f DateTimeField) DefaultVal() (Value, bool) {
 
 // Recipient implements the Recipient method of the Field interface.
 func (f DateTimeField) Recipient() interface{} {
-	if f.Null {
-		var val NullTime
-		return &val
-	}
-	var val time.Time
+	var val NullTime
 	return &val
 }
 

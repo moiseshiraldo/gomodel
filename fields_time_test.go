@@ -99,16 +99,8 @@ func TestDateField(t *testing.T) {
 	t.Run("Recipient", func(t *testing.T) {
 		field.Null = false
 		recipient := field.Recipient()
-		if _, ok := recipient.(*time.Time); !ok {
-			t.Errorf("expected *time.Time, got %T", recipient)
-		}
-	})
-
-	t.Run("NullRecipient", func(t *testing.T) {
-		field.Null = true
-		recipient := field.Recipient()
 		if _, ok := recipient.(*NullTime); !ok {
-			t.Errorf("expected *gomodel.NullTime, got %T", recipient)
+			t.Errorf("expected *NullTime, got %T", recipient)
 		}
 	})
 
@@ -349,8 +341,8 @@ func TestTimeField(t *testing.T) {
 	t.Run("Recipient", func(t *testing.T) {
 		field.Null = false
 		recipient := field.Recipient()
-		if _, ok := recipient.(*time.Time); !ok {
-			t.Errorf("expected *time.Time, got %T", recipient)
+		if _, ok := recipient.(*NullTime); !ok {
+			t.Errorf("expected *NullTime, got %T", recipient)
 		}
 	})
 
@@ -600,8 +592,8 @@ func TestDateTimeField(t *testing.T) {
 	t.Run("Recipient", func(t *testing.T) {
 		field.Null = false
 		recipient := field.Recipient()
-		if _, ok := recipient.(*time.Time); !ok {
-			t.Errorf("expected *time.Time, got %T", recipient)
+		if _, ok := recipient.(*NullTime); !ok {
+			t.Errorf("expected *NullTime, got %T", recipient)
 		}
 	})
 

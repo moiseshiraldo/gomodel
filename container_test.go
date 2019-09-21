@@ -165,10 +165,10 @@ func TestRecipients(t *testing.T) {
 	})
 
 	t.Run("TimeRecipient", func(t *testing.T) {
-		var s time.Time
+		var s NullTime
 		field.recipient = &s
 		source := []interface{}{
-			"2018-03-21", "15:18:03", "2018-03-21 15:18:03",
+			"2018-03-21", "15:18:03", "2018-03-21 15:18:03", nil,
 		}
 		for _, val := range source {
 			if err := values.Set("test", val, field); err != nil {
