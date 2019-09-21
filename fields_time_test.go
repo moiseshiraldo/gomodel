@@ -1,6 +1,7 @@
 package gomodel
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 )
@@ -205,6 +206,54 @@ func TestDateField(t *testing.T) {
 			t.Errorf("expected Date Two, got %s", value)
 		}
 	})
+
+	t.Run("Marshal", func(t *testing.T) {
+		f := DateField{Default: time.Date(2019, 8, 24, 0, 0, 0, 0, time.UTC)}
+		data, err := f.MarshalJSON()
+		if err != nil {
+			t.Fatal(err)
+		}
+		expected := `{"Default":"2019-08-24"}`
+		if string(data) != expected {
+			t.Fatalf("expected %s, got %s", expected, string(data))
+		}
+	})
+
+	t.Run("MarshalDefaultZero", func(t *testing.T) {
+		f := DateField{Null: true}
+		data, err := f.MarshalJSON()
+		if err != nil {
+			t.Fatal(err)
+		}
+		expected := `{"Null":true}`
+		if string(data) != expected {
+			t.Fatalf("expected %s, got %s", expected, string(data))
+		}
+	})
+
+	t.Run("UnmarshalField", func(t *testing.T) {
+		f := DateField{}
+		data := []byte(`{"Default":"2019-08-24"}`)
+		if err := json.Unmarshal(data, &f); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("UnmarshalInvalidTime", func(t *testing.T) {
+		f := DateField{}
+		data := []byte(`{"Default":"invalid"}`)
+		if err := json.Unmarshal(data, &f); err == nil {
+			t.Fatal("expected time parsing error")
+		}
+	})
+
+	t.Run("UnmarshalInvalidData", func(t *testing.T) {
+		f := DateField{}
+		data := []byte(`{"PrimaryKey": "invalid"}`)
+		if err := json.Unmarshal(data, &f); err == nil {
+			t.Fatal("expected parsing error")
+		}
+	})
 }
 
 // TestTimeField tests the TimeField struct methods
@@ -402,6 +451,55 @@ func TestTimeField(t *testing.T) {
 		value := field.DisplayValue(recipient)
 		if value != "Time Two" {
 			t.Errorf("expected Time Two, got %s", value)
+		}
+	})
+
+	t.Run("Marshal", func(t *testing.T) {
+		f := TimeField{Default: time.Date(0, 0, 0, 14, 18, 3, 0, time.UTC)}
+		data, err := f.MarshalJSON()
+		if err != nil {
+			t.Fatal(err)
+		}
+		expected := `{"Default":"14:18:03Z"}`
+		if string(data) != expected {
+			t.Fatalf("expected %s, got %s", expected, string(data))
+		}
+	})
+
+	t.Run("MarshalDefaultZero", func(t *testing.T) {
+		f := TimeField{Null: true}
+		data, err := f.MarshalJSON()
+		if err != nil {
+			t.Fatal(err)
+		}
+		expected := `{"Null":true}`
+		if string(data) != expected {
+			t.Fatalf("expected %s, got %s", expected, string(data))
+		}
+	})
+
+	t.Run("UnmarshalField", func(t *testing.T) {
+		f := TimeField{}
+		data := []byte(`{"Default":"14:18:03Z"}`)
+		err := json.Unmarshal(data, &f)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("UnmarshalInvalidTime", func(t *testing.T) {
+		f := TimeField{}
+		data := []byte(`{"Default":"invalid"}`)
+		if err := json.Unmarshal(data, &f); err == nil {
+			t.Fatal("expected time parsing error")
+		}
+	})
+
+	t.Run("UnmarshalInvalidData", func(t *testing.T) {
+		f := TimeField{}
+		data := []byte(`{"PrimaryKey": "invalid"}`)
+		if err := json.Unmarshal(data, &f); err == nil {
+			t.Fatal("expected parsing error")
 		}
 	})
 }
@@ -604,6 +702,49 @@ func TestDateTimeField(t *testing.T) {
 		value := field.DisplayValue(recipient)
 		if value != "Datetime Two" {
 			t.Errorf("expected Datetime Two, got %s", value)
+		}
+	})
+
+	t.Run("Marshal", func(t *testing.T) {
+		f := DateTimeField{
+			Default: time.Date(2019, 8, 24, 14, 18, 03, 0, time.UTC),
+		}
+		data, err := f.MarshalJSON()
+		if err != nil {
+			t.Fatal(err)
+		}
+		expected := `{"Default":"2019-08-24T14:18:03Z"}`
+		if string(data) != expected {
+			t.Fatalf("expected %s, got %s", expected, string(data))
+		}
+	})
+
+	t.Run("MarshalDefaultZero", func(t *testing.T) {
+		f := DateTimeField{Null: true}
+		data, err := f.MarshalJSON()
+		if err != nil {
+			t.Fatal(err)
+		}
+		expected := `{"Null":true}`
+		if string(data) != expected {
+			t.Fatalf("expected %s, got %s", expected, string(data))
+		}
+	})
+
+	t.Run("UnmarshalField", func(t *testing.T) {
+		f := DateTimeField{}
+		data := []byte(`{"Default":"2019-08-24T14:18:03Z"}`)
+		err := json.Unmarshal(data, &f)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("UnmarshalInvalidTime", func(t *testing.T) {
+		f := DateTimeField{}
+		data := []byte(`{"Default":"invalid"}`)
+		if err := json.Unmarshal(data, &f); err == nil {
+			t.Fatal("expected time parsing error")
 		}
 	})
 }

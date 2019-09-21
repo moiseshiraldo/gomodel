@@ -2,6 +2,7 @@ package gomodel
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
@@ -33,6 +34,20 @@ func (d NullTime) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return d.Time, nil
+}
+
+// timeFieldMarshaler is used to deal with time.Time zero value for JSON.
+type timeFieldMarshaler struct {
+	PrimaryKey bool     `json:",omitempty"`
+	Unique     bool     `json:",omitempty"`
+	Null       bool     `json:",omitempty"`
+	AutoNow    bool     `json:",omitempty"`
+	AutoNowAdd bool     `json:",omitempty"`
+	Blank      bool     `json:",omitempty"`
+	Index      bool     `json:",omitempty"`
+	Column     string   `json:",omitempty"`
+	Choices    []Choice `json:",omitempty"`
+	Default    string   `json:",omitempty"`
 }
 
 // DateField implements the Field interface for dates.
@@ -109,7 +124,7 @@ func (f DateField) DataType(dvr string) string {
 
 // DefaultVal implements the DefaultVal method of the Field interface.
 func (f DateField) DefaultVal() (Value, bool) {
-	if f.Default.Equal(time.Time{}) {
+	if f.Default.IsZero() {
 		return f.Default, false
 	}
 	return f.Default, true
@@ -165,6 +180,50 @@ func (f DateField) DisplayValue(val Value) string {
 		return t.Format("2006-01-02")
 	}
 	return fmt.Sprintf("%v", val)
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (f DateField) MarshalJSON() ([]byte, error) {
+	result := timeFieldMarshaler{
+		PrimaryKey: f.PrimaryKey,
+		Unique:     f.Unique,
+		Null:       f.Null,
+		AutoNow:    f.AutoNow,
+		AutoNowAdd: f.AutoNowAdd,
+		Blank:      f.Blank,
+		Index:      f.Index,
+		Column:     f.Column,
+		Choices:    f.Choices,
+	}
+	if !f.Default.IsZero() {
+		result.Default = f.Default.Format("2006-01-02")
+	}
+	return json.Marshal(result)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (f *DateField) UnmarshalJSON(data []byte) error {
+	r := timeFieldMarshaler{}
+	if err := json.Unmarshal(data, &r); err != nil {
+		return err
+	}
+	if r.Default != "" {
+		t, err := time.Parse("2006-01-02", r.Default)
+		if err != nil {
+			return err
+		}
+		f.Default = t
+	}
+	f.PrimaryKey = r.PrimaryKey
+	f.Unique = r.Unique
+	f.Null = r.Null
+	f.AutoNow = r.AutoNow
+	f.AutoNowAdd = r.AutoNowAdd
+	f.Blank = r.Blank
+	f.Index = r.Index
+	f.Column = r.Column
+	f.Choices = r.Choices
+	return nil
 }
 
 // TimeField implements the Field interface for time values.
@@ -241,7 +300,7 @@ func (f TimeField) DataType(dvr string) string {
 
 // DefaultVal implements the DefaultVal method of the Field interface.
 func (f TimeField) DefaultVal() (Value, bool) {
-	if f.Default.Equal(time.Time{}) {
+	if f.Default.IsZero() {
 		return f.Default, false
 	}
 	return f.Default, true
@@ -297,6 +356,49 @@ func (f TimeField) DisplayValue(val Value) string {
 		return t.Format("15:04:05")
 	}
 	return fmt.Sprintf("%v", val)
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (f TimeField) MarshalJSON() ([]byte, error) {
+	result := timeFieldMarshaler{
+		PrimaryKey: f.PrimaryKey,
+		Unique:     f.Unique,
+		Null:       f.Null,
+		AutoNow:    f.AutoNow,
+		AutoNowAdd: f.AutoNowAdd,
+		Blank:      f.Blank,
+		Index:      f.Index,
+		Column:     f.Column,
+		Choices:    f.Choices,
+	}
+	if !f.Default.IsZero() {
+		result.Default = f.Default.Format("15:04:05.999999999Z07:00")
+	}
+	return json.Marshal(result)
+}
+
+func (f *TimeField) UnmarshalJSON(data []byte) error {
+	r := timeFieldMarshaler{}
+	if err := json.Unmarshal(data, &r); err != nil {
+		return err
+	}
+	if r.Default != "" {
+		t, err := time.Parse("15:04:05.999999999Z07:00", r.Default)
+		if err != nil {
+			return err
+		}
+		f.Default = t
+	}
+	f.PrimaryKey = r.PrimaryKey
+	f.Unique = r.Unique
+	f.Null = r.Null
+	f.AutoNow = r.AutoNow
+	f.AutoNowAdd = r.AutoNowAdd
+	f.Blank = r.Blank
+	f.Index = r.Index
+	f.Column = r.Column
+	f.Choices = r.Choices
+	return nil
 }
 
 // DateTimeField implements the Field interface for datetime values.
@@ -376,7 +478,7 @@ func (f DateTimeField) DataType(dvr string) string {
 
 // DefaultVal implements the DefaultVal method of the Field interface.
 func (f DateTimeField) DefaultVal() (Value, bool) {
-	if f.Default.Equal(time.Time{}) {
+	if f.Default.IsZero() {
 		return f.Default, false
 	}
 	return f.Default, true
@@ -432,4 +534,23 @@ func (f DateTimeField) DisplayValue(val Value) string {
 		return t.Format("2006-01-02 15:04:05")
 	}
 	return fmt.Sprintf("%v", val)
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (f DateTimeField) MarshalJSON() ([]byte, error) {
+	result := timeFieldMarshaler{
+		PrimaryKey: f.PrimaryKey,
+		Unique:     f.Unique,
+		Null:       f.Null,
+		AutoNow:    f.AutoNow,
+		AutoNowAdd: f.AutoNowAdd,
+		Blank:      f.Blank,
+		Index:      f.Index,
+		Column:     f.Column,
+		Choices:    f.Choices,
+	}
+	if !f.Default.IsZero() {
+		result.Default = f.Default.Format(time.RFC3339Nano)
+	}
+	return json.Marshal(result)
 }
