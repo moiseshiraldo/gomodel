@@ -47,13 +47,20 @@ func (e SqliteEngine) BeginTx() (Engine, error) {
 
 // copyTable copies the model table to a new one with the given name and
 // columns.
-func (e SqliteEngine) copyTable(m *Model, name string, cols ...string) error {
-	columns := make([]string, 0, len(cols))
-	for _, col := range cols {
-		columns = append(columns, fmt.Sprintf("\"%s\"", col))
+func (e SqliteEngine) copyTable(m *Model, name string, fields ...string) error {
+	modelCopy := &Model{fields: Fields{}, meta: Options{Table: name}}
+	for _, name := range fields {
+		modelCopy.fields[name] = m.fields[name]
+	}
+	if err := e.CreateTable(modelCopy, true); err != nil {
+		return err
+	}
+	columns := make([]string, 0, len(fields))
+	for name, field := range modelCopy.fields {
+		columns = append(columns, e.escape(field.DBColumn(name)))
 	}
 	stmt := fmt.Sprintf(
-		"CREATE TABLE %s AS SELECT %s FROM %s",
+		"INSERT INTO %s SELECT %s FROM %s",
 		e.escape(name), strings.Join(columns, ", "), e.escape(m.Table()),
 	)
 	_, err := e.executor().Exec(stmt)

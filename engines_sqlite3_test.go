@@ -336,28 +336,35 @@ func TestSqliteEngine(t *testing.T) {
 		if err := engine.DropColumns(model, "active", "updated"); err != nil {
 			t.Fatal(err)
 		}
-		if len(mockedDB.queries) != 4 {
-			t.Fatalf("expected 4 queries, got %d", len(mockedDB.queries))
+		if len(mockedDB.queries) != 5 {
+			t.Fatalf("expected 5 queries, got %d", len(mockedDB.queries))
 		}
 		st := mockedDB.queries[0].Stmt
-		if !strings.HasPrefix(st, `CREATE TABLE "users_user__new" AS SELECT`) {
+		if !strings.HasPrefix(st, `CREATE TABLE "users_user__new"`) {
 			t.Fatalf(
 				"expected query start: %s",
-				`CREATE TABLE "users_user__new" AS SELECT`,
+				`CREATE TABLE "users_user__new"`,
 			)
 		}
 		st = mockedDB.queries[1].Stmt
+		if !strings.HasPrefix(st, `INSERT INTO "users_user__new" SELECT`) {
+			t.Fatalf(
+				"expected query start: %s",
+				`INSERT INTO "users_user__new" SELECT"`,
+			)
+		}
+		st = mockedDB.queries[2].Stmt
 		if st != `DROP TABLE "users_user"` {
 			t.Fatalf(
 				"expected:\n\n%s\n\ngot:\n\n%s", `DROP TABLE "users_user"`, st,
 			)
 		}
-		st = mockedDB.queries[2].Stmt
+		st = mockedDB.queries[3].Stmt
 		expected := `ALTER TABLE "users_user__new" RENAME TO "users_user"`
 		if st != expected {
 			t.Fatalf("expected:\n\n%s\n\ngot:\n\n%s", expected, st)
 		}
-		st = mockedDB.queries[3].Stmt
+		st = mockedDB.queries[4].Stmt
 		expected = `CREATE INDEX "test_index" ON "users_user" ("email")`
 		if st != expected {
 			t.Fatalf("expected:\n\n%s\n\ngot:\n\n%s", expected, st)
