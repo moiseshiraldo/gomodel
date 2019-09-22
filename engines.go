@@ -382,20 +382,27 @@ func (e baseSQLEngine) predicate(
 	}
 	next, isOr, isNot := options.Conditioner.Next()
 	if next != nil {
-		operator := "AND"
-		if isOr {
-			operator = "OR"
-		}
-		if isNot {
-			operator += " NOT"
-		}
 		nextPred, err := e.predicate(
 			model, QueryOptions{Conditioner: next}, pIndex,
 		)
-		if err != nil {
-			return Query{}, err
+		if pred == "" {
+			pred = nextPred.Stmt
+			if isNot {
+				pred = fmt.Sprintf("NOT (%s)", pred)
+			}
+		} else {
+			operator := "AND"
+			if isOr {
+				operator = "OR"
+			}
+			if isNot {
+				operator += " NOT"
+			}
+			if err != nil {
+				return Query{}, err
+			}
+			pred = fmt.Sprintf("(%s) %s (%s)", pred, operator, nextPred.Stmt)
 		}
-		pred = fmt.Sprintf("(%s) %s (%s)", pred, operator, nextPred.Stmt)
 		values = append(values, nextPred.Args...)
 	}
 	return Query{pred, values}, nil

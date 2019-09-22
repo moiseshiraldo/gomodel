@@ -412,6 +412,23 @@ func TestSqliteEngine(t *testing.T) {
 		}
 	})
 
+	t.Run("SelectExclude", func(t *testing.T) {
+		mockedDB.Reset()
+		cond := Q{}.AndNot(Q{"email": "user@test.com"})
+		options := QueryOptions{
+			Conditioner: cond,
+			Fields:      []string{"id"},
+		}
+		query, err := engine.SelectQuery(model, options)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expected := `SELECT "id" FROM "users_user" WHERE NOT ("email" = ?)`
+		if query.Stmt != expected {
+			t.Fatalf("expected:\n\n%s\n\ngot:\n\n%s", expected, query.Stmt)
+		}
+	})
+
 	t.Run("GetRows", func(t *testing.T) {
 		mockedDB.Reset()
 		options := QueryOptions{
