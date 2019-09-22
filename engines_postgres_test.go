@@ -28,7 +28,7 @@ func TestPostgresEngine(t *testing.T) {
 		db:          mockedDB,
 		driver:      "postgres",
 		escapeChar:  "\"",
-		placeholder: "$",
+		pHolderChar: "$",
 		operators:   postgresOperators,
 	}}
 	origScanRow := scanRow
@@ -64,8 +64,8 @@ func TestPostgresEngine(t *testing.T) {
 		if eng.baseSQLEngine.escapeChar != "\"" {
 			t.Errorf("expected \", got %s", eng.baseSQLEngine.escapeChar)
 		}
-		if eng.baseSQLEngine.placeholder != "$" {
-			t.Errorf("expected $, got %s", eng.baseSQLEngine.placeholder)
+		if eng.baseSQLEngine.pHolderChar != "$" {
+			t.Errorf("expected $, got %s", eng.baseSQLEngine.pHolderChar)
 		}
 	})
 

@@ -133,7 +133,7 @@ var scanRow = func(ex sqlExecutor, dest interface{}, query Query) error {
 type baseSQLEngine struct {
 	driver      string            // Driver name.
 	escapeChar  string            // Escape char for columns and table names.
-	placeholder string            // Placeholder character for values.
+	pHolderChar string            // Placeholder character for values.
 	operators   map[string]string // Available comparison operators.
 	db          sqlDB             // *sql.DB
 	tx          sqlTx             // *sql.Tx
@@ -206,6 +206,15 @@ func (e baseSQLEngine) escape(s string) string {
 	return fmt.Sprintf("%[1]s%[2]s%[1]s", e.escapeChar, s)
 }
 
+// placeholder returns the placeholder string for the given index.
+func (e baseSQLEngine) placeholder(index int) string {
+	placeholder := e.pHolderChar
+	if placeholder == "$" {
+		placeholder = fmt.Sprintf("%s%d", placeholder, index)
+	}
+	return placeholder
+}
+
 // CreateTable implements the CreateTable method of the Engine interface.
 func (e baseSQLEngine) CreateTable(model *Model, force bool) error {
 	fields := model.Fields()
@@ -275,6 +284,7 @@ func (e baseSQLEngine) DropIndex(model *Model, name string) error {
 func (e baseSQLEngine) AddColumns(model *Model, fields Fields) error {
 	addColumns := make([]string, 0, len(fields))
 	for name, field := range fields {
+
 		addColumn := fmt.Sprintf(
 			"ADD COLUMN %s %s %s",
 			e.escape(field.DBColumn(name)),
@@ -359,12 +369,9 @@ func (e baseSQLEngine) predicate(
 			if operator == "=" && driverVal == nil {
 				condition = fmt.Sprintf("%s IS NULL", e.escape(column))
 			} else {
-				placeholder := e.placeholder
-				if placeholder == "$" {
-					placeholder = fmt.Sprintf("%s%d", placeholder, pIndex)
-				}
 				condition = fmt.Sprintf(
-					"%s %s %s", e.escape(column), operator, placeholder,
+					"%s %s %s",
+					e.escape(column), operator, e.placeholder(pIndex),
 				)
 				values = append(values, driverVal)
 				pIndex += 1
@@ -455,11 +462,7 @@ func (e baseSQLEngine) InsertRow(model *Model, values Values) (int64, error) {
 		if driverVal != nil {
 			cols = append(cols, e.escape(field.DBColumn(name)))
 			vals = append(vals, driverVal)
-			placeholder := e.placeholder
-			if placeholder == "$" {
-				placeholder = fmt.Sprintf("%s%d", placeholder, index)
-			}
-			placeholders = append(placeholders, placeholder)
+			placeholders = append(placeholders, e.placeholder(index))
 			index += 1
 		}
 	}
@@ -510,12 +513,8 @@ func (e baseSQLEngine) UpdateRows(
 		if err != nil {
 			return 0, err
 		}
-		placeholder := e.placeholder
-		if placeholder == "$" {
-			placeholder = fmt.Sprintf("%s%d", placeholder, index)
-		}
 		col := fmt.Sprintf(
-			"%s = %s", e.escape(field.DBColumn(name)), placeholder,
+			"%s = %s", e.escape(field.DBColumn(name)), e.placeholder(index),
 		)
 		cols = append(cols, col)
 		vals = append(vals, driverVal)

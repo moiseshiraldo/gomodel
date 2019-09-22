@@ -288,9 +288,11 @@ func (n Node) backwardOperations(db gomodel.Database) error {
 	}
 	states := make([]*AppState, len(n.Operations)+1)
 	states[0] = loadPreviousState(n)[n.App]
-	for i, op := range n.Operations {
+	for i := range n.Operations {
 		states[i+1] = loadPreviousState(n)[n.App]
-		op.SetState(states[i+1])
+		for _, prevOp := range n.Operations[0 : i+1] {
+			prevOp.SetState(states[i+1])
+		}
 	}
 	for k := range n.Operations {
 		i := len(n.Operations) - 1 - k

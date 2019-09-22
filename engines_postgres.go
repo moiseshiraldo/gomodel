@@ -32,7 +32,7 @@ func (e PostgresEngine) Start(db Database) (Engine, error) {
 		db:          conn,
 		driver:      "postgres",
 		escapeChar:  "\"",
-		placeholder: "$",
+		pHolderChar: "$",
 		operators:   postgresOperators,
 	}
 	return e, nil

@@ -29,7 +29,7 @@ func (e SqliteEngine) Start(db Database) (Engine, error) {
 		db:          conn,
 		driver:      "sqlite3",
 		escapeChar:  "\"",
-		placeholder: "?",
+		pHolderChar: "?",
 		operators:   sqliteOperators,
 	}
 	return e, nil
