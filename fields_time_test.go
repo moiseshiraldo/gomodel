@@ -80,14 +80,14 @@ func TestDateField(t *testing.T) {
 	})
 
 	t.Run("NoDefault", func(t *testing.T) {
-		if _, ok := field.DefaultVal(); ok {
+		if _, ok := field.DefaultValue(); ok {
 			t.Error("expected no default value")
 		}
 	})
 
 	t.Run("Default", func(t *testing.T) {
 		field.Default = time.Now()
-		val, ok := field.DefaultVal()
+		val, ok := field.DefaultValue()
 		if !ok {
 			t.Fatal("expected default value")
 		}
@@ -322,14 +322,14 @@ func TestTimeField(t *testing.T) {
 	})
 
 	t.Run("NoDefault", func(t *testing.T) {
-		if _, ok := field.DefaultVal(); ok {
+		if _, ok := field.DefaultValue(); ok {
 			t.Error("expected no default value")
 		}
 	})
 
 	t.Run("Default", func(t *testing.T) {
 		field.Default = time.Now()
-		val, ok := field.DefaultVal()
+		val, ok := field.DefaultValue()
 		if !ok {
 			t.Fatal("expected default value")
 		}
@@ -573,14 +573,14 @@ func TestDateTimeField(t *testing.T) {
 	})
 
 	t.Run("NoDefault", func(t *testing.T) {
-		if _, ok := field.DefaultVal(); ok {
+		if _, ok := field.DefaultValue(); ok {
 			t.Error("expected no default value")
 		}
 	})
 
 	t.Run("Default", func(t *testing.T) {
 		field.Default = time.Now()
-		val, ok := field.DefaultVal()
+		val, ok := field.DefaultValue()
 		if !ok {
 			t.Fatal("expected default value")
 		}

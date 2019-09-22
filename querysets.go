@@ -252,7 +252,7 @@ func (qs GenericQuerySet) load(start int64, end int64) ([]*Instance, error) {
 				val := reflect.Indirect(
 					reflect.ValueOf(recipients[i]),
 				).Interface()
-				instance.Set(name, val)
+				instance.Set(name, qs.model.fields[name].Value(val))
 			}
 		}
 		result = append(result, instance)
@@ -321,7 +321,7 @@ func (qs GenericQuerySet) Get(c Conditioner) (*Instance, error) {
 	if _, ok := container.(Setter); ok {
 		for i, name := range qs.fields {
 			val := reflect.Indirect(reflect.ValueOf(recipients[i])).Interface()
-			instance.Set(name, val)
+			instance.Set(name, qs.model.fields[name].Value(val))
 		}
 	}
 	return instance, nil

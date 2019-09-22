@@ -79,8 +79,8 @@ func (f CharField) DataType(driver string) string {
 	return fmt.Sprintf("VARCHAR(%d)", f.MaxLength)
 }
 
-// DefaultVal implements the DefaultVal method of the Field interface.
-func (f CharField) DefaultVal() (Value, bool) {
+// DefaultValue implements the DefaultValue method of the Field interface.
+func (f CharField) DefaultValue() (Value, bool) {
 	if f.Default != "" || f.DefaultEmpty {
 		return f.Default, true
 	}
@@ -190,8 +190,8 @@ func (f BooleanField) DataType(dvr string) string {
 	return "BOOLEAN"
 }
 
-// DefaultVal implements the DefaultVal method of the Field interface.
-func (f BooleanField) DefaultVal() (Value, bool) {
+// DefaultValue implements the DefaultValue method of the Field interface.
+func (f BooleanField) DefaultValue() (Value, bool) {
 	if f.Default {
 		return true, true
 	} else if f.DefaultFalse {
@@ -334,8 +334,8 @@ func (f IntegerField) DataType(dvr string) string {
 	return "INTEGER"
 }
 
-// DefaultVal implements the DefaultVal method of the Field interface.
-func (f IntegerField) DefaultVal() (Value, bool) {
+// DefaultValue implements the DefaultValue method of the Field interface.
+func (f IntegerField) DefaultValue() (Value, bool) {
 	if f.Default != 0 || f.DefaultZero {
 		return f.Default, true
 	}

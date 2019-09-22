@@ -68,7 +68,7 @@ func (m Manager) Create(values Container) (*Instance, error) {
 		}
 		if val, ok := getContainerField(values, name); ok {
 			dbVal = val
-		} else if val, hasDefault := field.DefaultVal(); hasDefault {
+		} else if val, hasDefault := field.DefaultValue(); hasDefault {
 			dbVal = val
 		}
 		if dbVal != nil {

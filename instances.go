@@ -129,7 +129,7 @@ func (i Instance) valueToSave(name string, creating bool) (Value, bool, error) {
 	}
 	if val, ok := getContainerField(i.container, name); ok {
 		return val, true, nil
-	} else if val, hasDefault := field.DefaultVal(); creating && hasDefault {
+	} else if val, hasDefault := field.DefaultValue(); creating && hasDefault {
 		if err := i.Set(name, val); err != nil {
 			return nil, false, err
 		}

@@ -78,14 +78,14 @@ func TestCharField(t *testing.T) {
 	})
 
 	t.Run("NoDefault", func(t *testing.T) {
-		if _, ok := field.DefaultVal(); ok {
+		if _, ok := field.DefaultValue(); ok {
 			t.Error("expected no default value")
 		}
 	})
 
 	t.Run("Default", func(t *testing.T) {
 		field.Default = "foo"
-		val, ok := field.DefaultVal()
+		val, ok := field.DefaultValue()
 		if !ok {
 			t.Fatal("expected default value")
 		}
@@ -246,14 +246,14 @@ func TestBooleanField(t *testing.T) {
 	})
 
 	t.Run("NoDefault", func(t *testing.T) {
-		if _, ok := field.DefaultVal(); ok {
+		if _, ok := field.DefaultValue(); ok {
 			t.Error("expected no default value")
 		}
 	})
 
 	t.Run("DefaultTrue", func(t *testing.T) {
 		field.Default = true
-		val, ok := field.DefaultVal()
+		val, ok := field.DefaultValue()
 		if !ok {
 			t.Fatal("expected default value")
 		}
@@ -265,7 +265,7 @@ func TestBooleanField(t *testing.T) {
 	t.Run("DefaultFalse", func(t *testing.T) {
 		field.Default = false
 		field.DefaultFalse = true
-		val, ok := field.DefaultVal()
+		val, ok := field.DefaultValue()
 		if !ok {
 			t.Fatal("expected default value")
 		}
@@ -426,14 +426,14 @@ func TestIntegerField(t *testing.T) {
 	})
 
 	t.Run("NoDefault", func(t *testing.T) {
-		if _, ok := field.DefaultVal(); ok {
+		if _, ok := field.DefaultValue(); ok {
 			t.Error("expected no default value")
 		}
 	})
 
 	t.Run("Default", func(t *testing.T) {
 		field.Default = 42
-		val, ok := field.DefaultVal()
+		val, ok := field.DefaultValue()
 		if !ok {
 			t.Fatal("expected default value")
 		}
@@ -445,7 +445,7 @@ func TestIntegerField(t *testing.T) {
 	t.Run("DefaultZero", func(t *testing.T) {
 		field.Default = 0
 		field.DefaultZero = true
-		val, ok := field.DefaultVal()
+		val, ok := field.DefaultValue()
 		if !ok {
 			t.Fatal("expected default value")
 		}

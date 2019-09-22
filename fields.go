@@ -30,8 +30,9 @@ type Field interface {
 	DBColumn(fieldName string) string
 	// DataType returns the field column type for the given driver.
 	DataType(driver string) string
-	// DefaultVal returns a default value for the field when hasDefault is true.
-	DefaultVal() (val Value, hasDefault bool)
+	// DefaultValue returns a default value for the field when hasDefault is
+	// true.
+	DefaultValue() (val Value, hasDefault bool)
 	// Recipient returns a pointer to the variable that will hold a field value
 	// coming from the database.
 	Recipient() interface{}

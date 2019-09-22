@@ -124,8 +124,8 @@ func (f DateField) DataType(dvr string) string {
 	return "DATE"
 }
 
-// DefaultVal implements the DefaultVal method of the Field interface.
-func (f DateField) DefaultVal() (Value, bool) {
+// DefaultValue implements the DefaultValue method of the Field interface.
+func (f DateField) DefaultValue() (Value, bool) {
 	if f.Default.IsZero() {
 		return f.Default, false
 	}
@@ -296,8 +296,8 @@ func (f TimeField) DataType(dvr string) string {
 	return "TIME"
 }
 
-// DefaultVal implements the DefaultVal method of the Field interface.
-func (f TimeField) DefaultVal() (Value, bool) {
+// DefaultValue implements the DefaultValue method of the Field interface.
+func (f TimeField) DefaultValue() (Value, bool) {
 	if f.Default.IsZero() {
 		return f.Default, false
 	}
@@ -470,8 +470,8 @@ func (f DateTimeField) DataType(dvr string) string {
 	return "DATETIME"
 }
 
-// DefaultVal implements the DefaultVal method of the Field interface.
-func (f DateTimeField) DefaultVal() (Value, bool) {
+// DefaultValue implements the DefaultValue method of the Field interface.
+func (f DateTimeField) DefaultValue() (Value, bool) {
 	if f.Default.IsZero() {
 		return f.Default, false
 	}
