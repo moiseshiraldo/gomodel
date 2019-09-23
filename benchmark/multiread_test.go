@@ -13,13 +13,13 @@ func loadMapQuerySet(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		users, err := User.Objects.Filter(
-			gomodel.Q{"firstName": "Anakin"},
+			gomodel.Q{"firstName": "Test"},
 		).Load()
 		if err != nil {
 			b.Fatal(err)
 		}
 		for _, user := range users {
-			fmt.Printf("%s", user.Get("email"))
+			fmt.Println(user.Display("email"))
 		}
 	}
 }
@@ -28,12 +28,12 @@ func loadStructQuerySet(b *testing.B) {
 	qs := User.Objects.WithContainer(userContainer{})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		users, err := qs.Filter(gomodel.Q{"firstName": "Anakin"}).Load()
+		users, err := qs.Filter(gomodel.Q{"firstName": "Test"}).Load()
 		if err != nil {
 			b.Fatal(err)
 		}
 		for _, user := range users {
-			fmt.Printf("%s", user.Get("email"))
+			fmt.Println(user.Display("email"))
 		}
 	}
 }
@@ -42,12 +42,12 @@ func loadBuilderQuerySet(b *testing.B) {
 	qs := User.Objects.WithContainer(&userBuilder{})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		users, err := qs.Filter(gomodel.Q{"firstName": "Anakin"}).Load()
+		users, err := qs.Filter(gomodel.Q{"firstName": "Test"}).Load()
 		if err != nil {
 			b.Fatal(err)
 		}
 		for _, user := range users {
-			fmt.Printf("%s", user.Get("email"))
+			fmt.Println(user.Display("email"))
 		}
 	}
 }
@@ -57,12 +57,12 @@ func loadRawSqlQuerySet(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		query := `
             SELECT
-              id, firstName, lastName, email, active, superuser, loginAttempts
+              id, firstName, lastName, email, active, loginAttempts, created
             FROM
               "main_user"
             WHERE
               firstName = ?`
-		rows, err := db.DB().Query(query, "Anakin")
+		rows, err := db.DB().Query(query, "Test")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -71,7 +71,7 @@ func loadRawSqlQuerySet(b *testing.B) {
 			user := userContainer{}
 			err = rows.Scan(
 				&user.Id, &user.FirstName, &user.LastName, &user.Email,
-				&user.Active, &user.Superuser, &user.LoginAttempts,
+				&user.Active, &user.LoginAttempts, &user.Created,
 			)
 			if err != nil {
 				b.Fatal(err)
@@ -83,7 +83,7 @@ func loadRawSqlQuerySet(b *testing.B) {
 			b.Fatal(err)
 		}
 		for _, user := range users {
-			fmt.Printf("%s", user.Email)
+			fmt.Println(user.Email)
 		}
 	}
 }
@@ -91,10 +91,9 @@ func loadRawSqlQuerySet(b *testing.B) {
 func BenchmarkMultiRead(b *testing.B) {
 	for i := 0; i < 100; i++ {
 		_, err := User.Objects.Create(gomodel.Values{
-			"firstName": "Anakin",
-			"lastName":  "Skywalker",
-			"email":     "anakin.skywalker@deathstar.com",
-			"superuser": true,
+			"firstName": "Test",
+			"lastName":  "User",
+			"email":     "user@test.com",
 		})
 		if err != nil {
 			b.Fatal(err)

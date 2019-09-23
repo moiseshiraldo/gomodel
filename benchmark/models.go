@@ -4,6 +4,7 @@ import (
 	"fmt"
 	_ "github.com/gwenn/gosqlite" // Loads sqlite driver.
 	"github.com/moiseshiraldo/gomodel"
+	"time"
 )
 
 // User defines a model to be used on benchmarks.
@@ -14,8 +15,8 @@ var User = gomodel.New(
 		"lastName":      gomodel.CharField{MaxLength: 50},
 		"email":         gomodel.CharField{MaxLength: 100},
 		"active":        gomodel.BooleanField{Default: true},
-		"superuser":     gomodel.BooleanField{DefaultFalse: true},
 		"loginAttempts": gomodel.IntegerField{DefaultZero: true},
+		"created":       gomodel.DateTimeField{AutoNowAdd: true},
 	},
 	gomodel.Options{},
 )
@@ -26,8 +27,8 @@ type userContainer struct {
 	LastName      string
 	Email         string
 	Active        bool
-	Superuser     bool
 	LoginAttempts int
+	Created       string
 }
 
 type userBuilder struct {
@@ -36,8 +37,8 @@ type userBuilder struct {
 	LastName      string
 	Email         string
 	Active        bool
-	Superuser     bool
 	LoginAttempts int32
+	Created       time.Time
 }
 
 func (u userBuilder) Get(key string) (gomodel.Value, bool) {
@@ -52,17 +53,19 @@ func (u userBuilder) Get(key string) (gomodel.Value, bool) {
 		return u.Email, true
 	case "active":
 		return u.Active, true
-	case "superuser":
-		return u.Superuser, true
 	case "loginAttempts":
 		return u.LoginAttempts, true
+	case "created":
+		return u.Created, true
 	default:
 		return nil, false
 	}
 }
 
 func (u *userBuilder) Set(
-	key string, val gomodel.Value, field gomodel.Field,
+	key string,
+	val gomodel.Value,
+	field gomodel.Field,
 ) error {
 	var err error
 	switch key {
@@ -76,10 +79,10 @@ func (u *userBuilder) Set(
 		u.Email = val.(string)
 	case "active":
 		u.Active = val.(bool)
-	case "superuser":
-		u.Superuser = val.(bool)
 	case "loginAttempts":
 		u.LoginAttempts = val.(int32)
+	case "created":
+		u.Created = val.(time.Time)
 	default:
 		err = fmt.Errorf("Field not found")
 	}

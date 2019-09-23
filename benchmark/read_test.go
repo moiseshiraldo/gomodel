@@ -11,11 +11,11 @@ import (
 func loadMapInstance(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		user, err := User.Objects.Get(gomodel.Q{"firstName": "Anakin"})
+		user, err := User.Objects.Get(gomodel.Q{"firstName": "Test"})
 		if err != nil {
 			b.Fatal(err)
 		}
-		fmt.Printf("%s", user.Get("email"))
+		fmt.Println(user.Display("email"))
 	}
 }
 
@@ -23,11 +23,11 @@ func loadStructInstance(b *testing.B) {
 	qs := User.Objects.WithContainer(userContainer{})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		user, err := qs.Get(gomodel.Q{"firstName": "Anakin"})
+		user, err := qs.Get(gomodel.Q{"firstName": "Test"})
 		if err != nil {
 			b.Fatal(err)
 		}
-		fmt.Printf("%s", user.Get("email"))
+		fmt.Println(user.Display("email"))
 	}
 }
 
@@ -35,11 +35,11 @@ func loadBuilderInstance(b *testing.B) {
 	qs := User.Objects.WithContainer(&userBuilder{})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		user, err := qs.Get(gomodel.Q{"firstName": "Anakin"})
+		user, err := qs.Get(gomodel.Q{"firstName": "Test"})
 		if err != nil {
 			b.Fatal(err)
 		}
-		fmt.Printf("%s", user.Get("email"))
+		fmt.Println(user.Display("email"))
 	}
 }
 
@@ -49,28 +49,27 @@ func loadRawSqlInstance(b *testing.B) {
 		user := userContainer{}
 		query := `
             SELECT
-              id, firstName, lastName, email, active, superuser, loginAttempts
+              id, firstName, lastName, email, active, loginAttempts, created
             FROM
               "main_user"
             WHERE
               firstName = ?`
-		err := db.DB().QueryRow(query, "Anakin").Scan(
+		err := db.DB().QueryRow(query, "Test").Scan(
 			&user.Id, &user.FirstName, &user.LastName, &user.Email,
-			&user.Active, &user.Superuser, &user.LoginAttempts,
+			&user.Active, &user.LoginAttempts, &user.Created,
 		)
 		if err != nil {
 			b.Fatal(err)
 		}
-		fmt.Printf("%s", user.Email)
+		fmt.Println(user.Email)
 	}
 }
 
 func BenchmarkRead(b *testing.B) {
 	_, err := User.Objects.Create(gomodel.Values{
-		"firstName": "Anakin",
-		"lastName":  "Skywalker",
-		"email":     "anakin.skywalker@deathstar.com",
-		"superuser": true,
+		"firstName": "Test",
+		"lastName":  "User",
+		"email":     "user@test.com",
 	})
 	if err != nil {
 		b.Fatal(err)

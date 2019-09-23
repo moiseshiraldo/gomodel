@@ -4,15 +4,15 @@ import (
 	_ "github.com/gwenn/gosqlite"
 	"github.com/moiseshiraldo/gomodel"
 	"testing"
+	"time"
 )
 
 func insertMapContainer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, err := User.Objects.Create(gomodel.Values{
-			"firstName": "Anakin",
-			"lastName":  "Skywalker",
-			"email":     "anakin.skywalker@deathstar.com",
-			"superuser": true,
+			"firstName": "Test",
+			"lastName":  "User",
+			"email":     "user@test.com",
 		})
 		if err != nil {
 			b.Fatal(err)
@@ -23,10 +23,9 @@ func insertMapContainer(b *testing.B) {
 func insertStructContainer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, err := User.Objects.Create(userContainer{
-			FirstName: "Anakin",
-			LastName:  "Skywalker",
-			Email:     "anakin.skywalker@deathstar.com",
-			Superuser: true,
+			FirstName: "Test",
+			LastName:  "User",
+			Email:     "user@test.com",
 		})
 		if err != nil {
 			b.Fatal(err)
@@ -37,10 +36,9 @@ func insertStructContainer(b *testing.B) {
 func insertBuilderContainer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, err := User.Objects.Create(userBuilder{
-			FirstName: "Anakin",
-			LastName:  "Skywalker",
-			Email:     "anakin.skywalker@deathstar.com",
-			Superuser: true,
+			FirstName: "Test",
+			LastName:  "User",
+			Email:     "user@test.com",
 		})
 		if err != nil {
 			b.Fatal(err)
@@ -53,23 +51,22 @@ func insertRawSqlContainer(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		user := userContainer{
-			FirstName:     "Anakin",
-			LastName:      "Skywalker",
-			Email:         "anakin.skywalker@deathstar.com",
-			Superuser:     true,
-			Active:        true,
-			LoginAttempts: 0,
+			FirstName: "Test",
+			LastName:  "User",
+			Email:     "user@test.com",
+			Active:    true,
+			Created:   time.Now().Format("2006-01-02 15:04:05"),
 		}
 		query := `
             INSERT INTO
               "main_user" (
-				  firstName, lastName, email, superuser, active, loginAttempts
+				  firstName, lastName, email, active, loginAttempts, created
 			  )
             VALUES
               ($1, $2, $3, $4, $5, $6)`
 		result, err := db.DB().Exec(
-			query, user.FirstName, user.LastName, user.Email, user.Superuser,
-			user.Active, user.LoginAttempts,
+			query, user.FirstName, user.LastName, user.Email, user.Active,
+			user.LoginAttempts, user.Created,
 		)
 		if err != nil {
 			b.Fatal(err)

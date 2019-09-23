@@ -8,13 +8,9 @@ import (
 
 func updateMapContainer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, err := User.Objects.Filter(
-			gomodel.Q{"firstName": "Anakin"},
-		).Update(gomodel.Values{
-			"firstName": "Darth",
-			"lastName":  "Vader",
-			"email":     "darth.vader@deathstar.com",
-		})
+		_, err := User.Objects.Filter(gomodel.Q{"firstName": "Test"}).Update(
+			gomodel.Values{"firstName": "Updated", "email": "updated@test.com"},
+		)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -23,13 +19,9 @@ func updateMapContainer(b *testing.B) {
 
 func updateStructContainer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, err := User.Objects.Filter(
-			gomodel.Q{"firstName": "Anakin"},
-		).Update(userContainer{
-			FirstName: "Darth",
-			LastName:  "Vader",
-			Email:     "darth.vader@deathstar.com",
-		})
+		_, err := User.Objects.Filter(gomodel.Q{"firstName": "Test"}).Update(
+			userContainer{FirstName: "Updated", Email: "updated@test.com"},
+		)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -38,13 +30,9 @@ func updateStructContainer(b *testing.B) {
 
 func updateBuilderContainer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, err := User.Objects.Filter(
-			gomodel.Q{"firstName": "Anakin"},
-		).Update(userBuilder{
-			FirstName: "Darth",
-			LastName:  "Vader",
-			Email:     "darth.vader@deathstar.com",
-		})
+		_, err := User.Objects.Filter(gomodel.Q{"firstName": "Test"}).Update(
+			userBuilder{FirstName: "Updated", Email: "updated@test.com"},
+		)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -58,11 +46,11 @@ func updateRawSqlContainer(b *testing.B) {
             UPDATE
               "main_user"
             SET
-              firstName = $1, lastName = $2, email = $3
+              firstName = $1, email = $2
             WHERE
-              firstName = $4`
+              firstName = $3`
 		_, err := db.DB().Exec(
-			query, "Darth", "Vader", "darth.vader@deathstar.com", "Anakin",
+			query, "Updated", "updated@test.com", "Test",
 		)
 		if err != nil {
 			b.Fatal(err)
@@ -73,10 +61,9 @@ func updateRawSqlContainer(b *testing.B) {
 func BenchmarkUpdate(b *testing.B) {
 	for i := 0; i < 100; i++ {
 		_, err := User.Objects.Create(gomodel.Values{
-			"firstName": "Anakin",
-			"lastName":  "Skywalker",
-			"email":     "anakin.skywalker@deathstar.com",
-			"superuser": true,
+			"firstName": "Test",
+			"lastName":  "User",
+			"email":     "user@test.com",
 		})
 		if err != nil {
 			b.Fatal(err)

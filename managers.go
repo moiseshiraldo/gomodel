@@ -65,8 +65,7 @@ func (m Manager) Create(values Container) (*Instance, error) {
 		var dbVal Value
 		if field.IsAutoNowAdd() {
 			dbVal = time.Now()
-		}
-		if val, ok := getContainerField(values, name); ok {
+		} else if val, ok := getContainerField(values, name); ok {
 			dbVal = val
 		} else if val, hasDefault := field.DefaultValue(); hasDefault {
 			dbVal = val

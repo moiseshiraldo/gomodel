@@ -367,8 +367,7 @@ func (qs GenericQuerySet) Update(container Container) (int64, error) {
 	for name, field := range qs.model.fields {
 		if field.IsAutoNow() {
 			dbValues[name] = time.Now()
-		}
-		if val, ok := getContainerField(container, name); ok {
+		} else if val, ok := getContainerField(container, name); ok {
 			dbValues[name] = val
 		}
 	}
