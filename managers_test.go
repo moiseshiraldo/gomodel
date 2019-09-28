@@ -124,11 +124,17 @@ func TestManager(t *testing.T) {
 		}
 	})
 
-	t.Run("CreateMissingDB", func(t *testing.T) {
+	t.Run("CreateOnMissingDB", func(t *testing.T) {
 		mockedEngine.Reset()
-		manager.database = "slave"
-		_, err := manager.Create(Values{"email": "user@test.com"})
-		manager.database = ""
+		_, err := manager.CreateOn("slave", Values{"email": "user@test.com"})
+		if _, ok := err.(*DatabaseError); !ok {
+			t.Errorf("expected DatabaseError, got %T", err)
+		}
+	})
+	
+	t.Run("CreateOnInvalidTarget", func(t *testing.T) {
+		mockedEngine.Reset()
+		_, err := manager.CreateOn(1234, Values{"email": "user@test.com"})
 		if _, ok := err.(*DatabaseError); !ok {
 			t.Errorf("expected DatabaseError, got %T", err)
 		}
@@ -136,10 +142,9 @@ func TestManager(t *testing.T) {
 
 	t.Run("CreateOnTx", func(t *testing.T) {
 		mockedEngine.Reset()
-		manager.tx = &Transaction{mockedEngine, Database{id: "default"}}
+		tx := &Transaction{mockedEngine, Database{id: "default"}}
 		mockedEngine.Results.InsertRow.Id = 23
-		instance, err := manager.Create(Values{"email": "user@test.com"})
-		manager.tx = nil
+		instance, err := manager.CreateOn(tx, Values{"email": "user@test.com"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -213,37 +218,6 @@ func TestManager(t *testing.T) {
 		}
 		if mocked.calls["WithContainer"] != 1 {
 			t.Error("expected queryset WithContainer method to be called")
-		}
-	})
-
-	t.Run("WithDB", func(t *testing.T) {
-		m := manager.WithDB("slave")
-		if m.database != "slave" {
-			t.Fatal("expected manager to be linked to slave db")
-		}
-		qs := m.GetQuerySet()
-		mocked, ok := qs.(mockedQuerySet)
-		if !ok {
-			t.Fatalf("expected mockedQuerySet, got %T", qs)
-		}
-		if mocked.database != "slave" {
-			t.Error("expected queryset to be linked to slave database")
-		}
-	})
-
-	t.Run("WithTx", func(t *testing.T) {
-		tx := &Transaction{}
-		m := manager.WithTx(tx)
-		if m.tx != tx {
-			t.Fatal("expected manager to be linked to transaction")
-		}
-		qs := m.GetQuerySet()
-		mocked, ok := qs.(mockedQuerySet)
-		if !ok {
-			t.Fatalf("expected mockedQuerySet, got %T", qs)
-		}
-		if mocked.tx != tx {
-			t.Error("expected queryset to be linked to transaction")
 		}
 	})
 

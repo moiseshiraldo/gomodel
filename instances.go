@@ -159,7 +159,7 @@ func (i Instance) insertRow(
 	fields ...string,
 ) error {
 	eng, dbName := i.engine(target)
-	if dbName == "" {
+	if eng == nil {
 		return &DatabaseError{Trace: i.trace(fmt.Errorf("invalid target"))}
 	}
 	dbValues := Values{}
@@ -189,7 +189,7 @@ func (i Instance) updateRow(
 	fields ...string,
 ) error {
 	eng, dbName := i.engine(target)
-	if dbName == "" {
+	if eng == nil {
 		return &DatabaseError{Trace: i.trace(fmt.Errorf("invalid target"))}
 	}
 	dbValues := Values{}
@@ -254,8 +254,8 @@ func (i Instance) SaveOn(target interface{}, fields ...string) error {
 // delete removes the object from the given database target.
 func (i Instance) delete(target interface{}) error {
 	eng, dbName := i.engine(target)
-	if dbName == "" {
-		return &DatabaseError{Trace: i.trace(fmt.Errorf("invalid target"))}
+	if eng == nil {
+		return &DatabaseError{dbName, i.trace(fmt.Errorf("invalid target"))}
 	}
 	pkVal, ok := i.GetIf("pk"); if !ok {
 		return &ContainerError{Trace: i.trace(fmt.Errorf("pk not found"))}

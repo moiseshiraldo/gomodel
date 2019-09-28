@@ -190,12 +190,14 @@ func (n Node) runOperations(db gomodel.Database) error {
 		}
 		op.SetState(prevState)
 	}
-	manager := Migration.Objects
-	if txSupport {
-		manager = Migration.Objects.WithTx(tx)
-	}
 	values := gomodel.Values{"app": n.App, "number": n.number, "name": n.name}
-	if _, err := manager.Create(values); err != nil {
+	var err error
+	if txSupport {
+		_, err = Migration.Objects.CreateOn(tx, values)
+	} else {
+		_, err = Migration.Objects.CreateOn(db.Id(), values)
+	}
+	if err != nil {
 		if txSupport {
 			txErr := tx.Rollback()
 			if txErr != nil {
@@ -309,13 +311,13 @@ func (n Node) backwardOperations(db gomodel.Database) error {
 			return &OperationRunError{ErrorTrace{&n, op, err}}
 		}
 	}
-	manager := Migration.Objects
+	conditions := gomodel.Q{"app": n.App, "number": n.number}
+	var err error
 	if txSupport {
-		manager = Migration.Objects.WithTx(tx)
+		_, err = Migration.Objects.Filter(conditions).WithTx(tx).Delete()
+	} else {
+		_, err = Migration.Objects.Filter(conditions).WithDB(db.Id()).Delete()
 	}
-	_, err := manager.Filter(
-		gomodel.Q{"app": n.App, "number": n.number},
-	).Delete()
 	if err != nil {
 		if txSupport {
 			if txErr := tx.Rollback(); txErr != nil {

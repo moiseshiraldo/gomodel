@@ -12,50 +12,34 @@ type Manager struct {
 	Model *Model
 	// QuerySet is the base queryset for the manager.
 	QuerySet QuerySet
-	database string
-	tx       *Transaction
 }
 
-// WithDB returns a new manager where all database query operations will be
-// applied on the database identified by the given name.
-func (m Manager) WithDB(database string) Manager {
-	m.database = database
-	return m
+// engine returns the Engine and database identifier for the given target,
+// nil and blank for invalid target.
+func (m Manager) engine(target interface{}) (Engine, string) {
+	switch t := target.(type) {
+	case *Transaction:
+		return t.Engine, t.DB.id
+	case string:
+		if db, ok := dbRegistry[t]; ok {
+			return db.Engine, t
+		}
+	}
+	return nil, ""
 }
 
-// WithTx returns a new manager where all database operations will be
-// applied on the given transaction.
-func (m Manager) WithTx(tx *Transaction) Manager {
-	m.tx = tx
-	return m
-}
-
-// Create makes a new object with the given values, saves it to the default
-// database and returns the instance representing the object.
-func (m Manager) Create(values Container) (*Instance, error) {
+// create adds a new object on the given target.
+func (m Manager) create(tar interface{}, values Container) (*Instance, error) {
 	container := m.Model.Container()
 	instance := &Instance{m.Model, container}
 	if !isValidContainer(values) {
 		err := fmt.Errorf("invalid values container")
 		return nil, &ContainerError{instance.trace(err)}
 	}
-	var engine Engine
-	var dbName string
-	if m.tx != nil {
-		engine = m.tx.Engine
-		dbName = m.tx.DB.id
-	} else {
-		database := m.database
-		if database == "" {
-			database = "default"
-		}
-		db, ok := dbRegistry[database]
-		if !ok {
-			trace := instance.trace(fmt.Errorf("db not found"))
-			return nil, &DatabaseError{database, trace}
-		}
-		engine = db.Engine
-		dbName = db.id
+	engine, dbName := m.engine(tar)
+	if engine == nil {
+		trace := instance.trace(fmt.Errorf("invalid target"))
+		return nil, &DatabaseError{dbName, trace}
 	}
 	dbValues := Values{}
 	for name, field := range m.Model.fields {
@@ -89,15 +73,24 @@ func (m Manager) Create(values Container) (*Instance, error) {
 	return instance, nil
 }
 
+// Create makes a new object with the given values, saves it to the default
+// database and returns the instance representing the object.
+func (m Manager) Create(values Container) (*Instance, error) {
+	return m.create("default", values)
+}
+
+// CreateOn works as Create, but saves the object on the given target, that can
+// be a *Transaction or a string representing a database identifier.
+func (m Manager) CreateOn(
+	target interface{},
+	values Container,
+) (*Instance, error) {
+	return m.create(target, values)
+}
+
 // GetQuerySet calls the New method of the base QuerySet and returns the result.
 func (m Manager) GetQuerySet() QuerySet {
-	qs := m.QuerySet.New(m.Model, m.QuerySet)
-	if m.tx != nil {
-		return qs.WithTx(m.tx)
-	} else if m.database != "" {
-		return qs.WithDB(m.database)
-	}
-	return qs
+	return m.QuerySet.New(m.Model, m.QuerySet)
 }
 
 // All returns a QuerySet representing all objects.
