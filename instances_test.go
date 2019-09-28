@@ -440,4 +440,55 @@ func TestInstanceSave(t *testing.T) {
 			}
 		}
 	})
+	
+	t.Run("Delete", func(t *testing.T) {
+		mockedEngine.Reset()
+		instance.container = Values{"id": 23, "email": "user@test.com"}
+		err := instance.Delete()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if mockedEngine.Calls("DeleteRows") != 1 {
+			t.Fatal("expected engine DeleteRows method to be called")
+		}
+		opt := mockedEngine.Args.DeleteRows.Options
+		if _, ok := opt.Conditioner.Conditions()["pk"]; !ok {
+			t.Error("query is missing pk condition")
+		}
+	})
+	
+	t.Run("DeleteNoPK", func(t *testing.T) {
+		mockedEngine.Reset()
+		instance.container = Values{"email": "user@test.com"}
+		err := instance.Delete()
+		if _, ok := err.(*ContainerError); !ok {
+			t.Errorf("expected ContainerError, got %T", err)
+		}
+	})
+	
+	t.Run("DeleteOn", func(t *testing.T) {
+		mockedEngine.Reset()
+		tx := &Transaction{Engine: mockedEngine, DB: Database{id: "default"}}
+		instance.container = Values{"id": 23, "email": "user@test.com"}
+		err := instance.DeleteOn(tx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if mockedEngine.Calls("DeleteRows") != 1 {
+			t.Fatal("expected engine DeleteRows method to be called")
+		}
+		opt := mockedEngine.Args.DeleteRows.Options
+		if _, ok := opt.Conditioner.Conditions()["pk"]; !ok {
+			t.Error("query is missing pk condition")
+		}
+	})
+	
+	t.Run("DeleteOnInvalidTarget", func(t *testing.T) {
+		mockedEngine.Reset()
+		instance.container = Values{"id": 23, "email": "user@test.com"}
+		err := instance.DeleteOn(false)
+		if _, ok := err.(*DatabaseError); !ok {
+			t.Errorf("expected DatabaseError, got %T", err)
+		}
+	})
 }

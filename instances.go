@@ -175,7 +175,7 @@ func (i Instance) insertRow(
 		return &DatabaseError{dbName, i.trace(err)}
 	}
 	if autoPk {
-		if err := i.Set(i.model.pk, pk); err != nil {
+		if err := i.Set("pk", pk); err != nil {
 			return err
 		}
 	}
@@ -204,7 +204,7 @@ func (i Instance) updateRow(
 			dbValues[name] = val
 		}
 	}
-	options := QueryOptions{Conditioner: Q{i.model.pk: pkVal}}
+	options := QueryOptions{Conditioner: Q{"pk": pkVal}}
 	rows, err := eng.UpdateRows(i.model, dbValues, options)
 	if err != nil {
 		return &DatabaseError{dbName, i.trace(err)}
@@ -223,7 +223,7 @@ func (i Instance) save(target interface{}, fields ...string) error {
 		}
 	}
 	autoPk := i.model.fields[i.model.pk].IsAuto()
-	pkVal := i.Get(i.model.pk)
+	pkVal := i.Get("pk")
 	if pkVal != nil {
 		zero := reflect.Zero(reflect.TypeOf(pkVal)).Interface()
 		if !(autoPk && pkVal == zero) {
@@ -249,4 +249,28 @@ func (i Instance) Save(fields ...string) error {
 // that can be a *Transaction or a string representing a database identifier.
 func (i Instance) SaveOn(target interface{}, fields ...string) error {
 	return i.save(target, fields...)
+}
+
+// delete removes the object from the given database target.
+func (i Instance) delete(target interface{}) error {
+	eng, dbName := i.engine(target)
+	if dbName == "" {
+		return &DatabaseError{Trace: i.trace(fmt.Errorf("invalid target"))}
+	}
+	pkVal, ok := i.GetIf("pk"); if !ok {
+		return &ContainerError{Trace: i.trace(fmt.Errorf("pk not found"))}
+	}
+	_, err := eng.DeleteRows(i.model, QueryOptions{Conditioner: Q{"pk": pkVal}})
+	return err
+}
+
+// Delete removes the object from the table on the default database.
+func (i Instance) Delete() error {
+	return i.delete("default")
+}
+
+// Delete removes the object from the table on the given target, that can be a
+// *Transaction or a string representing a database identifier.
+func (i Instance) DeleteOn(target interface{}) error {
+	return i.delete(target)
 }
