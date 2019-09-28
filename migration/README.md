@@ -1,19 +1,21 @@
 # Migrations
 
-The migration package provides the tools to detect and manage the changes made to application models, store them in version control and apply them to the database schema.
+The migration package provides the tools to detect and manage the changes made
+to application models, store them in version control and apply them to the
+database schema.
 
 1. [**Quick start**](#quick-start)
 2. [**Managing changes**](#managing-changes)
-   1. [Migration files](#migration-files)
-   2. [Automatic detection](#automatic-detection)
-   3. [Applying migrations](#apply-migrations)  
+   - [Migration files](#migration-files)
+   - [Automatic detection](#automatic-detection)
+   - [Applying migrations](#apply-migrations)  
 4. [**Supported operations**](#supported-operations)
-   1. [CreatedModel](#createmodel)
-   2. [DeleteModel](#deletemodel)
-   3. [AddFields](#addfields)
-   4. [RemoveFields](#removefields)
-   5. [AddIndex](#addindex)
-   6. [RemoveIndex](#removeindex)
+   - [CreatedModel](#createmodel)
+   - [DeleteModel](#deletemodel)
+   - [AddFields](#addfields)
+   - [RemoveFields](#removefields)
+   - [AddIndex](#addindex)
+   - [RemoveIndex](#removeindex)
 
 # Quick start
 
@@ -24,7 +26,7 @@ package main
 
 import (
     "fmt"
-    _ "github.com/gwenn/gosqlite"  // imports SQLite driver.
+    _ "github.com/gwenn/gosqlite"  // Imports SQLite driver.
     "github.com/moiseshiraldo/gomodel"
     "github.com/moiseshiraldo/gomodel/migration"
     "os"
@@ -33,8 +35,8 @@ import (
 var User = gomodel.New(
     "User",
     gomodel.Fields{
-        "email": gomodel.CharField{MaxLength: 100, Index: true},
-        "active": gomodel.BooleanField{DefaultFalse: true},
+        "email":   gomodel.CharField{MaxLength: 100, Index: true},
+        "active":  gomodel.BooleanField{DefaultFalse: true},
         "created": gomodel.DateTimeField{AutoNowAdd: true},
     },
     gomodel.Options{},
@@ -47,14 +49,14 @@ func setup() {
     gomodel.Start(map[string]gomodel.Database{
         "default": {
             Driver: "sqlite3",
-            Name: ":memory:",
+            Name:   ":memory:",
         },
     })
 }
 
 func main() {
     setup()
-    // Detects changes and write migration files.
+    // Detects changes and writes migration files.
     if _, err := migration.Make("main", migration.MakeOptions{}); err != nil {
         fmt.Println(err)
         os.Exit(1)
@@ -68,9 +70,14 @@ func main() {
 }
 ```
 
-Check the [MakeOptions](https://godoc.org/github.com/moiseshiraldo/gomodel/migration#MakeOptions) and [RunOptions](https://godoc.org/github.com/moiseshiraldo/gomodel/migration#RunOptions) documentation for more details.
+Check the [MakeOptions](https://godoc.org/github.com/moiseshiraldo/gomodel/migration#MakeOptions)
+and [RunOptions](https://godoc.org/github.com/moiseshiraldo/gomodel/migration#RunOptions)
+documentation for more details.
 
-If the database schema is not going to change, or you don't need to keep track of the changes (e.g. in-memory SQLite database), you can detect and apply all the changes directly using the [MakeAndRun](https://godoc.org/github.com/moiseshiraldo/gomodel/migration#MakeAndRun) function:
+If the database schema is not going to change, or you don't need to keep track
+of the changes (e.g. in-memory SQLite database), you can detect and apply all
+the changes directly using the [MakeAndRun](https://godoc.org/github.com/moiseshiraldo/gomodel/migration#MakeAndRun)
+function:
 
 ```go
 func main() {
@@ -83,19 +90,27 @@ func main() {
 
 # Managing changes
 
-When your project contains a considerable number of models that change over time, it's probably a good idea to keep track of the changes in the database schema along with those in the code.
+When your project contains a considerable number of models that change over
+time, it's probably a good idea to keep track of the database schema changes
+along with the code ones.
 
 ## Migration files
 
-GoModel will read and write the schema changes to the directory specified when you create and register an application:
+GoModel will read and write the schema changes to the directory specified when
+you create and register an application:
 
 ```go
 var app = gomodel.NewApp("main", "/home/dev/project/main/migrations", User.Model)
 ``` 
 
-If you specify a relative path, the full one will be constructed from `$GOPATH/src`. Each application must have a unique migrations path, that only contains JSON files following the naming convention `{number}_{name}.json`, where `number` is a four digit number representing the order of the node in the graph of changes and `name` can be any arbitrary name (e.g. `0001_initial.json`).
+If you specify a relative path, the full one will be constructed from
+`$GOPATH/src`. Each application must have a unique migrations path, that only
+contains JSON files following the naming convention `{number}_{name}.json`,
+where `number` is a four digit number representing the order of the node in the
+graph of changes and `name` can be any arbitrary name (e.g. `0001_initial.json`).
 
-You can create a new empty migration using the [Make](https://godoc.org/github.com/moiseshiraldo/gomodel/migration#Make) function:
+You can create a new empty migration using the [Make](https://godoc.org/github.com/moiseshiraldo/gomodel/migration#Make)
+function:
 
 ```go
 _, err := migration.Make("main", migration.MakeOptions{Empty: true})
@@ -119,11 +134,16 @@ The migration file will look something like this:
 }
 ``` 
 
-The `App` attribute is the name of the application. `Dependencies` is the list of migrations (application and full name) that should be applied before the described one. And `Operations` is the list of changes to be applied to the database schema (see [supported operations](#supported-operations)).
+The `App` attribute is the name of the application. `Dependencies` is the list
+of migrations (application and full name) that should be applied before the
+described one. And `Operations` is the list of changes to be applied to the
+database schema (see [supported operations](#supported-operations)).
 
 ## Automatic detection
 
-The [Make](https://godoc.org/github.com/moiseshiraldo/gomodel/migration#Make) function can be used to automatically detect any changes on the application models and write them to migration files:
+The [Make](https://godoc.org/github.com/moiseshiraldo/gomodel/migration#Make)
+function can be used to automatically detect any changes on the application
+models and write them to migration files:
 
 ```go
 if _, err := migration.Make("main", migration.MakeOptions{}); err != nil {
@@ -131,12 +151,15 @@ if _, err := migration.Make("main", migration.MakeOptions{}); err != nil {
 }
 ```
 
-The function will load and process the existing migration files, compare the resulted state with the
-model definitions and write any changes to new migration files.
+The function will load and process the existing migration files, compare the
+resulted state with the model definitions and write any changes to new
+migration files.
 
 ## Applying migrations
 
-The [Run](https://godoc.org/github.com/moiseshiraldo/gomodel/migration#Run) function can be used to apply changes from migration files to the database schema. For example:
+The [Run](https://godoc.org/github.com/moiseshiraldo/gomodel/migration#Run)
+function can be used to apply changes from migration files to the database
+schema. For example:
 
 ```go
 options := migration.RunOptions{
@@ -149,7 +172,9 @@ if _, err := migration.Run(options); err != nil {
 }
 ```
 
-The code above would apply the changes up to and including the second migration. If any migration greater than the second one was already applied, it would be reverted.
+The code above would apply the changes up to and including the second migration.
+If any migration greater than the second one was already applied, it would be
+reverted.
 
 # Supported operations 
 

@@ -257,7 +257,8 @@ func (i Instance) delete(target interface{}) error {
 	if eng == nil {
 		return &DatabaseError{dbName, i.trace(fmt.Errorf("invalid target"))}
 	}
-	pkVal, ok := i.GetIf("pk"); if !ok {
+	pkVal, ok := i.GetIf("pk")
+	if !ok {
 		return &ContainerError{Trace: i.trace(fmt.Errorf("pk not found"))}
 	}
 	_, err := eng.DeleteRows(i.model, QueryOptions{Conditioner: Q{"pk": pkVal}})

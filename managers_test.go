@@ -131,7 +131,7 @@ func TestManager(t *testing.T) {
 			t.Errorf("expected DatabaseError, got %T", err)
 		}
 	})
-	
+
 	t.Run("CreateOnInvalidTarget", func(t *testing.T) {
 		mockedEngine.Reset()
 		_, err := manager.CreateOn(1234, Values{"email": "user@test.com"})

@@ -440,7 +440,7 @@ func TestInstanceSave(t *testing.T) {
 			}
 		}
 	})
-	
+
 	t.Run("Delete", func(t *testing.T) {
 		mockedEngine.Reset()
 		instance.container = Values{"id": 23, "email": "user@test.com"}
@@ -456,7 +456,7 @@ func TestInstanceSave(t *testing.T) {
 			t.Error("query is missing pk condition")
 		}
 	})
-	
+
 	t.Run("DeleteNoPK", func(t *testing.T) {
 		mockedEngine.Reset()
 		instance.container = Values{"email": "user@test.com"}
@@ -465,7 +465,7 @@ func TestInstanceSave(t *testing.T) {
 			t.Errorf("expected ContainerError, got %T", err)
 		}
 	})
-	
+
 	t.Run("DeleteOn", func(t *testing.T) {
 		mockedEngine.Reset()
 		tx := &Transaction{Engine: mockedEngine, DB: Database{id: "default"}}
@@ -482,7 +482,7 @@ func TestInstanceSave(t *testing.T) {
 			t.Error("query is missing pk condition")
 		}
 	})
-	
+
 	t.Run("DeleteOnInvalidTarget", func(t *testing.T) {
 		mockedEngine.Reset()
 		instance.container = Values{"id": 23, "email": "user@test.com"}
