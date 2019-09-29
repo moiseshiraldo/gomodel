@@ -1,4 +1,4 @@
-# GoModel [![Build Status](https://travis-ci.org/moiseshiraldo/gomodel.svg?branch=master)](https://travis-ci.org/moiseshiraldo/gomodel) [![Test coverage status](https://codecov.io/gh/moiseshiraldo/gomodel/branch/master/graph/badge.svg)](https://codecov.io/gh/moiseshiraldo/gomodel) [![GoDoc](https://godoc.org/github.com/moiseshiraldo/gomodel?status.svg)](https://godoc.org/github.com/jinzhu/gorm)
+# GoModel ![GitHub release (latest by date)](https://img.shields.io/github/v/release/moiseshiraldo/gomodel) [![Build Status](https://travis-ci.org/moiseshiraldo/gomodel.svg?branch=master)](https://travis-ci.org/moiseshiraldo/gomodel) [![Test coverage status](https://codecov.io/gh/moiseshiraldo/gomodel/branch/master/graph/badge.svg)](https://codecov.io/gh/moiseshiraldo/gomodel) [![GoDoc](https://godoc.org/github.com/moiseshiraldo/gomodel?status.svg)](https://godoc.org/github.com/jinzhu/gorm)
 
 GoModel is an experimental project aiming to implement the features offered by the Python Django ORM using Go.
 
