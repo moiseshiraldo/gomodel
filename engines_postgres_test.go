@@ -171,17 +171,27 @@ func TestPostgresEngine(t *testing.T) {
 		}
 	})
 
+	t.Run("AddNotNullColumnNoDefault", func(t *testing.T) {
+		mockedDB.Reset()
+		fields := Fields{
+			"active": BooleanField{},
+		}
+		if err := engine.AddColumns(model, fields); err == nil {
+			t.Fatal("expected not null column no default error")
+		}
+	})
+
 	t.Run("AddColumns", func(t *testing.T) {
 		mockedDB.Reset()
 		fields := Fields{
-			"is_superuser": BooleanField{},
-			"created":      DateTimeField{AutoNowAdd: true},
+			"active":  BooleanField{DefaultFalse: true},
+			"updated": DateTimeField{AutoNow: true, Null: true},
 		}
 		if err := engine.AddColumns(model, fields); err != nil {
 			t.Fatal(err)
 		}
-		if len(mockedDB.queries) != 1 {
-			t.Fatalf("expected 1 queries, got %d", len(mockedDB.queries))
+		if len(mockedDB.queries) != 3 {
+			t.Fatalf("expected 3 queries, got %d", len(mockedDB.queries))
 		}
 		stmt := mockedDB.queries[0].Stmt
 		if !strings.HasPrefix(stmt, `ALTER TABLE "users_user" ADD COLUMN`) {
@@ -189,6 +199,16 @@ func TestPostgresEngine(t *testing.T) {
 				"expected query start: %s",
 				`ALTER TABLE "users_user" ADD COLUMN`,
 			)
+		}
+		expected := `UPDATE "users_user" SET "active" = $1`
+		stmt = mockedDB.queries[1].Stmt
+		if stmt != expected {
+			t.Errorf("expected:\n\n%s\n\ngot:\n\n%s", expected, stmt)
+		}
+		expected = `ALTER TABLE "users_user" ALTER COLUMN "active" SET NOT NULL`
+		stmt = mockedDB.queries[2].Stmt
+		if stmt != expected {
+			t.Errorf("expected:\n\n%s\n\ngot:\n\n%s", expected, stmt)
 		}
 	})
 

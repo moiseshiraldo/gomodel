@@ -97,5 +97,5 @@ func (op RemoveFields) Backwards(
 	for _, name := range op.Fields {
 		newFields[name] = fields[name]
 	}
-	return engine.AddColumns(state.Models[op.Model], newFields)
+	return engine.AddColumns(prevState.Models[op.Model], newFields)
 }

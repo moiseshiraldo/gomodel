@@ -298,17 +298,27 @@ func TestSqliteEngine(t *testing.T) {
 		}
 	})
 
+	t.Run("AddNotNullColumnNoDefault", func(t *testing.T) {
+		mockedDB.Reset()
+		fields := Fields{
+			"active": BooleanField{},
+		}
+		if err := engine.AddColumns(model, fields); err == nil {
+			t.Fatal("expected not null column no default error")
+		}
+	})
+
 	t.Run("AddColumns", func(t *testing.T) {
 		mockedDB.Reset()
 		fields := Fields{
-			"is_superuser": BooleanField{},
-			"created":      DateTimeField{AutoNowAdd: true},
+			"active":  BooleanField{DefaultFalse: true},
+			"updated": DateTimeField{AutoNow: true, Null: true},
 		}
 		if err := engine.AddColumns(model, fields); err != nil {
 			t.Fatal(err)
 		}
-		if len(mockedDB.queries) != 2 {
-			t.Fatalf("expected 2 queries, got %d", len(mockedDB.queries))
+		if len(mockedDB.queries) != 8 {
+			t.Fatalf("expected 8 queries, got %d", len(mockedDB.queries))
 		}
 		stmt := mockedDB.queries[0].Stmt
 		if !strings.HasPrefix(stmt, `ALTER TABLE "users_user" ADD COLUMN`) {
@@ -316,6 +326,43 @@ func TestSqliteEngine(t *testing.T) {
 				"expected query start: %s",
 				`ALTER TABLE "users_user" ADD COLUMN`,
 			)
+		}
+		expected := `UPDATE "users_user" SET "active" = ?`
+		stmt = mockedDB.queries[2].Stmt
+		if stmt != expected {
+			t.Errorf("expected:\n\n%s\n\ngot:\n\n%s", expected, stmt)
+		}
+		stmt = mockedDB.queries[3].Stmt
+		if !strings.HasPrefix(stmt, `CREATE TABLE "users_user__new"`) {
+			t.Fatalf(
+				"expected query start: %s",
+				`CREATE TABLE "users_user__new"`,
+			)
+		}
+		stmt = mockedDB.queries[4].Stmt
+		if !strings.HasPrefix(stmt, `INSERT INTO "users_user__new" SELECT`) {
+			t.Fatalf(
+				"expected query start: %s",
+				`INSERT INTO "users_user__new" SELECT"`,
+			)
+		}
+		stmt = mockedDB.queries[5].Stmt
+		if stmt != `DROP TABLE "users_user"` {
+			t.Fatalf(
+				"expected:\n\n%s\n\ngot:\n\n%s",
+				`DROP TABLE "users_user"`,
+				stmt,
+			)
+		}
+		stmt = mockedDB.queries[6].Stmt
+		expected = `ALTER TABLE "users_user__new" RENAME TO "users_user"`
+		if stmt != expected {
+			t.Fatalf("expected:\n\n%s\n\ngot:\n\n%s", expected, stmt)
+		}
+		stmt = mockedDB.queries[7].Stmt
+		expected = `CREATE INDEX "test_index" ON "users_user" ("email")`
+		if stmt != expected {
+			t.Fatalf("expected:\n\n%s\n\ngot:\n\n%s", expected, stmt)
 		}
 	})
 

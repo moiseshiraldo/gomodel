@@ -184,12 +184,10 @@ func (e baseSQLEngine) executor() sqlExecutor {
 }
 
 // sqlColumnOptions returns the options for a new column.
-func (e baseSQLEngine) sqlColumnOptions(field Field) string {
+func (e baseSQLEngine) sqlColumnOptions(field Field, forceNull bool) string {
 	options := []string{""}
 	if !field.IsAuto() {
-		if field.IsNull() {
-			options = append(options, "NULL")
-		} else {
+		if !forceNull && !field.IsNull() {
 			options = append(options, "NOT NULL")
 		}
 	}
@@ -224,7 +222,7 @@ func (e baseSQLEngine) CreateTable(model *Model, force bool) error {
 			"%s %s%s",
 			e.escape(field.DBColumn(name)),
 			field.DataType(e.driver),
-			e.sqlColumnOptions(field),
+			e.sqlColumnOptions(field, false),
 		)
 		columns = append(columns, sqlColumn)
 	}
@@ -283,13 +281,16 @@ func (e baseSQLEngine) DropIndex(model *Model, name string) error {
 // AddColumns implements the AddColumns method of the Engine interface.
 func (e baseSQLEngine) AddColumns(model *Model, fields Fields) error {
 	addColumns := make([]string, 0, len(fields))
+	notNullFields := make([]string, 0, len(fields))
 	for name, field := range fields {
-
+		if !field.IsNull() {
+			notNullFields = append(notNullFields, name)
+		}
 		addColumn := fmt.Sprintf(
 			"ADD COLUMN %s %s %s",
 			e.escape(field.DBColumn(name)),
 			field.DataType(e.driver),
-			e.sqlColumnOptions(field),
+			e.sqlColumnOptions(field, true),
 		)
 		addColumns = append(addColumns, addColumn)
 	}
@@ -297,8 +298,38 @@ func (e baseSQLEngine) AddColumns(model *Model, fields Fields) error {
 		"ALTER TABLE %s %s",
 		e.escape(model.Table()), strings.Join(addColumns, ", "),
 	)
-	_, err := e.executor().Exec(stmt)
-	return err
+	if _, err := e.executor().Exec(stmt); err != nil {
+		return err
+	}
+	if len(notNullFields) > 0 {
+		values := Values{}
+		setColumns := make([]string, 0, len(notNullFields))
+		for _, name := range notNullFields {
+			field := fields[name]
+			val, ok := field.DefaultValue()
+			if !ok {
+				return fmt.Errorf(
+					"%s: cannot add not null column without default", name,
+				)
+			}
+			values[name] = val
+			setColumn := fmt.Sprintf(
+				"ALTER COLUMN %s SET NOT NULL", e.escape(field.DBColumn(name)),
+			)
+			setColumns = append(setColumns, setColumn)
+		}
+		if _, err := e.UpdateRows(model, values, QueryOptions{}); err != nil {
+			return err
+		}
+		stmt := fmt.Sprintf(
+			"ALTER TABLE %s %s",
+			e.escape(model.Table()), strings.Join(setColumns, ", "),
+		)
+		if _, err := e.executor().Exec(stmt); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // DropColumns implements the DropColumns method of the Engine interface.

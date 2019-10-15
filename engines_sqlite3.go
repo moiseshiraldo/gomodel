@@ -49,8 +49,14 @@ func (e SqliteEngine) BeginTx() (Engine, error) {
 // columns.
 func (e SqliteEngine) copyTable(m *Model, name string, fields ...string) error {
 	modelCopy := &Model{fields: Fields{}, meta: Options{Table: name}}
-	for _, name := range fields {
-		modelCopy.fields[name] = m.fields[name]
+	if len(fields) > 0 {
+		for _, name := range fields {
+			modelCopy.fields[name] = m.fields[name]
+		}
+	} else {
+		for name, field := range m.fields {
+			modelCopy.fields[name] = field
+		}
 	}
 	if err := e.CreateTable(modelCopy, true); err != nil {
 		return err
@@ -69,16 +75,52 @@ func (e SqliteEngine) copyTable(m *Model, name string, fields ...string) error {
 
 // AddColumns implements the AddColumns method of the Engine interface.
 func (e SqliteEngine) AddColumns(model *Model, fields Fields) error {
+	notNullFields := make([]string, 0, len(fields))
 	for name, field := range fields {
+		if !field.IsNull() {
+			notNullFields = append(notNullFields, name)
+		}
 		stmt := fmt.Sprintf(
 			"ALTER TABLE %s ADD COLUMN %s %s %s",
 			e.escape(model.Table()),
 			e.escape(field.DBColumn(name)),
 			field.DataType("sqlite3"),
-			e.sqlColumnOptions(field),
+			e.sqlColumnOptions(field, true),
 		)
 		if _, err := e.executor().Exec(stmt); err != nil {
 			return err
+		}
+	}
+	if len(notNullFields) > 0 {
+		values := Values{}
+		for _, name := range notNullFields {
+			field := fields[name]
+			val, ok := field.DefaultValue()
+			if !ok {
+				return fmt.Errorf(
+					"%s: cannot add not null column without default", name,
+				)
+			}
+			values[name] = val
+		}
+		if _, err := e.UpdateRows(model, values, QueryOptions{}); err != nil {
+			return err
+		}
+		copyName := fmt.Sprintf("%s__new", model.Table())
+		if err := e.copyTable(model, copyName); err != nil {
+			return err
+		}
+		if err := e.DropTable(model); err != nil {
+			return err
+		}
+		copyModel := &Model{meta: Options{Table: copyName}}
+		if err := e.RenameTable(copyModel, model); err != nil {
+			return err
+		}
+		for idxName, fields := range model.Indexes() {
+			if err := e.AddIndex(model, idxName, fields...); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -97,15 +139,14 @@ func (e SqliteEngine) DropColumns(model *Model, fields ...string) error {
 	for name, field := range oldFields {
 		keepCols = append(keepCols, field.DBColumn(name))
 	}
-	table := model.Table()
-	copyTable := table + "__new"
-	if err := e.copyTable(model, copyTable, keepCols...); err != nil {
+	copyName := fmt.Sprintf("%s__new", model.Table())
+	if err := e.copyTable(model, copyName, keepCols...); err != nil {
 		return err
 	}
 	if err := e.DropTable(model); err != nil {
 		return err
 	}
-	copyModel := &Model{meta: Options{Table: copyTable}}
+	copyModel := &Model{meta: Options{Table: copyName}}
 	if err := e.RenameTable(copyModel, model); err != nil {
 		return err
 	}
